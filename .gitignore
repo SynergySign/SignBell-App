@@ -1,8 +1,12 @@
 
 .DS_Store
 .env
-.idea
+.idea/
 .idea/*
+
+backend/target/
+frontend/node_modules/
+frontend/build/
 
 
 README.md
