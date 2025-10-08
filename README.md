@@ -1,2 +1,2 @@
 # SignBell-App
-for Machine Learning/Backend/Frontend development SignBell repository
+for Backend/Frontend development SignBell repository
