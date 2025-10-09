@@ -1,0 +1,67 @@
+server:
+  port: ${SERVER_PORT}
+
+spring:
+  # database setting
+  datasource:
+    url: jdbc:mariadb://localhost:3306/signbell
+    username: root
+    password: mariadb
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    defer-datasource-initialization: true
+
+    # DBMS dialect setting
+    database-platform: org.hibernate.dialect.MariaDB106Dialect
+    hibernate:
+      # ddl
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        format_sql: true # SQL log
+    database: mysql
+
+  # OAuth2 setting
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            scope: [ profile_nickname, profile_image ]
+            # 카카오로그인 - 일반 - 리다이렉트 URI
+            redirect-uri: 'http://localhost:9000/login/oauth2/code/kakao'
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+logging:
+  level:
+    app.signbell.backend: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG
+
+cookie:
+  domain: localhost
+  secure: false
+  http-only: true
+  same-site: Lax
+  access-token-name: ACCESS_TOKEN
+  refresh-token-name: REFRESH_TOKEN
+  access-max-age: ${COOKIE_ACCESS_TOKEN_MAX_AGE}
+  refresh-max-age: ${COOKIE_REFRESH_TOKEN_MAX_AGE}
+
+app:
+  # OAuth2 로그인 성공 프론트 리다이렉트 url
+  oauth2-success-redirect-url: http://localhost:5173/app
+  # OAuth2 로그인 실패 프론트 리다이렉트 url
+  oauth2-failure-redirect-url: http://localhost:5173?from=oauth2
