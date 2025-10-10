@@ -1,26 +1,24 @@
 server:
-  port: ${SERVER_PORT}
+  port: ${PORT:8080}
 
 spring:
   # database setting
   datasource:
-    url: jdbc:mariadb://localhost:3306/signbell
-    username: root
-    password: mariadb
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.mariadb.jdbc.Driver
 
   jpa:
-    defer-datasource-initialization: true
-
-    # DBMS dialect setting
-    database-platform: org.hibernate.dialect.MariaDB106Dialect
     hibernate:
-      # ddl
-      ddl-auto: create-drop
+      # 엔티티와 DB 스키마가 일치하는지만 검증
+      # 테이블을 생성하거나 수정 x
+      ddl-auto: validate  # 또는 none
+    # SQL 쿼리를 콘솔에 출력 x
+    show-sql: false
     properties:
       hibernate:
-        format_sql: true # SQL log
-    database: mysql
+        dialect: org.hibernate.dialect.MariaDBDialect
 
   # OAuth2 setting
   security:
@@ -34,7 +32,7 @@ spring:
             authorization-grant-type: authorization_code
             scope: [ profile_nickname, profile_image ]
             # 카카오로그인 - 일반 - 리다이렉트 URI
-            redirect-uri: 'http://localhost:9000/login/oauth2/code/kakao'
+            redirect-uri: ${KAKAO_PROD_REDIRECT_URI}
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
@@ -44,17 +42,15 @@ spring:
 
 logging:
   level:
-    app.signbell.backend: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.security: DEBUG
+    app.signbell.backend: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
 
 cookie:
-  domain: localhost
-  secure: false
-  http-only: true
-  same-site: Lax
+  domain: ${COOKIE_DOMAIN}
+  secure: true     # HTTPS에서만 쿠키 전송
+  http-only: true  # XSS 방어
+  same-site: None  # 크로스 도메인 허용
   access-token-name: ACCESS_TOKEN
   refresh-token-name: REFRESH_TOKEN
   access-max-age: ${COOKIE_ACCESS_TOKEN_MAX_AGE}
