@@ -1,8 +1,12 @@
 spring:
   application:
     name: backend
-  datasource:
-    url: jdbc:mariadb://localhost:3306/testdb
-    username: root
-    password: mariadb
-    driver-class-name: org.mariadb.jdbc.Driver
+  profiles:
+    active: dev
+
+# 공통 설정
+jwt:
+  secret: ${JWT_SECRET}
+  access-expiration: ${JWT_ACCESS_TOKEN_EXPIRATION}
+  refresh-expiration: ${JWT_REFRESH_TOKEN_EXPIRATION}
+# OAuth2, cookie 설정은 프로파일별 파일에서 관리

@@ -1,0 +1,63 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  # database setting
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  jpa:
+    hibernate:
+      # 엔티티와 DB 스키마가 일치하는지만 검증
+      # 테이블을 생성하거나 수정 x
+      ddl-auto: validate  # 또는 none
+    # SQL 쿼리를 콘솔에 출력 x
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MariaDBDialect
+
+  # OAuth2 setting
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${KAKAO_CLIENT_ID}
+            client-secret: ${KAKAO_CLIENT_SECRET}
+            client-authentication-method: client_secret_post
+            authorization-grant-type: authorization_code
+            scope: [ profile_nickname, profile_image ]
+            # 카카오로그인 - 일반 - 리다이렉트 URI
+            redirect-uri: ${KAKAO_PROD_REDIRECT_URI}
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
+
+logging:
+  level:
+    app.signbell.backend: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+
+cookie:
+  domain: ${COOKIE_DOMAIN}
+  secure: true     # HTTPS에서만 쿠키 전송
+  http-only: true  # XSS 방어
+  same-site: None  # 크로스 도메인 허용
+  access-token-name: ACCESS_TOKEN
+  refresh-token-name: REFRESH_TOKEN
+  access-max-age: ${COOKIE_ACCESS_TOKEN_MAX_AGE}
+  refresh-max-age: ${COOKIE_REFRESH_TOKEN_MAX_AGE}
+
+app:
+  # OAuth2 로그인 성공 프론트 리다이렉트 url
+  oauth2-success-redirect-url: ${APP_OAUTH2_SUCCESS_REDIRECT_URL}
+  # OAuth2 로그인 실패 프론트 리다이렉트 url
+  oauth2-failure-redirect-url: ${APP_OAUTH2_FAILURE_REDIRECT_URL}
