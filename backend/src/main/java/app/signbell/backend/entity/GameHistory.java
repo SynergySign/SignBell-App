@@ -8,6 +8,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
+/**
+ * GameHistory 클래스는 특정 게임방에서의 게임 진행 기록을 관리하기 위한 엔티티입니다.
+ * 각 레코드는 게임방, 참여 유저, 획득 점수, 회차 정보와 생성 및 수정 시간 등의 데이터를 포함합니다.
+ *
+ * @author 고동현
+ * @since 2025-10-12
+ */
 @Entity
 @Table(name = "game_history")
 @Getter

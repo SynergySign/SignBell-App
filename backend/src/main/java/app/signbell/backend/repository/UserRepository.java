@@ -4,5 +4,17 @@ package app.signbell.backend.repository;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * UserRepository 인터페이스는 사용자 정보(User 엔티티)에 대한 데이터베이스 CRUD 작업을 처리하기 위해
+ * Spring Data JPA에서 제공하는 JpaRepository를 확장한 인터페이스입니다.
+ *
+ * 주요 기능:
+ * - 기본적으로 JpaRepository에서 제공하는 메서드를 활용하여 사용자 데이터를 저장, 조회, 수정, 삭제할 수 있습니다.
+ * - User 엔티티는 데이터베이스의 user 테이블과 매핑됩니다.
+ * - Long 타입의 사용자 고유 ID(user_id)를 기본 키로 사용합니다.
+ *
+ * @author 고동현
+ * @since 2025-10-12
+ */
 public interface UserRepository extends JpaRepository<User, Long> {
 }

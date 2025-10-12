@@ -8,6 +8,13 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
+/**
+ * GameRoom 클래스는 게임방 정보를 관리하는 엔티티입니다.
+ * 해당 클래스는 데이터베이스의 game_room 테이블과 매핑되며,
+ * 게임방의 제목, 방장, 최대/현재 인원, 상태값 등 주요 정보를 포함하고 있습니다.
+ * @author 고동현
+ * @since 2025-10-12
+ */
 @Entity
 @Table(name = "game_room")
 @Getter
