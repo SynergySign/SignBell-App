@@ -7,6 +7,13 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
+/**
+ * GameParticipant 클래스는 게임 대기실 참여자를 나타내는 엔티티로,
+ * 사용자의 참여 정보와 참가 상태를 관리합니다. 또한 게임방과 사용자와의
+ * 관계를 설정하며 게임 내 역할 정보를 포함합니다.
+ * @author 고동현
+ * @since 2025-10-12
+ */
 @Entity
 @Table(name = "game_participant")
 @Getter
