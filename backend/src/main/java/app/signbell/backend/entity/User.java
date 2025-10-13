@@ -43,6 +43,12 @@ public class User {
     private LoginMethod loginMethod;
 
     /**
+     * 사용자 누적 점수
+     */
+    @Column(name = "total_score", nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private Long totalScore;
+
+    /**
      * 가입 시간
      */
     @CreationTimestamp
@@ -60,5 +66,14 @@ public class User {
         this.nickname = nickname;
         this.email = email;
         this.loginMethod = loginMethod;
+        this.totalScore = 0L; // 빌더 생성 시 기본값 0으로 초기화
+    }
+
+    /**
+     * 사용자의 누적 점수를 업데이트하는 편의 메서드입니다.
+     * @param score 게임 라운드에서 획득한 점수
+     */
+    public void updateTotalScore(int score) {
+        this.totalScore += score;
     }
 }

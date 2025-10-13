@@ -53,6 +53,12 @@ public class GameRoom {
     private GameRoomStatus status;
 
     /**
+     * 현재 라운드
+     */
+    @Column(nullable = false)
+    private Integer currentRound = 1;
+
+    /**
      * 생성 시간
      */
     @CreationTimestamp
@@ -64,4 +70,13 @@ public class GameRoom {
      */
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    // --- 편의 메서드 ---
+
+    /**
+     * 다음 라운드로 진행시킵니다.
+     */
+    public void proceedToNextRound() {
+        this.currentRound++;
+    }
 }

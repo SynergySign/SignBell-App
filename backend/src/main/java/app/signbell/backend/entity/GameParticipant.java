@@ -2,6 +2,7 @@ package app.signbell.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -48,6 +49,12 @@ public class GameParticipant {
     private boolean isHost;
 
     /**
+     * 현재 라운드
+     */
+    @Column(nullable = false)
+    private Integer currentRound = 1;
+
+    /**
      * 입장 시각
      */
     private LocalDateTime joinedAt;
@@ -57,4 +64,23 @@ public class GameParticipant {
      */
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+    // --- Builder 및 편의 메서드 ---
+
+    @Builder
+    public GameParticipant(GameRoom gameRoom, User participant, boolean isHost) {
+        this.gameRoom = gameRoom;
+        this.participant = participant;
+        this.isHost = isHost;
+        this.isReady = isHost; // 방장은 기본적으로 준비 상태
+        this.joinedAt = LocalDateTime.now();
+        this.currentRound = gameRoom.getCurrentRound(); // 참여 시점의 게임방 라운드로 설정
+    }
+
+    /**
+     * 참여자의 라운드를 게임방의 현재 라운드와 동기화합니다.
+     */
+    public void syncRound() {
+        this.currentRound = this.gameRoom.getCurrentRound();
+    }
 }
