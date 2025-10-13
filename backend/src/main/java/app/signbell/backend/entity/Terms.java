@@ -8,6 +8,16 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
+/**
+ * Terms 클래스는 약관 정보를 관리하는 엔티티입니다.
+ * 해당 클래스는 데이터베이스의 terms 테이블과 매핑되며,
+ * 약관의 ID, 제목, 내용, 버전, 필수 여부, 생성 및 수정 시간 정보를 포함하고 있습니다.
+ *
+ * 이 클래스는 약관 데이터의 저장, 조회, 수정, 관리를 위해 사용됩니다.
+ *
+ * @author 고동현
+ * @since 2025-10-12
+ */
 @Entity
 @Table(name = "terms")
 @Getter

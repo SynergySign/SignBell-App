@@ -4,5 +4,18 @@ package app.signbell.backend.repository;
 import app.signbell.backend.entity.QuizWord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+/**
+ * QuizWordRepository 인터페이스는 퀴즈 단어 정보(QuizWord 엔티티)에 대한 데이터베이스 CRUD 작업을 처리하기 위해
+ * Spring Data JPA에서 제공하는 JpaRepository를 확장한 인터페이스입니다.
+ *
+ * 주요 기능:
+ * - JpaRepository를 통해 QuizWord 데이터를 저장, 조회, 수정, 삭제할 수 있습니다.
+ * - QuizWord 엔티티는 데이터베이스의 quiz_word 테이블과 매핑됩니다.
+ * - Long 타입의 고유 ID(quiz_word_id)를 기본 키로 사용합니다.
+ * - 퀴즈에 사용될 단어와 관련된 정보 관리 및 처리에 사용됩니다.
+ *
+ * @author 고동현
+ * @since 2025-10-12
+ */
 public interface QuizWordRepository extends JpaRepository<QuizWord, Long> {
 }
