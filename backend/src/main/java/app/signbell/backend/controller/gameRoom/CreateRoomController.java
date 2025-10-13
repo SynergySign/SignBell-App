@@ -58,7 +58,7 @@ public class CreateRoomController {
             Long userId = Long.valueOf(subject); // subject(String)를 Long으로 변환
             CreateRoomResponse response = createRoomService.createRoom(request, userId);
 
-            ApiResponse<CreateRoomResponse> apiResponse = ApiResponse.success("모임이 성공적으로 생성되었습니다.", response);
+            ApiResponse<CreateRoomResponse> apiResponse = ApiResponse.success("퀴즈 방이 성공적으로 생성되었습니다.", response);
 
             return ResponseEntity.ok(apiResponse);
         } catch (NumberFormatException e) {
