@@ -42,6 +42,18 @@ public class CreateRoomService {
     private final GameRoomRepository gameRoomRepository;
     private final GameParticipantRepository gameParticipantRepository;
 
+    /**
+     * 게임 방을 생성하는 메서드.
+     *
+     * 주어진 사용자 ID와 요청 정보를 기반으로 새로운 게임 방을 생성합니다.
+     * 사용자가 중복으로 다른 방에 참여 중인지 확인한 후, 게임 방을 생성하고
+     * 해당 사용자를 방장으로 등록합니다. 생성된 방의 정보를 응답 객체로 반환합니다.
+     *
+     * @param request 방 생성 요청 정보를 담고 있는 객체. 방 제목 등 필요한 데이터를 포함합니다.
+     * @param userId 게임 방을 생성하려는 사용자의 ID.
+     * @return 생성된 게임 방의 정보를 포함하는 응답 객체.
+     * @throws BusinessException 사용자가 존재하지 않거나 이미 다른 방에 참여 중인 경우 발생.
+     */
     public CreateRoomResponse createRoom(CreateRoomRequest request, Long userId) {
 
         // 1. 사용자 조회
