@@ -61,7 +61,6 @@ public class GameParticipant {
     @Column(nullable = false)
     private Integer currentRound = 1;
 
-
     /**
      * 입장 시각
      */
@@ -91,5 +90,4 @@ public class GameParticipant {
     public void syncRound() {
         this.currentRound = this.gameRoom.getCurrentRound();
     }
-
 }

@@ -2,6 +2,7 @@ package app.signbell.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -78,6 +79,15 @@ public class GameRoom {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    @Builder
+    public GameRoom(String gameTitle, User host, GameRoomStatus status) {
+        this.gameTitle = gameTitle;
+        this.host = host;
+        this.status = status;
+        this.maxParticipants = 4;
+        this.currentParticipants = 1;
+        this.currentRound = 1;
+    }
 
     // --- 편의 메서드 ---
 
@@ -87,6 +97,4 @@ public class GameRoom {
     public void proceedToNextRound() {
         this.currentRound++;
     }
-
-
 }

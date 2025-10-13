@@ -2,6 +2,7 @@
 package app.signbell.backend.repository;
 
 import app.signbell.backend.entity.GameRoom;
+import app.signbell.backend.repository.custom.GameRoomRepositoryCustom;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -14,8 +15,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * - Long 타입의 게임방 고유 ID(game_room_id)를 기본 키로 사용합니다.
  *
  * 이 인터페이스를 통해 게임방 데이터를 효율적으로 관리할 수 있습니다.
- * @author 고동현
+ * @author 고동현, 강관주
  * @since 2025-10-12
  */
-public interface GameRoomRepository extends JpaRepository<GameRoom, Long> {
+public interface GameRoomRepository extends JpaRepository<GameRoom, Long>, GameRoomRepositoryCustom {
 }
