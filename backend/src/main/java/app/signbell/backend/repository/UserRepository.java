@@ -1,8 +1,11 @@
 
 package app.signbell.backend.repository;
 
+import app.signbell.backend.entity.LoginMethod;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.Optional;
 
 /**
  * UserRepository 인터페이스는 사용자 정보(User 엔티티)에 대한 데이터베이스 CRUD 작업을 처리하기 위해
@@ -17,4 +20,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * @since 2025-10-12
  */
 public interface UserRepository extends JpaRepository<User, Long> {
+    //    Optional<User> findByProviderAndProviderId(String provider, String providerId);
+
+    /**
+     * Stiring -> LoginMetiond로 provider의 자료형 변환
+     * 주어진 로그인 제공업체와 해당 제공업체 ID를 기반으로 사용자를 조회합니다.
+     *
+     * @param provider 로그인에 사용된 외부 제공업체 (예: Google, Kakao, Naver 등)의 종류
+     * @param providerId 해당 제공업체가 부여한 사용자 고유 ID
+     * @return 조건에 맞는 사용자(User) 객체를 감싸는 Optional. 사용자가 발견되지 않으면 Optional.empty()를 반환
+     */
+    Optional<User> findByProviderAndProviderId(LoginMethod provider, String providerId);
 }
