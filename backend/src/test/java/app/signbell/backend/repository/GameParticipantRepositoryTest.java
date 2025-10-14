@@ -64,13 +64,15 @@ public class GameParticipantRepositoryTest {
         testUser = userRepository.save(User.builder()
                 .nickname("testUser")
                 .email("test@example.com")
-                .loginMethod(LoginMethod.KAKAO)
+                .provider(LoginMethod.KAKAO)
+                .providerId("123")
                 .build());
 
         otherUser = userRepository.save(User.builder()
                 .nickname("otherUser")
                 .email("other@example.com")
-                .loginMethod(LoginMethod.KAKAO)
+                .provider(LoginMethod.KAKAO)
+                .providerId("456")
                 .build());
     }
 

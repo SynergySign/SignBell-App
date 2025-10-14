@@ -75,7 +75,8 @@ class CreateRoomServiceTest {
         testUser = User.builder()
                 .nickname("testUser")
                 .email("test@example.com")
-                .loginMethod(LoginMethod.KAKAO)
+                .provider(LoginMethod.KAKAO)
+                .providerId("123")
                 .build();
         testUser = userRepository.save(testUser);
     }
@@ -173,14 +174,16 @@ class CreateRoomServiceTest {
         User user2 = User.builder()
                 .nickname("testUser2")
                 .email("test2@example.com")
-                .loginMethod(LoginMethod.KAKAO)
+                .provider(LoginMethod.KAKAO)
+                .providerId("456")
                 .build();
         user2 = userRepository.save(user2);
 
         User user3 = User.builder()
                 .nickname("testUser3")
                 .email("test3@example.com")
-                .loginMethod(LoginMethod.KAKAO)
+                .provider(LoginMethod.KAKAO)
+                .providerId("789")
                 .build();
         user3 = userRepository.save(user3);
 
