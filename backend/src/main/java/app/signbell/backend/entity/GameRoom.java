@@ -79,6 +79,13 @@ public class GameRoom {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
+    /**
+     * GameRoom 생성자를 통해 게임방을 초기화합니다.
+     *
+     * @param gameTitle 게임방 제목
+     * @param host 게임방 방장
+     * @param status 게임방 상태값 (대기중/진행중/종료)
+     */
     @Builder
     public GameRoom(String gameTitle, User host, GameRoomStatus status) {
         this.gameTitle = gameTitle;
@@ -96,5 +103,21 @@ public class GameRoom {
      */
     public void proceedToNextRound() {
         this.currentRound++;
+    }
+
+    /**
+     * 참가자 수를 1 증가시킵니다.
+     */
+    public void incrementParticipants() {
+        this.currentParticipants++;
+    }
+
+    /**
+     * 참가자 수를 1 감소시킵니다.
+     */
+    public void decrementParticipants() {
+        if (this.currentParticipants > 0) {
+            this.currentParticipants--;
+        }
     }
 }
