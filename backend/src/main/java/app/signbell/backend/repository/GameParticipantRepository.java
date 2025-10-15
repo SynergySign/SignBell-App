@@ -5,6 +5,9 @@ import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
  * GameParticipantRepository 인터페이스는 게임 대기실 참여자 정보(GameParticipant 엔티티)에 대한
  * 데이터베이스 CRUD 작업을 처리하기 위해 Spring Data JPA에서 제공하는
@@ -29,4 +32,25 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
      * @return 참여 중이면 true
      */
     boolean existsByParticipantAndGameRoom_StatusIn(User participant, GameRoomStatus... statuses);
+
+    /**
+     * 특정 게임방의 모든 참가자 조회
+     * @param gameRoomId 게임방 ID
+     * @return 해당 게임방의 참가자 리스트
+     */
+    List<GameParticipant> findByGameRoom_Id(Long gameRoomId);
+
+    /**
+     * 특정 사용자의 참가 정보 조회
+     * @param userId 사용자 ID
+     * @return 사용자의 참가 정보 (Optional)
+     */
+    Optional<GameParticipant> findByParticipant_Id(Long userId);
+
+    /**
+     * 특정 게임방의 참가자 수 조회
+     * @param gameRoomId 게임방 ID
+     * @return 해당 게임방의 참가자 수
+     */
+    long countByGameRoom_Id(Long gameRoomId);
 }
