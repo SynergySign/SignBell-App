@@ -71,10 +71,16 @@ public class User {
     private String providerId;
 
     /**
-     * 약관 동의 여부 (누락 필드 추가)
+     * 필수 약관 동의 여부 (누락 필드 추가)
      */
     @Column(nullable = false)
-    private Boolean agree;
+    private Boolean requiredAgree;
+
+    /**
+     * 선택 약관 동의 여부 (누락 필드 추가)
+     */
+    @Column(nullable = false)
+    private Boolean optionalAgree;
 
 
     /**
@@ -119,7 +125,8 @@ public class User {
      * @param profileImageUrl 사용자의 프로필 이미지 URL
      * @param provider 사용자가 가입한 OAuth 제공자 (예: Google, Facebook 등)
      * @param providerId OAuth 제공자에서 부여한 사용자 ID
-     * @param agree 약관 동의 여부 (기본값: false)
+     * @param requiredAgree 필수 약관 동의 여부 (기본값: false)
+     * @param optionalAgree 선택 약관 동의 여부 (기본값: false)
      *
      * @author 송민재
      * @since 2025-10-14
@@ -131,7 +138,9 @@ public class User {
             , LoginMethod provider
             , String providerId
             , String email
-            , Boolean agree
+//            , Boolean agree
+            , Boolean requiredAgree
+            , Boolean optionalAgree
     ) {
         this.nickname = nickname;
         this.profileImageUrl = profileImageUrl;
@@ -140,7 +149,9 @@ public class User {
         this.email = email;
 
         // 값이 null일 경우 기본값으로 대체
-        this.agree = agree != null ? agree : false;
+//        this.agree = agree != null ? agree : false;
+        this.requiredAgree = requiredAgree != null ? requiredAgree : false;
+        this.optionalAgree = optionalAgree != null ? optionalAgree : false;
         this.totalScore = 0L; // 빌더에서 totalScore 초기화
     }
 
@@ -171,11 +182,24 @@ public class User {
     }
 
     /**
-     * 사용자의 동의 상태 업데이트 편의 메서드
+     * 사용자의 필수 동의 상태 업데이트 편의 메서드
      * @author 송민재
      * @since 2025-10-14
      */
-    public void updateAgreement() {
-        this.agree = true;
+    public void updateRequiredAgreement() {
+        this.requiredAgree = true;
     }
+
+    /**
+     * 사용자 프로필을 요청 DTO 기반으로 업데이트합니다.
+     * - 닉네임: 요청 DTO가 @NotBlank로 보장하므로 그대로 적용
+     * - 선택 동의: null이면 기존 값 유지
+     */
+    public void updateProfile(app.signbell.backend.dto.request.UserProfileUpdateRequest request) {
+        this.nickname = request.getNickname();
+        if (request.getOptionalAgree() != null) {
+            this.optionalAgree = request.getOptionalAgree();
+        }
+    }
+
 }
