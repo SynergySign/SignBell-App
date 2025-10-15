@@ -4,6 +4,8 @@ import app.signbell.backend.entity.GameParticipant;
 import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -34,18 +36,29 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
     boolean existsByParticipantAndGameRoom_StatusIn(User participant, GameRoomStatus... statuses);
 
     /**
-     * 특정 게임방의 모든 참가자 조회
+     * 특정 게임방의 모든 참가자 조회 (User 정보 함께 fetch)
+     * N+1 문제 방지를 위해 participant를 즉시 로딩합니다.
+     *
      * @param gameRoomId 게임방 ID
-     * @return 해당 게임방의 참가자 리스트
+     * @return 해당 게임방의 참가자 리스트 (User 정보 포함)
      */
-    List<GameParticipant> findByGameRoom_Id(Long gameRoomId);
+    @Query("SELECT gp FROM GameParticipant gp " +
+            "JOIN FETCH gp.participant " +
+            "WHERE gp.gameRoom.id = :gameRoomId")
+    List<GameParticipant> findByGameRoom_Id(@Param("gameRoomId") Long gameRoomId);
 
     /**
-     * 특정 사용자의 참가 정보 조회
+     * 특정 사용자의 참가 정보 조회 (GameRoom과 User 정보 함께 fetch)
+     * N+1 문제 방지를 위해 연관된 엔티티를 즉시 로딩합니다.
+     *
      * @param userId 사용자 ID
-     * @return 사용자의 참가 정보 (Optional)
+     * @return 사용자의 참가 정보 (Optional, GameRoom 및 User 정보 포함)
      */
-    Optional<GameParticipant> findByParticipant_Id(Long userId);
+    @Query("SELECT gp FROM GameParticipant gp " +
+            "JOIN FETCH gp.participant " +
+            "JOIN FETCH gp.gameRoom " +
+            "WHERE gp.participant.id = :userId")
+    Optional<GameParticipant> findByParticipant_Id(@Param("userId") Long userId);
 
     /**
      * 특정 게임방의 참가자 수 조회
