@@ -14,6 +14,7 @@ import lombok.Getter;
  * - eventType: 이벤트 유형을 나타내는 문자열, 예를 들어 "PARTICIPANT_JOINED"와 같은 값
  * - participant: 이벤트와 연관된 개별 참가자에 대한 정보를 담은 ParticipantResponse 객체
  * - currentParticipants: 이벤트 발생 시점의 현재 게임방 참가자 수
+ * - roomId: 이벤트가 발생한 게임방 ID
  *
  * @author 강관주
  * @since 2025-10-15
@@ -24,4 +25,5 @@ public class ParticipantEventResponse {
     private String eventType;  // "PARTICIPANT_JOINED"
     private ParticipantResponse participant;
     private Integer currentParticipants;
+    private Long gameRoomId;
 }

@@ -55,7 +55,7 @@ public class GameRoomLeaveService {
      *         - eventType: "PARTICIPANT_LEFT"
      *         - participant: 퇴장한 사용자 정보
      *         - currentParticipants: 퇴장 후 남은 참가자 수
-     *         - roomId: 퇴장한 게임방 ID
+     *         - gameRoomId: 퇴장한 게임방 ID
      * @throws BusinessException 해당 사용자가 어떤 방에도 참여하지 않은 경우
      *                          (ErrorCode.PARTICIPANT_NOT_IN_ROOM)
      */
@@ -134,7 +134,7 @@ public class GameRoomLeaveService {
                 .eventType("PARTICIPANT_LEFT")           // 이벤트 타입: 참가자 퇴장
                 .participant(participantResponse)         // 퇴장한 사용자 정보
                 .currentParticipants(room.getCurrentParticipants())  // 남은 참가자 수
-                .roomId(room.getId())                    // 게임방 ID
+                .gameRoomId(room.getId())                    // 게임방 ID
                 .build();
     }
 }
