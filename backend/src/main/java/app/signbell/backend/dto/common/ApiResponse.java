@@ -38,4 +38,14 @@ public class ApiResponse<T> {
                 .data(data)
                 .build();
     }
+
+    // 오류 응답 객체를 생성 메서드
+    public static <T> ApiResponse<T> error(String message) {
+        return ApiResponse.<T>builder()
+                .success(false)
+                .message(message)
+                .timestamp(LocalDateTime.now())
+                .data(null)
+                .build();
+    }
 }

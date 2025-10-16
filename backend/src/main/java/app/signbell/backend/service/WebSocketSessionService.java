@@ -10,6 +10,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
  * WebSocket 세션의 라이프사이클을 관리하는 서비스입니다.
  *
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
  * - 세션 연결 해제 시 필요한 비즈니스 로직 조율
  * - 방 퇴장 처리 및 알림 전송
  * - 세션 레지스트리 정리
+ * - 방 종료 시 모든 참가자의 세션 강제 정리
  *
  * 이벤트 리스너와 비즈니스 로직을 분리하여 단일 책임 원칙을 준수합니다.
  *
@@ -69,6 +72,88 @@ public class WebSocketSessionService {
             // 3. 세션 정리 (예외 발생 여부와 무관하게 항상 실행)
             cleanupSession(userId, sessionId);
         }
+    }
+
+    /**
+     * 방 종료 시 여러 참가자의 세션을 한꺼번에 정리합니다.
+     *
+     * 이 메서드는 방장이 나갔을 때 남은 참가자들의 세션을 정리하기 위해 사용됩니다.
+     *
+     * 처리 흐름:
+     * 1. 각 참가자에게 방 종료 알림 메시지 전송
+     * 2. UserSessionRegistry에서 세션 매핑 제거
+     *
+     * @param userIds 세션을 정리할 사용자 ID 목록
+     * @param roomId 종료된 방 ID (로깅 및 알림용)
+     */
+    public void cleanupMultipleSessions(List<Long> userIds, Long roomId) {
+        log.info("방 종료로 인한 다중 세션 정리 시작 - roomId: {}, 대상 참가자 수: {}",
+                roomId, userIds.size());
+
+        int successCount = 0;
+        int failCount = 0;
+
+        for (Long userId : userIds) {
+            try {
+                // 1. 세션 ID 조회
+                String sessionId = userSessionRegistry.getSessionId(userId);
+
+                if (sessionId == null) {
+                    log.warn("활성 세션을 찾을 수 없음 - userId: {}, roomId: {}", userId, roomId);
+                    failCount++;
+                    continue;
+                }
+
+                // 2. 사용자에게 방 종료 알림 전송
+                sendRoomClosedNotification(userId, roomId);
+
+                // 3. 세션 매핑 제거
+                userSessionRegistry.unbind(userId, sessionId);
+
+                log.info("세션 정리 완료 - userId: {}, sessionId: {}, roomId: {}",
+                        userId, sessionId, roomId);
+                successCount++;
+
+            } catch (Exception e) {
+                log.error("세션 정리 중 오류 발생 - userId: {}, roomId: {}", userId, roomId, e);
+                failCount++;
+
+                // 오류가 발생해도 매핑은 제거 시도 (스테일 매핑 방지)
+                try {
+                    String sessionId = userSessionRegistry.getSessionId(userId);
+                    if (sessionId != null) {
+                        userSessionRegistry.unbind(userId, sessionId);
+                    }
+                } catch (Exception ex) {
+                    log.error("세션 매핑 제거 실패 - userId: {}", userId, ex);
+                }
+            }
+        }
+
+        log.info("다중 세션 정리 완료 - roomId: {}, 성공: {}, 실패: {}",
+                roomId, successCount, failCount);
+    }
+
+    /**
+     * 사용자에게 방 종료 알림 메시지를 전송합니다.
+     *
+     * 클라이언트는 /user/queue/room-closed 를 구독하고 이 메시지를 받으면:
+     * 1. 사용자에게 "방장이 나가서 방이 종료되었습니다" 알림 표시
+     * 2. 방 목록 화면으로 이동
+     *
+     * @param userId 알림을 받을 사용자 ID
+     * @param roomId 종료된 방 ID
+     */
+    private void sendRoomClosedNotification(Long userId, Long roomId) {
+        messagingTemplate.convertAndSendToUser(
+                String.valueOf(userId),
+                "/queue/room-closed",
+                ApiResponse.error(
+                        "방장이 나가서 방이 종료되었습니다."
+                )
+        );
+
+        log.debug("방 종료 알림 전송 - userId: {}, roomId: {}", userId, roomId);
     }
 
     /**

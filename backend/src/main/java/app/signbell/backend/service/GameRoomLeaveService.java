@@ -4,7 +4,6 @@ import app.signbell.backend.dto.response.ParticipantEventResponse;
 import app.signbell.backend.dto.response.ParticipantResponse;
 import app.signbell.backend.entity.GameParticipant;
 import app.signbell.backend.entity.GameRoom;
-import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.repository.GameParticipantRepository;
@@ -23,6 +22,7 @@ import java.util.List;
  * - 사용자가 현재 참여 중인 게임방에서 퇴장 처리
  * - 참가자 정보 삭제 및 방의 현재 참가자 수 감소
  * - 방장 퇴장 시 방 종료 처리 (모든 참가자 제거, 방 상태 변경)
+ * - 방 종료 시 남은 참가자들의 세션 정리 위임
  * - 퇴장 이벤트 정보 생성 및 반환 (웹소켓으로 브로드캐스트하기 위한 데이터)
  *
  * @Transactional: 메서드 실행 중 오류 발생 시 자동 롤백 처리
@@ -33,14 +33,11 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@Transactional
 public class GameRoomLeaveService {
 
-    // 게임 참가자 정보를 조회/수정/삭제하는 레포지토리
     private final GameParticipantRepository participantRepository;
-
-    // 게임방 정보를 조회/수정하는 레포지토리
     private final GameRoomRepository gameRoomRepository;
+    private final WebSocketSessionService sessionService;
 
     /**
      * 사용자 ID로 현재 참여 중인 게임방에서 퇴장 처리
@@ -63,6 +60,7 @@ public class GameRoomLeaveService {
      * @throws BusinessException 해당 사용자가 어떤 방에도 참여하지 않은 경우
      *                          (ErrorCode.PARTICIPANT_NOT_IN_ROOM)
      */
+    @Transactional
     public ParticipantEventResponse leaveCurrentRoomByUser(Long userId) {
         // 1. 사용자가 현재 참여 중인 방 정보 조회
         //    GameRoom과 GameParticipant 정보를 함께 fetch하여 N+1 문제 방지
@@ -84,7 +82,7 @@ public class GameRoomLeaveService {
      */
     private ParticipantEventResponse leaveRoom(GameParticipant participant) {
         Long userId = participant.getParticipant().getId();
-        GameRoom room = participant.getGameRoom(); // 게임방 엔티티 참조 저장
+        GameRoom room = participant.getGameRoom();
         Long gameRoomId = room.getId();
 
         // 1. 퇴장 시작 로그 기록
@@ -112,10 +110,12 @@ public class GameRoomLeaveService {
      * 방장 퇴장 시 방 종료 처리
      *
      * 동작 과정:
-     * 1. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
-     * 2. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
-     * 3. 업데이트된 방 정보 저장
-     * 4. 방 종료 이벤트 응답 생성 및 반환
+     * 1. 방장 제외한 다른 참가자들의 userId 목록 조회
+     * 2. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
+     * 3. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
+     * 4. 업데이트된 방 정보 저장
+     * 5. 남은 참가자들의 세션 정리 (WebSocketSessionService에 위임)
+     * 6. 방 종료 이벤트 응답 생성 및 반환
      *
      * @param room 종료할 게임방
      * @param hostResponse 퇴장하는 방장의 정보
@@ -126,29 +126,43 @@ public class GameRoomLeaveService {
 
         log.info("방장 퇴장 감지 - 방 종료 처리 시작. roomId: {}", roomId);
 
-        // 1. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
+        // 1. 방장 제외한 다른 참가자들의 userId 목록 조회
+        List<Long> otherParticipantUserIds = participantRepository
+                .findByGameRoom_Id(roomId)
+                .stream()
+                .filter(p -> !p.isHost())
+                .map(p -> p.getParticipant().getId())
+                .toList();
+
+        log.info("방 종료 대상 참가자 수: {}", otherParticipantUserIds.size());
+
+        // 2. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
         int deletedCount = participantRepository.deleteAllByGameRoom(room);
         log.info("방 종료 시 제거된 참가자 수: {}", deletedCount);
 
-        // 2. 방 종료 처리
+        // 3. 방 종료 처리
         room.closeRoom();
 
-        // 3. 업데이트된 방 정보 저장
+        // 4. 업데이트된 방 정보 저장
         gameRoomRepository.save(room);
 
-        // 4. 방 종료 완료 로그 기록
+        // 5. 남은 참가자들의 세션 정리
+        //    트랜잭션이 커밋되기 전이지만, 이미 DB에서 삭제되었으므로
+        //    세션 정리는 바로 수행해도 안전합니다.
+        if (!otherParticipantUserIds.isEmpty()) {
+            sessionService.cleanupMultipleSessions(otherParticipantUserIds, roomId);
+        }
+
         log.info("방장 퇴장으로 방 종료 완료 - roomId: {}, 제거된 참가자 수: {}",
                 roomId, deletedCount);
 
-        // 5. 방 종료 이벤트 응답 객체 생성 및 반환
-        //    이 객체는 웹소켓을 통해 남은 참가자들에게 브로드캐스트됨
-        //    남은 참가자들은 이 이벤트를 받고 방 목록으로 이동하게 됨
+        // 6. 방 종료 이벤트 응답 객체 생성 및 반환
         return ParticipantEventResponse.builder()
-                .eventType("ROOM_CLOSED")                // 이벤트 타입: 방 종료
-                .participant(hostResponse)                // 퇴장한 방장 정보
-                .currentParticipants(0)                   // 방이 종료되어 0명
-                .gameRoomId(roomId)                       // 종료된 게임방 ID
-                .roomClosed(true)                         // 방 종료 여부: true
+                .eventType("ROOM_CLOSED")
+                .participant(hostResponse)
+                .currentParticipants(0)
+                .gameRoomId(roomId)
+                .roomClosed(true)
                 .build();
     }
 
@@ -194,11 +208,11 @@ public class GameRoomLeaveService {
         //    이 객체는 주로 WebSocket을 통해 같은 방의 다른 참가자들에게 브로드캐스트됨
         //    다른 참가자들은 이 정보로 "누가 나갔는지", "현재 몇 명이 남았는지" 알 수 있음
         return ParticipantEventResponse.builder()
-                .eventType("PARTICIPANT_LEFT")            // 이벤트 타입: 참가자 퇴장
-                .participant(participantResponse)          // 퇴장한 사용자 정보
-                .currentParticipants(room.getCurrentParticipants())  // 남은 참가자 수
-                .gameRoomId(room.getId())                 // 게임방 ID
-                .roomClosed(false)                        // 방은 종료되지 않음
+                .eventType("PARTICIPANT_LEFT")
+                .participant(participantResponse)
+                .currentParticipants(room.getCurrentParticipants())
+                .gameRoomId(room.getId())
+                .roomClosed(false)
                 .build();
     }
 }
