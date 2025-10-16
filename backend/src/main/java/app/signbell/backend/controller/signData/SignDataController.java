@@ -1,29 +1,31 @@
-// app.signbell.backend.controller 패키지에 생성
-package app.signbell.backend.controller;
+package app.signbell.backend.controller.signData;
 
-import app.signbell.backend.dto.request.QuizWordUpdateRequest;
+
 import app.signbell.backend.dto.response.QuizWordUpdateResponse;
+import app.signbell.backend.dto.response.signData.SignDataLoadResponseDto;
 import app.signbell.backend.entity.Sign;
 import app.signbell.backend.entity.SignStatus;
+import app.signbell.backend.service.SignApiService;
 import app.signbell.backend.service.SignService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/signs")
+@RequestMapping("/api/sign-data")
 @RequiredArgsConstructor
-public class SignStatusController {
+public class SignDataController {
 
     private final SignService signService;
+    private final SignApiService signApiService;
 
     /**
+     *
+     * 외부 API의 수어 데이터를 프로젝트에 맞게 정제하고,
      * 특정 수어 데이터의 학습 상태를 업데이트합니다.
+     *
      * ML 모델이 학습 완료 후 이 API를 호출하여 상태를 'COMPLETED'로 변경할 수 있습니다.
      *
-     * @param signId  상태를 변경할 Sign 데이터의 ID
-     * @param request 새로운 상태 정보를 담은 DTO
-     * @return 성공 시 200 OK
      * @since 2025-10-16
      * @author 백승현
      */
@@ -54,5 +56,9 @@ public class SignStatusController {
         return ResponseEntity.ok(new QuizWordUpdateResponse(updatedSign));
     }
 
-
+    @GetMapping("/getApiData")
+    public ResponseEntity<SignDataLoadResponseDto> getApiData() {
+        long count = signApiService.fetchAllSignDataAndSave();
+        return ResponseEntity.ok(new SignDataLoadResponseDto(count));
+    }
 }

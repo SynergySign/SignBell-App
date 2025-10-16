@@ -50,9 +50,9 @@ public class SignApiService {
     private String apiRequestUrl;
 
     @Transactional
-    public void fetchAllSignDataAndSave() {
+    public long fetchAllSignDataAndSave() {
         // ======================================================================
-        // 1단계: API 데이터를 가져와 'sign_api' 임시 테이블에 원본 저장
+        // 1단계: API 데이터를 가져와 'sign_api' 테이블에 원본 저장
         // ======================================================================
         if (signApiRepository.count() == 0) {
             log.info("🚀 [1/2] API 원본 데이터 저장을 시작합니다.");
@@ -104,6 +104,7 @@ public class SignApiService {
         // ======================================================================
         // 2단계: 'sign_api' 테이블 데이터를 'sign' 서비스 테이블로 가공 및 이전
         // ======================================================================
+        long savedCount = 0; // 저장된 데이터 개수를 저장할 변수
         if (signRepository.count() == 0) {
             log.info("🚀 [2/2] 'sign_api' -> 'sign' 테이블로 데이터 이전을 시작합니다.");
             List<SignApi> allRawData = signApiRepository.findAll();
@@ -123,9 +124,11 @@ public class SignApiService {
             }
 
             signRepository.saveAll(signsToSave);
+            savedCount = signsToSave.size(); // 저장된 개수를 변수에 할당
             log.info("🎉 [2/2] 'sign' 테이블로 데이터 {}개 이전을 완료했습니다.", signsToSave.size());
         } else {
             log.info("✅ [2/2] 'sign' 테이블에 이미 데이터가 존재하여 이전을 건너뜁니다.");
         }
+        return savedCount; // 최종적으로 저장된 데이터 개수 반환
     }
 }
