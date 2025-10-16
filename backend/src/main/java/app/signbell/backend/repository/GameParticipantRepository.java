@@ -66,4 +66,17 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
      * @return 해당 게임방의 참가자 수
      */
     long countByGameRoom_Id(Long gameRoomId);
+
+    /**
+     * 특정 게임방에서 특정 사용자의 참가 정보 조회
+     * @param gameRoomId 게임방 ID
+     * @param userId 사용자 ID
+     * @return 참가 정보 Optional
+     */
+    @Query("SELECT gp FROM GameParticipant gp " +
+            "JOIN FETCH gp.participant " +
+            "JOIN FETCH gp.gameRoom " +
+            "WHERE gp.gameRoom.id = :gameRoomId AND gp.participant.id = :userId")
+    Optional<GameParticipant> findByGameRoom_IdAndParticipant_Id(@Param("gameRoomId") Long gameRoomId,
+                                                                 @Param("userId") Long userId);
 }
