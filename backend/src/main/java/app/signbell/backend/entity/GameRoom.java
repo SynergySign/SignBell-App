@@ -120,4 +120,15 @@ public class GameRoom {
             this.currentParticipants--;
         }
     }
+
+    /**
+     * 게임방 종료 처리
+     *
+     * 방장이 퇴장하거나 게임이 종료될 때 호출됩니다.
+     * 방의 상태를 FINISHED로 변경하고 참가자 수를 0으로 초기화합니다.
+     */
+    public void closeRoom() {
+        this.status = GameRoomStatus.FINISHED;
+        this.currentParticipants = 0;
+    }
 }

@@ -93,6 +93,7 @@ public class GameRoomJoinController {
                     .participant(newParticipant)
                     .currentParticipants(response.getCurrentParticipants())
                     .gameRoomId(gameRoomId)
+                    .roomClosed(false)
                     .build();
 
             // 4) 브로드캐스트 (방 전체에 알림)
