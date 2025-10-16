@@ -2,54 +2,44 @@ package app.signbell.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * SignApi 클래스는 한국어 수어 단어 정보를 관리하는 엔티티입니다.
- * 해당 클래스는 데이터베이스의 sign_api 테이블과 매핑되며,
- * 수어 단어의 ID, 제목, 설명, 영상 URL, 카테고리 정보를 포함하고 있습니다.
+ * 외부 API로부터 받은 원본 데이터를 가공 없이 저장하는 엔티티입니다. (Staging Table)
  *
- * 이 클래스는 수어 데이터베이스의 데이터를 저장, 조회 및 관리하는 데 사용됩니다.
- *
- *
- * @author 고동현
- * @since 2025-10-12
+ * @author 백승현
+ * @since 2025-10-16
  */
 @Entity
-@Table(name = "sign_api")
+@Table(name = "sign_api") // 테이블 이름 지정
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class SignApi {
 
-    /**
-     * 국어원 API 수어단어 ID
-     */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "sign_api_id")
     private Long id;
 
-    /**
-     * 이름
-     */
-    @Column(nullable = false)
+    @Column(nullable = false, length = 255)
     private String title;
 
-    /**
-     * 영상 url
-     */
-    private String videoUrl;
+    @Column(nullable = false, length = 1024)
+    private String url;
 
-    /**
-     * 수어 설명
-     */
     @Lob
+    @Column(columnDefinition = "TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
     private String signDescription;
 
-    /**
-     * 카테고리
-     */
     @Column(length = 100)
     private String categoryType;
+
+    @Builder
+    public SignApi(String title, String url, String signDescription, String categoryType) {
+        this.title = title;
+        this.url = url;
+        this.signDescription = signDescription;
+        this.categoryType = categoryType;
+    }
 }

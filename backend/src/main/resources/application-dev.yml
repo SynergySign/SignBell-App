@@ -16,11 +16,10 @@ spring:
     database-platform: org.hibernate.dialect.MariaDB106Dialect
     hibernate:
       # ddl
-      ddl-auto: create-drop
+      ddl-auto: update
     properties:
       hibernate:
         format_sql: true # SQL log
-    database: mysql
 
   # OAuth2 setting
   security:
@@ -65,3 +64,8 @@ app:
   oauth2-success-redirect-url: ${APP_OAUTH2_SUCCESS_REDIRECT_URL}
   # OAuth2 로그인 실패 프론트 리다이렉트 url
   oauth2-failure-redirect-url: ${APP_OAUTH2_FAILURE_REDIRECT_URL}
+
+# 국어원 API
+api:
+  serviceKey: "${API_SERVICE_KEY}"  # ? API_SERVICE_KEY ?? ?? ??
+  requestUrl: "${API_REQUEST_URL}" # ? API_REQUEST_URL ?? ?? ??

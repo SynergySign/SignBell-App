@@ -2,6 +2,7 @@
 package app.signbell.backend.repository;
 
 import app.signbell.backend.entity.QuizWord;
+import app.signbell.backend.entity.Sign;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 /**
@@ -18,4 +19,24 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * @since 2025-10-12
  */
 public interface QuizWordRepository extends JpaRepository<QuizWord, Long> {
+
+    /**
+     * 주어진 Sign 엔티티에 해당하는 QuizWord가 존재하는지 확인합니다.
+     * @param sign 확인할 Sign 엔티티
+     * @return 존재하면 true, 그렇지 않으면 false
+     * @since 2025-10-16
+     * @author 백승현
+     */
+    boolean existsBySign(Sign sign);
+
+    /**
+     * 주어진 Sign 엔티티에 해당하는 QuizWord를 삭제합니다.
+     * @param sign 삭제할 기준이 되는 Sign 엔티티
+     * @since 2025-10-16
+     * @author 백승현
+     */
+    void deleteBySign(Sign sign);
+
+
+
 }
