@@ -8,6 +8,8 @@
 
 package app.signbell.backend.entity;
 
+import app.signbell.backend.exception.BusinessException;
+import app.signbell.backend.exception.ErrorCode;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -64,6 +66,9 @@ public class Sign {
      * @param newStatus 새로운 학습 상태
      */
     public void changeLearningStatus(SignStatus newStatus) {
+        if (newStatus == null) {
+            throw new BusinessException(ErrorCode.INVALID_SIGN_STATUS);
+        }
         this.learningStatus = newStatus;
     }
 

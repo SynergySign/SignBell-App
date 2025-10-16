@@ -2,6 +2,8 @@ package app.signbell.backend.service;
 
 import app.signbell.backend.entity.Sign;
 import app.signbell.backend.entity.SignStatus;
+import app.signbell.backend.exception.BusinessException;
+import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.repository.SignRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +26,10 @@ public class SignService {
     private final QuizWordService quizWordService; // QuizWord 서비스 주입
 
     @Transactional
-    public void updateLearningStatus(Long signId, SignStatus newStatus) {
+    public Sign updateLearningStatus(Long signId, SignStatus newStatus) { // 반환 타입을 Sign으로 변경
         // 1. ID로 Sign 엔티티를 찾습니다.
         Sign sign = signRepository.findById(signId)
-                .orElseThrow(() -> new EntityNotFoundException("해당 Sign 데이터를 찾을 수 없습니다. id: " + signId));
+                .orElseThrow(() -> new BusinessException(ErrorCode.WORD_NOT_FOUND));
 
         // 2. 엔티티의 상태를 변경합니다.
         sign.changeLearningStatus(newStatus);
@@ -38,5 +40,7 @@ public class SignService {
         } else {
             quizWordService.removeQuizWordIfNotCompleted(sign);
         }
+
+        return sign;
     }
 }

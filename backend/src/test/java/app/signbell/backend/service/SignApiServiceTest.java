@@ -1,6 +1,7 @@
 package app.signbell.backend.service;
 
 import app.signbell.backend.repository.SignRepository;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,6 +16,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @SpringBootTest 어노테이션을 사용하여 실제 애플리케이션 컨텍스트를 로드합니다.
  */
 @SpringBootTest
+@Disabled("초기 수어 데이터 적재용 테스트로, 일반적인 테스트 환경에서는 실행하지 않습니다.")
 class SignApiServiceTest {
 
     @Autowired
