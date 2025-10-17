@@ -6,6 +6,12 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * QuizStateCache 클래스는 퀴즈 게임의 각 방에 대한 상태를 관리하는 캐시 기능을 제공합니다.
+ * 각 게임 방의 상태는 GameRoomState 객체로 유지되며, 이를 통해 참가자, 점수, 퀴즈 단어 및 순서 관리 등을 수행합니다.
+ * @author 고동현
+ * @since 2025-10-17
+ */
 @Slf4j
 @Component
 public class QuizStateCache {

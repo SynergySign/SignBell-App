@@ -13,6 +13,10 @@ import org.springframework.stereotype.Controller;
 
 import java.util.Objects;
 
+/**
+ * 퀴즈 게임 진행을 제어하는 컨트롤러 클래스
+ * STOMP 프로토콜로 클라이언트에서 전달된 메시지를 처리하고 QuizService와 상호작용
+ */
 @Slf4j
 @Controller
 @RequiredArgsConstructor
@@ -44,8 +48,15 @@ public class QuizController {
     }
 
     /**
-     * 정답 제출 (AI 추론 결과 받기)
-     * 프론트엔드가 FastAPI로부터 추론 결과를 받아서 전송
+     * 정답 제출 (AI 추론 결과)
+     * 
+     * 플로우:
+     * 1. 프론트엔드: 5초 동안 수어 동작 수행
+     * 2. 프론트엔드 → FastAPI: 실시간으로 MediaPipe 데이터 전송
+     * 3. FastAPI → 프론트엔드: AI 모델이 인식한 단어 반환
+     * 4. 프론트엔드 → 백엔드: 인식된 단어 제출 (이 메서드)
+     * 5. 백엔드: DB 정답과 비교하여 점수 처리
+     * 
      * '/app/room/{gameRoomId}/quiz/answer'
      */
     @MessageMapping("/room/{gameRoomId}/quiz/answer")
@@ -63,21 +74,5 @@ public class QuizController {
                 request.getQuestionNumber(),
                 request.getUserAnswer()
         );
-    }
-
-    /**
-     * 타임아웃 처리 (프론트엔드에서 5초 후 자동 호출)
-     * '/app/room/{gameRoomId}/quiz/timeout'
-     */
-    @MessageMapping("/room/{gameRoomId}/quiz/timeout")
-    public void handleTimeout(@DestinationVariable Long gameRoomId,
-                              @Payload ChallengeRequest request,
-                              StompHeaderAccessor accessor) {
-        Long userId = (Long) Objects.requireNonNull(accessor.getSessionAttributes()).get("userId");
-
-        log.info("타임아웃 발생 - userId: {}, roomId: {}, questionNumber: {}",
-                userId, gameRoomId, request.getQuestionNumber());
-
-        quizService.handleTimeout(gameRoomId, userId, request.getQuestionNumber());
     }
 }

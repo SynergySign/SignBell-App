@@ -34,12 +34,25 @@ public interface GameHistoryRepository extends JpaRepository<GameHistory, Long> 
     List<GameHistory> findByGameRoom_IdOrderByScoreDesc(@Param("gameRoomId") Long gameRoomId);
 
     /**
-     * 특정 사용자의 게임 기록 조회
+     * 특정 사용자의 게임 기록 조회 (가장 최근 1개)
      */
     @Query("SELECT gh FROM GameHistory gh " +
             "WHERE gh.gameRoom.id = :gameRoomId " +
-            "AND gh.participant.id = :userId")
+            "AND gh.participant.id = :userId " +
+            "ORDER BY gh.round DESC")
     Optional<GameHistory> findByGameRoom_IdAndParticipant_Id(
+            @Param("gameRoomId") Long gameRoomId,
+            @Param("userId") Long userId
+    );
+
+    /**
+     * 특정 사용자의 모든 게임 기록 조회 (라운드별)
+     */
+    @Query("SELECT gh FROM GameHistory gh " +
+            "WHERE gh.gameRoom.id = :gameRoomId " +
+            "AND gh.participant.id = :userId " +
+            "ORDER BY gh.round ASC")
+    List<GameHistory> findAllByGameRoom_IdAndParticipant_Id(
             @Param("gameRoomId") Long gameRoomId,
             @Param("userId") Long userId
     );
