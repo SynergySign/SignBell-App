@@ -10,6 +10,8 @@ import app.signbell.backend.repository.GameParticipantRepository;
 import app.signbell.backend.repository.GameRoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,13 +33,23 @@ import java.util.List;
  * @since 2025-10-16
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GameRoomLeaveService {
 
     private final GameParticipantRepository participantRepository;
     private final GameRoomRepository gameRoomRepository;
     private final WebSocketSessionService sessionService;
+
+
+    public GameRoomLeaveService(
+            GameParticipantRepository participantRepository,
+            GameRoomRepository gameRoomRepository,
+            @Lazy WebSocketSessionService sessionService // <- 여기에 @Lazy 추가
+    ) {
+        this.participantRepository = participantRepository;
+        this.gameRoomRepository = gameRoomRepository;
+        this.sessionService = sessionService;
+    }
 
     /**
      * 사용자 ID로 현재 참여 중인 게임방에서 퇴장 처리
