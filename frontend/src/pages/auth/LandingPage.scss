@@ -1,0 +1,74 @@
+/**
+ * @file LandingPage 스타일 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-17
+ * @최종수정일 2025-10-17
+ */
+
+.landing-page {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  .landing-content {
+    display: flex;
+    gap: 60px;
+    align-items: center;
+    max-width: 1000px;
+
+    @media (max-width: 768px) {
+      flex-direction: column;
+      gap: 40px;
+    }
+
+    .service-intro {
+      flex: 1;
+      text-align: center;
+
+      .service-title {
+        font-size: 48px;
+        font-weight: bold;
+        color: var(--primary-color);
+        margin-bottom: 16px;
+      }
+
+      .service-description {
+        font-size: 20px;
+        color: var(--text-secondary-color);
+      }
+    }
+
+    .login-box {
+      background-color: var(--white-color);
+      padding: 32px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      min-width: 360px;
+
+      @media (max-width: 768px) {
+        min-width: 300px;
+        width: 100%;
+      }
+
+      .login-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: var(--text-color);
+        margin-bottom: 8px;
+      }
+
+      .login-subtitle {
+        font-size: 14px;
+        color: var(--text-secondary-color);
+        margin-bottom: 24px;
+      }
+
+      .login-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+    }
+  }
+}
