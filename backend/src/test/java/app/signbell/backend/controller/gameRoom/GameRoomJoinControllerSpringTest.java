@@ -1,7 +1,6 @@
 package app.signbell.backend.controller.gameRoom;
 
 import app.signbell.backend.dto.common.ApiResponse;
-import app.signbell.backend.dto.request.JoinRoomRequest;
 import app.signbell.backend.dto.response.JoinRoomResponse;
 import app.signbell.backend.dto.response.ParticipantEventResponse;
 import app.signbell.backend.dto.response.ParticipantResponse;
@@ -100,7 +99,7 @@ class GameRoomJoinControllerSpringTest {
         // ============================
         // When: 컨트롤러의 joinRoom 호출 (WebSocket 없이 직접 메서드 호출)
         // ============================
-        controller.joinRoom(gameRoomId, new JoinRoomRequest(), subject);
+        controller.joinRoom(gameRoomId, subject);
 
         // ============================
         // Then: 메시지 전송 검증
@@ -147,7 +146,7 @@ class GameRoomJoinControllerSpringTest {
         // ============================
         // When: 컨트롤러 호출
         // ============================
-        controller.joinRoom(gameRoomId, new JoinRoomRequest(), subject);
+        controller.joinRoom(gameRoomId, subject);
 
         // ============================
         // Then: 에러 응답이 개인 큐로 전송되며, ErrorResponse 필드가 올바른지 확인
@@ -178,7 +177,7 @@ class GameRoomJoinControllerSpringTest {
         // ============================
         // When: 컨트롤러 호출
         // ============================
-        controller.joinRoom(gameRoomId, new JoinRoomRequest(), subject);
+        controller.joinRoom(gameRoomId, subject);
 
         // ============================
         // Then: 서비스 미호출 + INVALID_INPUT ErrorResponse 전송 검증

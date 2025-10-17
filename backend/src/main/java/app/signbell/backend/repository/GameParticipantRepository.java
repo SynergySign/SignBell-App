@@ -1,9 +1,11 @@
 package app.signbell.backend.repository;
 
 import app.signbell.backend.entity.GameParticipant;
+import app.signbell.backend.entity.GameRoom;
 import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -66,4 +68,30 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
      * @return 해당 게임방의 참가자 수
      */
     long countByGameRoom_Id(Long gameRoomId);
+
+    /**
+     * 특정 게임방에서 특정 사용자의 참가 정보 조회
+     * @param gameRoomId 게임방 ID
+     * @param userId 사용자 ID
+     * @return 참가 정보 Optional
+     */
+    @Query("SELECT gp FROM GameParticipant gp " +
+            "JOIN FETCH gp.participant " +
+            "JOIN FETCH gp.gameRoom " +
+            "WHERE gp.gameRoom.id = :gameRoomId AND gp.participant.id = :userId")
+    Optional<GameParticipant> findByGameRoom_IdAndParticipant_Id(@Param("gameRoomId") Long gameRoomId,
+                                                                 @Param("userId") Long userId);
+
+    /**
+     * 특정 방의 모든 참가자를 한 번의 쿼리로 삭제
+     *
+     * @Modifying: 데이터 변경 쿼리임을 명시
+     * @Query: JPQL로 직접 DELETE 쿼리 작성
+     *
+     * @param gameRoom 삭제할 게임방
+     * @return 삭제된 참가자 수
+     */
+    @Modifying
+    @Query("DELETE FROM GameParticipant gp WHERE gp.gameRoom = :gameRoom")
+    int deleteAllByGameRoom(@Param("gameRoom") GameRoom gameRoom);
 }

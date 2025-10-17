@@ -3,6 +3,7 @@ package app.signbell.backend.config;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
+import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -15,7 +16,8 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
  * - STOMP 엔드포인트를 정의하여 클라이언트가 WebSocket 연결을 시작할 수 있도록 설정합니다.
  * - 메시지 브로커를 구성하여 클라이언트 간의 메시지 송수신 규칙을 정의합니다.
  * - 쿠키 기반 인증 핸드셰이크 인터셉터를 적용하여 WebSocket 연결 시 사용자 인증을 처리합니다.
- *
+ * - 단일 세션 인터셉터를 통해 동일 사용자의 중복 접속을 제어합니다.
+ * 
  * 주요 설정:
  * - STOMP 엔드포인트: `/ws` 설정
  * - 메시지 브로커:
@@ -32,6 +34,7 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final CookieAuthHandshakeInterceptor cookieAuthHandshakeInterceptor;
+    private final SingleSessionChannelInterceptor singleSessionChannelInterceptor;
 
     @Override
     public void registerStompEndpoints(@NonNull StompEndpointRegistry registry) {
@@ -50,5 +53,11 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setApplicationDestinationPrefixes("/app");
         // 특정 사용자에게 메시지를 보낼 때 사용할 주소의 접두사를 /user 로 설정합니다.
         registry.setUserDestinationPrefix("/user");
+    }
+
+    @Override
+    public void configureClientInboundChannel(@NonNull ChannelRegistration registration) {
+        // 단일 세션 인터셉터를 등록하여 동일한 사용자가 중복 접속하는 것을 방지합니다.
+        registration.interceptors(singleSessionChannelInterceptor);
     }
 }

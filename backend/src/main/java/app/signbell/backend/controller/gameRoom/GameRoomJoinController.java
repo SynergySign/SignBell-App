@@ -1,7 +1,6 @@
 package app.signbell.backend.controller.gameRoom;
 
 import app.signbell.backend.dto.common.ApiResponse;
-import app.signbell.backend.dto.request.JoinRoomRequest;
 import app.signbell.backend.dto.response.JoinRoomResponse;
 import app.signbell.backend.dto.response.ParticipantEventResponse;
 import app.signbell.backend.dto.response.ParticipantResponse;
@@ -13,7 +12,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
-import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
@@ -61,32 +59,31 @@ public class GameRoomJoinController {
      * 4. 방에 있는 모든 참가자에게 새 참가자 입장 알림을 브로드캐스트합니다.
      * 5. 에러 발생 시 해당 사용자에게만 에러 메시지를 전송합니다.
      *
-     * @param gameRoomId 입장하려는 게임 방의 ID (URL 경로에서 추출)
-     * @param request 방 입장 요청 데이터 (메시지 본문)
+     * @param gameRoomId 입장하려는 게임 방의 ID (STOMP 목적지 경로에서 추출)
      * @param subject JWT 토큰에서 추출한 사용자 ID (Principal)
      */
     @MessageMapping("/room/{gameRoomId}/join")
     public void joinRoom(
             @DestinationVariable Long gameRoomId,
-            @Payload JoinRoomRequest request,
             @AuthenticationPrincipal String subject
     ) {
         try {
             Long userId = Long.valueOf(subject);
-            log.info("Join room request - userId: {}, gameRoomId: {}", userId, gameRoomId);
+            // 입장 요청 수신 로그
+            log.info("방 입장 요청 수신 - userId: {}, gameRoomId: {}", userId, gameRoomId);
 
-            // 1. 방 입장 처리
+            // 1) 서비스 호출: 방 입장 처리(참가자 추가, 전체 정보 구성 등)
             JoinRoomResponse response = gameRoomJoinService.joinRoom(userId, gameRoomId);
 
-            // 2. 입장자 개인에게 응답 (방 전체 정보)
+            // 2) 입장자 개인에게 방 전체 정보를 전송
             messagingTemplate.convertAndSendToUser(
                     subject,
                     "/queue/room",
                     ApiResponse.success("방에 입장했습니다.", response)
             );
 
-            // 3. 방 전체에 브로드캐스트 (새 참가자 알림)
-            // 새로 입장한 참가자 정보 추출
+            // 3) 방 전체에 브로드캐스트 (새 참가자 알림)
+            //    새로 입장한 참가자 정보를 추출하여 이벤트를 구성합니다.
             ParticipantResponse newParticipant = response.getParticipants()
                     .get(response.getParticipants().size() - 1);
 
@@ -95,27 +92,30 @@ public class GameRoomJoinController {
                     .eventType("PARTICIPANT_JOINED")
                     .participant(newParticipant)
                     .currentParticipants(response.getCurrentParticipants())
+                    .gameRoomId(gameRoomId)
+                    .roomClosed(false)
                     .build();
 
-            // 브로드캐스트 (방 전체에 알림)
+            // 4) 브로드캐스트 (방 전체에 알림)
             messagingTemplate.convertAndSend(
                     "/topic/room/" + gameRoomId + "/participant",
                     ApiResponse.success("새로운 참가자가 입장했습니다.", event)
             );
 
-            log.info("Join room success - userId: {}, gameRoomId: {}", userId, gameRoomId);
+            // 처리 완료 로그
+            log.info("방 입장 처리 완료 - userId: {}, gameRoomId: {}", userId, gameRoomId);
 
         } catch (BusinessException e) {
-            log.warn("Business exception during join room - errorCode: {}, message: {}",
+            log.warn("방 입장 중 비즈니스 예외 발생 - errorCode: {}, message: {}",
                     e.getErrorCode().getCode(), e.getMessage());
             sendError(subject, e.getErrorCode());
 
         } catch (NumberFormatException e) {
-            log.error("Invalid user ID format - subject: {}", subject);
+            log.error("사용자 ID 파싱 실패 - subject: {}", subject);
             sendError(subject, ErrorCode.INVALID_INPUT);
 
         } catch (Exception e) {
-            log.error("Unexpected error during join room", e);
+            log.error("방 입장 처리 중 예상치 못한 오류 발생", e);
             sendError(subject, ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }

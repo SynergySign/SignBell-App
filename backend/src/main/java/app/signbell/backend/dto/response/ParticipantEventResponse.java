@@ -4,16 +4,10 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * ParticipantEventResponse 클래스는 특정 이벤트와 관련된 참가자의 상태 정보를 나타내는 응답 객체입니다.
+ * 참가자 이벤트 응답 DTO
  *
- * 주요 사용 사례:
- * - 사용자 이벤트 발생 시 해당 이벤트와 관련된 정보를 응답 형태로 전달
- * - 이벤트 유형(eventType), 이벤트에 연관된 참가자 정보(participant), 현재 참가자 수(currentParticipants)를 포함
- *
- * 주요 필드:
- * - eventType: 이벤트 유형을 나타내는 문자열, 예를 들어 "PARTICIPANT_JOINED"와 같은 값
- * - participant: 이벤트와 연관된 개별 참가자에 대한 정보를 담은 ParticipantResponse 객체
- * - currentParticipants: 이벤트 발생 시점의 현재 게임방 참가자 수
+ * 참가자 입장/퇴장 또는 방 종료 이벤트 정보를 담는 객체입니다.
+ * 웹소켓을 통해 실시간으로 참가자들에게 브로드캐스트됩니다.
  *
  * @author 강관주
  * @since 2025-10-15
@@ -21,7 +15,35 @@ import lombok.Getter;
 @Getter
 @Builder
 public class ParticipantEventResponse {
-    private String eventType;  // "PARTICIPANT_JOINED"
+    /**
+     * 이벤트 타입
+     * - "PARTICIPANT_JOINED": 참가자 입장
+     * - "PARTICIPANT_LEFT": 참가자 퇴장
+     * - "ROOM_CLOSED": 방 종료 (방장 퇴장)
+     */
+    private String eventType;
+
+    /**
+     * 이벤트 대상 참가자 정보
+     * 입장/퇴장한 참가자의 상세 정보
+     */
     private ParticipantResponse participant;
+
+    /**
+     * 현재 방의 참가자 수
+     * 이벤트 처리 후의 참가자 수
+     */
     private Integer currentParticipants;
+
+    /**
+     * 게임방 ID
+     */
+    private Long gameRoomId;
+
+    /**
+     * 방 종료 여부
+     * - true: 방이 종료됨 (방장 퇴장)
+     * - false: 방이 유지됨 (일반 참가자 퇴장)
+     */
+    private Boolean roomClosed;
 }
