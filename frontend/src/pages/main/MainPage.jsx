@@ -6,14 +6,15 @@
  * @반환값 {JSX.Element} 메인 페이지 컴포넌트
  */
 
+import UserProfileCard from '../../components/main/UserProfileCard';
 import './MainPage.scss';
 
 const MainPage = () => {
   return (
     <div className="main-page">
       <div className="main-content">
-        <h1>메인 페이지</h1>
-        {/* TODO: 프로필 카드 및 기능 버튼 구현 예정 */}
+        <UserProfileCard />
+        {/* TODO: 기능 버튼 구현 예정 */}
       </div>
     </div>
   );
