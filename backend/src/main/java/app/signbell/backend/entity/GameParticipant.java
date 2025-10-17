@@ -90,4 +90,11 @@ public class GameParticipant {
     public void syncRound() {
         this.currentRound = this.gameRoom.getCurrentRound();
     }
+
+    /**
+     * 참여자의 준비 상태를 변경시킵니다.
+     */
+    public void changeReadyStatus(boolean isReady) {
+        this.isReady = isReady;
+    }
 }

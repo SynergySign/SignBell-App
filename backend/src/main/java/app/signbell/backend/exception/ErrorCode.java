@@ -57,6 +57,7 @@ public enum ErrorCode {
     CAMERA_PERMISSION_REQUIRED("CAMERA_PERMISSION_REQUIRED", "카메라 권한이 필요합니다.", 403),
     PARTICIPANT_NOT_IN_ROOM("PARTICIPANT_NOT_IN_ROOM", "방에 참여하지 않은 사용자입니다.", 400),
     PARTICIPANT_NOT_READY("PARTICIPANT_NOT_READY", "참가자가 준비되지 않았습니다.", 400),
+    NOT_ALLOWED_READY_FOR_HOST("NOT_ALLOWED_READY_FOR_HOST", "방장은 준비 상태를 변경할 수 없습니다.", 403),
 
     // ============================================
     // 단어/학습 관련 에러 (WORD)
