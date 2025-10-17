@@ -1,0 +1,25 @@
+/**
+ * @file Footer 스타일 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-17
+ * @최종수정일 2025-10-17
+ */
+
+.footer {
+  background-color: var(--white-color);
+  border-top: 1px solid #e0e0e0;
+  padding: 20px 0;
+  margin-top: auto;
+
+  .footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+    text-align: center;
+
+    p {
+      color: var(--text-secondary-color);
+      font-size: 14px;
+    }
+  }
+}
