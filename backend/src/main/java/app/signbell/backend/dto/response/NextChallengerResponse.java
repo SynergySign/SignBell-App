@@ -5,10 +5,8 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class ChallengeAcquiredResponse {
+public class NextChallengerResponse {
     private Long userId;
-    private String nickname;
     private Integer questionNumber;
-    private Integer challengeOrder;  // 1, 2, 3, 4
     private Integer countdownSeconds;  // 5초
 }

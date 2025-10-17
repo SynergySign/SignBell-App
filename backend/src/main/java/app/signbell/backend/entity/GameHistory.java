@@ -2,6 +2,7 @@ package app.signbell.backend.entity;
 
 import jakarta.persistence.*;
 import lombok.AccessLevel;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -67,4 +68,22 @@ public class GameHistory {
      */
     @UpdateTimestamp
     private LocalDateTime updatedAt;
+
+
+    // ===== 추가 메서드 =====
+
+    @Builder
+    public GameHistory(GameRoom gameRoom, User participant, int score, int round) {
+        this.gameRoom = gameRoom;
+        this.participant = participant;
+        this.score = score;
+        this.round = round;
+    }
+
+    /**
+     * 점수 누적
+     */
+    public void addScore(int additionalScore) {
+        this.score += additionalScore;
+    }
 }

@@ -45,19 +45,22 @@ public interface QuizWordRepository extends JpaRepository<QuizWord, Long> {
 
 
 
+
     /**
-     * DB에서 랜덤으로 지정된 개수만큼 QuizWord를 조회합니다.
-     * N+1 문제를 해결하기 위해 JOIN FETCH를 사용하여 연관된 Sign 엔티티를 함께 조회합니다.
-     * @param limit 가져올 단어의 개수
-     * @return 랜덤으로 선택된 QuizWord 리스트
+     * 랜덤하게 N개의 퀴즈 단어를 조회합니다. (N+1 방지)
+     * Sign 엔티티를 JOIN FETCH로 즉시 로딩합니다.
+     *
+     * @param limit 조회할 단어 개수
+     * @return 랜덤 퀴즈 단어 리스트
      */
-    @Query("SELECT qw FROM QuizWord qw JOIN FETCH qw.sign ORDER BY FUNCTION('RAND')")
-    List<QuizWord> findRandomQuizWords(Pageable pageable);
+    @Query(value = "SELECT qw FROM QuizWord qw " +
+            "JOIN FETCH qw.sign " +
+            "ORDER BY FUNCTION('RAND')")
+    List<QuizWord> findRandomQuizWords(@Param("limit") int limit);
 
-    // 위 JPQL을 사용하기 위한 간단한 래퍼 메서드
-    default List<QuizWord> findRandomQuizWords(int limit) {
-        return findRandomQuizWords(PageRequest.of(0, limit));
-    }
-
-
+    /**
+     * 전체 퀴즈 단어 개수 조회
+     */
+    @Query("SELECT COUNT(qw) FROM QuizWord qw")
+    long countAllQuizWords();
 }

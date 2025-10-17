@@ -5,10 +5,10 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class ChallengeAcquiredResponse {
+public class AnswerResultResponse {
     private Long userId;
-    private String nickname;
     private Integer questionNumber;
-    private Integer challengeOrder;  // 1, 2, 3, 4
-    private Integer countdownSeconds;  // 5초
+    private Boolean isCorrect;
+    private Integer score;
+    private String message;
 }

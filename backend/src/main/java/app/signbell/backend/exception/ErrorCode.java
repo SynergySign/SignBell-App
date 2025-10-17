@@ -2,6 +2,7 @@ package app.signbell.backend.exception;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import org.springframework.http.HttpStatus;
 
 /**
  * 애플리케이션 내 전역적으로 사용되는 에러 코드를 정의한 enum 클래스입니다.
@@ -131,7 +132,11 @@ public enum ErrorCode {
     // ============================================
     BUSINESS_ERROR("BUSINESS_ERROR", "비즈니스 로직 오류가 발생했습니다.", 400),
     VALIDATION_ERROR("VALIDATION_ERROR", "유효성 검사에 실패했습니다.", 400),
-    DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "이미 존재하는 리소스입니다.", 409);
+    DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "이미 존재하는 리소스입니다.", 409),
+
+    // Quiz 관련
+    QUIZ_NOT_FOUND("QUIZ_NOT_FOUND", "퀴즈를 찾을 수 없습니다.", 404);
+
 
     private final String code;
     private final String message;

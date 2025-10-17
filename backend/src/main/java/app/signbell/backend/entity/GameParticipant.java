@@ -90,4 +90,15 @@ public class GameParticipant {
     public void syncRound() {
         this.currentRound = this.gameRoom.getCurrentRound();
     }
+
+
+    /**
+     * 레디 상태 변경 (다른 팀원이 구현 예정)
+     */
+    public void setReady(boolean ready) {
+        if (!this.isHost) {  // 방장이 아닐 때만
+            this.isReady = ready;
+        }
+    }
+
 }

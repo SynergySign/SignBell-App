@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChallengeRequest {
+public class AnswerSubmitRequest {
     private Integer questionNumber;
+    private String userAnswer;  // FastAPI에서 받은 추론 결과
 }

@@ -94,4 +94,10 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
     @Modifying
     @Query("DELETE FROM GameParticipant gp WHERE gp.gameRoom = :gameRoom")
     int deleteAllByGameRoom(@Param("gameRoom") GameRoom gameRoom);
+
+
+    Optional<GameParticipant> findByGameRoom_IdAndParticipant_IdAndIsHost(Long roomId, Long userId, Boolean isHost);
+
+    List<GameParticipant> findAllByGameRoom_Id(Long roomId);
+
 }
