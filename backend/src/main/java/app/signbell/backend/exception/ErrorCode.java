@@ -65,6 +65,7 @@ public enum ErrorCode {
     WORD_LIST_EMPTY("WORD_LIST_EMPTY", "학습 가능한 단어가 없습니다.", 404),
     VIDEO_NOT_FOUND("VIDEO_NOT_FOUND", "영상을 찾을 수 없습니다.", 404),
     INVALID_WORD_ID("INVALID_WORD_ID", "유효하지 않은 단어 ID입니다.", 400),
+    INVALID_SIGN_STATUS("INVALID_SIGN_STATUS", "유효하지 않은 단어 상태입니다.", 400),
 
     // ============================================
     // 퀴즈 관련 에러 (QUIZ)
