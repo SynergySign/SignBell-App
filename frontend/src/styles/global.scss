@@ -1,0 +1,29 @@
+/**
+ * @file 전역 스타일 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-17
+ * @최종수정일 2025-10-17
+ * @description SignBell 프로젝트의 전역 스타일을 정의합니다.
+ */
+
+@import './variables';
+@import './animations';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--background-color);
+}
+
+#root {
+  min-height: 100vh;
+}
