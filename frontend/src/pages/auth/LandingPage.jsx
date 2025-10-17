@@ -6,13 +6,19 @@
  * @반환값 {JSX.Element} 랜딩 페이지 컴포넌트
  */
 
+import { useNavigate } from 'react-router-dom';
 import SocialLoginButton from '../../components/auth/SocialLoginButton';
 import './LandingPage.scss';
 
 const LandingPage = () => {
+  const navigate = useNavigate();
+
   const handleKakaoLogin = () => {
     // TODO: API 연동이 필요합니다.
     console.log('카카오 로그인 클릭');
+    
+    // 약관 동의 페이지로 이동
+    navigate('/terms');
   };
 
   return (
