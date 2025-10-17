@@ -123,5 +123,43 @@ public class QuizStateCache {
         public Map<Long, Integer> getAllUserScores() {
             return new HashMap<>(userScores);
         }
+
+        // 사용자 점수 제거 (게임 중 퇴장 시)
+        public void removeUserScore(Long userId) {
+            userScores.remove(userId);
+        }
+
+        // 도전자 제거 (게임 중 퇴장 시)
+        public void removeChallenger(Integer questionNumber, Long userId) {
+            // 큐에서 제거
+            Queue<Long> queue = challengerQueues.get(questionNumber);
+            if (queue != null) {
+                queue.remove(userId);
+            }
+
+            // 순서 맵에서 제거
+            Map<Long, Integer> orders = challengerOrders.get(questionNumber);
+            if (orders != null) {
+                orders.remove(userId);
+            }
+
+            // 현재 도전자였다면 제거
+            Long currentChallenger = currentChallengers.get(questionNumber);
+            if (userId.equals(currentChallenger)) {
+                currentChallengers.remove(questionNumber);
+            }
+        }
+
+        // 도전자 수 조회 (타임아웃 처리용)
+        public Integer getChallengerCount(Integer questionNumber) {
+            Queue<Long> queue = challengerQueues.get(questionNumber);
+            return queue != null ? queue.size() : 0;
+        }
+
+        // 첫 번째 도전자 조회 (타임아웃 후 첫 도전자 설정용)
+        public Long getFirstChallenger(Integer questionNumber) {
+            Queue<Long> queue = challengerQueues.get(questionNumber);
+            return queue != null ? queue.peek() : null;
+        }
     }
 }

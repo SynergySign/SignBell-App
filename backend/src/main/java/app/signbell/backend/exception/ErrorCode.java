@@ -72,12 +72,10 @@ public enum ErrorCode {
     // ============================================
     // 퀴즈 관련 에러 (QUIZ)
     // ============================================
-    QUIZ_NOT_STARTED("QUIZ_NOT_STARTED", "퀴즈가 시작되지 않았습니다.", 400),
-    QUIZ_ALREADY_FINISHED("QUIZ_ALREADY_FINISHED", "이미 종료된 퀴즈입니다.", 400),
-    QUIZ_ANSWER_TIME_EXPIRED("QUIZ_ANSWER_TIME_EXPIRED", "답변 시간이 만료되었습니다.", 400),
-    ALREADY_ANSWERED("ALREADY_ANSWERED", "이미 답변한 문제입니다.", 400),
-    QUIZ_BUTTON_ALREADY_TAKEN("QUIZ_BUTTON_ALREADY_TAKEN", "다른 참가자가 먼저 버튼을 눌렀습니다.", 409),
-    INVALID_QUIZ_QUESTION("INVALID_QUIZ_QUESTION", "유효하지 않은 퀴즈 문제입니다.", 400),
+    QUIZ_NOT_FOUND("QUIZ_NOT_FOUND", "퀴즈를 찾을 수 없습니다.", 404),
+    GAME_NOT_IN_PROGRESS("GAME_NOT_IN_PROGRESS", "게임이 진행 중이 아닙니다.", 400),
+    GAME_STILL_IN_PROGRESS("GAME_STILL_IN_PROGRESS", "게임이 아직 진행 중입니다.", 400),
+    INVALID_QUESTION_NUMBER("INVALID_QUESTION_NUMBER", "유효하지 않은 문제 번호입니다.", 400),
 
     // ============================================
     // AI/좌표 처리 관련 에러 (AI)
@@ -133,10 +131,7 @@ public enum ErrorCode {
     // ============================================
     BUSINESS_ERROR("BUSINESS_ERROR", "비즈니스 로직 오류가 발생했습니다.", 400),
     VALIDATION_ERROR("VALIDATION_ERROR", "유효성 검사에 실패했습니다.", 400),
-    DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "이미 존재하는 리소스입니다.", 409),
-
-    // Quiz 관련
-    QUIZ_NOT_FOUND("QUIZ_NOT_FOUND", "퀴즈를 찾을 수 없습니다.", 404);
+    DUPLICATE_RESOURCE("DUPLICATE_RESOURCE", "이미 존재하는 리소스입니다.", 409);
 
 
     private final String code;
