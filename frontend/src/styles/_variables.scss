@@ -1,0 +1,27 @@
+/**
+ * @file SCSS 변수 정의 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-17
+ * @최종수정일 2025-10-17
+ * @description SignBell 프로젝트의 색상 및 스타일 변수를 정의합니다.
+ */
+
+:root {
+  /* 기본 색상 */
+  --background-color: #F5F5F5;
+  --white-color: #FFFFFF;
+  
+  /* 텍스트 색상 */
+  --text-color: #333333;
+  --text-secondary-color: #999999;
+  
+  /* 브랜드 색상 */
+  --primary-color: #4A90E2;
+  --secondary-color: #50C878;
+  --accent-color: #FEE500;
+  
+  /* 상태 색상 */
+  --state-disabled: #CCCCCC;
+  --state-error: #E74C3C;
+  --state-success: #2ECC71;
+}

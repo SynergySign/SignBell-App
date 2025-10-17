@@ -1,0 +1,157 @@
+/**
+ * @file Modal 스타일 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-17
+ * @최종수정일 2025-10-17
+ */
+
+@import '../../styles/animations';
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(2px);
+
+  .modal-container {
+    background-color: var(--white-color);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    animation: scaleIn 0.3s ease-out;
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 24px;
+      border-bottom: 1px solid #e0e0e0;
+
+      .modal-title {
+        font-size: 20px;
+        font-weight: bold;
+        color: var(--text-color);
+        margin: 0;
+      }
+
+      .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--text-secondary-color);
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        @include smooth-transition(all, 0.2s);
+
+        &:hover {
+          color: var(--text-color);
+          background-color: var(--background-color);
+          transform: rotate(90deg);
+        }
+
+        &:active {
+          transform: rotate(90deg) scale(0.9);
+        }
+      }
+    }
+
+    .modal-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      color: var(--text-color);
+      line-height: 1.6;
+
+      h2 {
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 24px;
+        margin-bottom: 12px;
+        color: var(--primary-color);
+
+        &:first-child {
+          margin-top: 0;
+        }
+      }
+
+      h3 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 16px;
+        margin-bottom: 8px;
+        color: var(--text-color);
+      }
+
+      p {
+        margin-bottom: 12px;
+        font-size: 14px;
+      }
+
+      ul, ol {
+        margin-left: 20px;
+        margin-bottom: 12px;
+
+        li {
+          margin-bottom: 8px;
+          font-size: 14px;
+        }
+      }
+
+      hr {
+        border: none;
+        border-top: 1px solid #e0e0e0;
+        margin: 24px 0;
+      }
+    }
+
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid #e0e0e0;
+      display: flex;
+      justify-content: flex-end;
+
+      .modal-button {
+        padding: 10px 24px;
+        background-color: var(--primary-color);
+        color: var(--white-color);
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
+        @include smooth-transition(all, 0.3s);
+        @include button-press;
+
+        &:hover {
+          background-color: var(--primary-color);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(74, 144, 226, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0) scale(0.95);
+          box-shadow: 0 1px 2px rgba(74, 144, 226, 0.2);
+        }
+      }
+    }
+  }
+}

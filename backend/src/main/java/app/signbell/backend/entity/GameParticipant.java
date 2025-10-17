@@ -91,14 +91,10 @@ public class GameParticipant {
         this.currentRound = this.gameRoom.getCurrentRound();
     }
 
-
     /**
-     * 레디 상태 변경 (다른 팀원이 구현 예정)
+     * 참여자의 준비 상태를 변경시킵니다.
      */
-    public void setReady(boolean ready) {
-        if (!this.isHost) {  // 방장이 아닐 때만
-            this.isReady = ready;
-        }
+    public void changeReadyStatus(boolean isReady) {
+        this.isReady = isReady;
     }
-
 }
