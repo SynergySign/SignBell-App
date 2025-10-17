@@ -5,6 +5,8 @@
  * @최종수정일 2025-10-17
  */
 
+@import '../../styles/animations';
+
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -16,6 +18,8 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(2px);
 
   .modal-container {
     background-color: var(--white-color);
@@ -26,6 +30,7 @@
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    animation: scaleIn 0.3s ease-out;
 
     .modal-header {
       display: flex;
@@ -53,9 +58,17 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        border-radius: 50%;
+        @include smooth-transition(all, 0.2s);
 
         &:hover {
           color: var(--text-color);
+          background-color: var(--background-color);
+          transform: rotate(90deg);
+        }
+
+        &:active {
+          transform: rotate(90deg) scale(0.9);
         }
       }
     }
@@ -124,10 +137,19 @@
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.2s;
+        box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
+        @include smooth-transition(all, 0.3s);
+        @include button-press;
 
         &:hover {
-          opacity: 0.8;
+          background-color: var(--primary-color);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(74, 144, 226, 0.4);
+        }
+
+        &:active {
+          transform: translateY(0) scale(0.95);
+          box-shadow: 0 1px 2px rgba(74, 144, 226, 0.2);
         }
       }
     }

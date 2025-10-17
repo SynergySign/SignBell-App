@@ -5,11 +5,14 @@
  * @최종수정일 2025-10-17
  */
 
+@import '../../styles/animations';
+
 .landing-page {
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
+  animation: fadeIn 0.5s ease-in-out;
 
   .landing-content {
     display: flex;
@@ -25,17 +28,28 @@
     .service-intro {
       flex: 1;
       text-align: center;
+      animation: fadeInUp 0.6s ease-out;
 
       .service-title {
         font-size: 48px;
         font-weight: bold;
         color: var(--primary-color);
         margin-bottom: 16px;
+        animation: fadeInDown 0.8s ease-out;
+        
+        @media (max-width: 768px) {
+          font-size: 36px;
+        }
       }
 
       .service-description {
         font-size: 20px;
         color: var(--text-secondary-color);
+        animation: fadeInUp 0.8s ease-out 0.2s both;
+        
+        @media (max-width: 768px) {
+          font-size: 16px;
+        }
       }
     }
 
@@ -45,6 +59,12 @@
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       min-width: 360px;
+      animation: scaleIn 0.5s ease-out 0.3s both;
+      @include smooth-transition(box-shadow);
+
+      &:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+      }
 
       @media (max-width: 768px) {
         min-width: 300px;
