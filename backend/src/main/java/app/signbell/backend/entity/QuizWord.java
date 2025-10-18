@@ -40,4 +40,22 @@ public class QuizWord {
     public QuizWord(Sign sign) {
         this.sign = sign;
     }
+
+    /**
+     * 연결된 Sign 엔티티의 제목(title)을 반환합니다.
+     * 실제 단어 제목은 QuizWord가 아닌 Sign 엔티티에 저장되어 있으므로,
+     * 연결된 sign 객체에 접근해서 그 객체의 getTitle()을 호출해야 합니다.
+     * 혹시라도 sign 객체가 없는 경우(null) 오류가 발생하지 않도록 예외 처리를 추가합니다.
+     *
+     * @author 고동현
+     * @since 2025-10-17
+     */
+    public String getTitle() {
+        if (this.sign != null) {
+            return this.sign.getTitle();
+        }
+        return null; // 또는 오류 방지를 위해 빈 문자열 "" 을 반환할 수도 있습니다.
+    }
+
+
 }

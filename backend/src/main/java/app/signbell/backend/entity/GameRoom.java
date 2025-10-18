@@ -131,4 +131,13 @@ public class GameRoom {
         this.status = GameRoomStatus.FINISHED;
         this.currentParticipants = 0;
     }
+
+    /**
+     * 방 상태 변경
+     */
+    public void updateStatus(GameRoomStatus newStatus) {
+        this.status = newStatus;
+    }
 }
+
+

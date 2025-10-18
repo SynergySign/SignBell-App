@@ -2,6 +2,11 @@ package app.signbell.backend.repository;
 
 import app.signbell.backend.entity.GameHistory;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
+import java.util.Optional;
 
 /**
  * GameHistoryRepository 인터페이스는 게임 진행 내역(GameHistory 엔티티)에 대한 데이터베이스 CRUD 작업을 처리하기 위해
@@ -18,4 +23,42 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * @since 2025-10-12
  */
 public interface GameHistoryRepository extends JpaRepository<GameHistory, Long> {
+
+    /**
+     * 특정 게임방의 점수를 내림차순으로 조회
+     */
+    @Query("SELECT gh FROM GameHistory gh " +
+            "JOIN FETCH gh.participant " +
+            "WHERE gh.gameRoom.id = :gameRoomId " +
+            "ORDER BY gh.score DESC")
+    List<GameHistory> findByGameRoom_IdOrderByScoreDesc(@Param("gameRoomId") Long gameRoomId);
+
+    /**
+     * 특정 사용자의 게임 기록 조회 (가장 최근 1개)
+     */
+    @Query("SELECT gh FROM GameHistory gh " +
+            "WHERE gh.gameRoom.id = :gameRoomId " +
+            "AND gh.participant.id = :userId " +
+            "ORDER BY gh.round DESC")
+    Optional<GameHistory> findByGameRoom_IdAndParticipant_Id(
+            @Param("gameRoomId") Long gameRoomId,
+            @Param("userId") Long userId
+    );
+
+    /**
+     * 특정 사용자의 모든 게임 기록 조회 (라운드별)
+     */
+    @Query("SELECT gh FROM GameHistory gh " +
+            "WHERE gh.gameRoom.id = :gameRoomId " +
+            "AND gh.participant.id = :userId " +
+            "ORDER BY gh.round ASC")
+    List<GameHistory> findAllByGameRoom_IdAndParticipant_Id(
+            @Param("gameRoomId") Long gameRoomId,
+            @Param("userId") Long userId
+    );
+
+    List<GameHistory> findTop3ByGameRoom_IdOrderByScoreDesc(Long roomId);
+
+
+
 }

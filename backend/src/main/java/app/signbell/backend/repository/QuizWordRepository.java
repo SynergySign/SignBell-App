@@ -3,7 +3,13 @@ package app.signbell.backend.repository;
 
 import app.signbell.backend.entity.QuizWord;
 import app.signbell.backend.entity.Sign;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.List;
 
 /**
  * QuizWordRepository 인터페이스는 퀴즈 단어 정보(QuizWord 엔티티)에 대한 데이터베이스 CRUD 작업을 처리하기 위해
@@ -39,4 +45,22 @@ public interface QuizWordRepository extends JpaRepository<QuizWord, Long> {
 
 
 
+
+    /**
+     * 랜덤하게 N개의 퀴즈 단어를 조회합니다. (N+1 방지)
+     * Sign 엔티티를 JOIN FETCH로 즉시 로딩합니다.
+     *
+     * @param limit 조회할 단어 개수
+     * @return 랜덤 퀴즈 단어 리스트
+     */
+    @Query(value = "SELECT qw FROM QuizWord qw " +
+            "JOIN FETCH qw.sign " +
+            "ORDER BY FUNCTION('RAND')")
+    List<QuizWord> findRandomQuizWords(@Param("limit") int limit);
+
+    /**
+     * 전체 퀴즈 단어 개수 조회
+     */
+    @Query("SELECT COUNT(qw) FROM QuizWord qw")
+    long countAllQuizWords();
 }
