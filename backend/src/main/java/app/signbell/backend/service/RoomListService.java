@@ -1,8 +1,12 @@
 package app.signbell.backend.service;
 
+import app.signbell.backend.dto.response.RoomDetailResponse;
 import app.signbell.backend.dto.response.RoomListResponse;
 import app.signbell.backend.dto.response.RoomListSliceResponse;
 import app.signbell.backend.entity.GameRoom;
+import app.signbell.backend.entity.GameRoomStatus;
+import app.signbell.backend.exception.BusinessException;
+import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.repository.GameRoomRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +25,7 @@ import java.util.stream.Collectors;
  *
  * 주요 기능:
  * - 게임 방 목록 조회
+ * - 특정 게임 방 상세 정보 조회
  * - 페이지 크기 유효성 검사 및 기본값 설정
  *
  * 의존성:
@@ -73,5 +78,32 @@ public class RoomListService {
 
         // Slice 응답 생성
         return RoomListSliceResponse.from(rooms, roomSlice.hasNext());
+    }
+
+    /**
+     * 특정 게임 방의 상세 정보를 조회합니다.
+     * FINISHED 상태의 방은 조회되지 않습니다.
+     *
+     * @param roomId 조회할 방의 ID
+     * @return 게임 방의 상세 정보를 담은 응답 객체
+     * @throws BusinessException 해당 ID의 방이 존재하지 않거나 FINISHED 상태인 경우 ROOM_NOT_FOUND 예외 발생
+     */
+    public RoomDetailResponse getRoomDetail(Long roomId) {
+        GameRoom gameRoom = gameRoomRepository.findById(roomId)
+                .orElseThrow(() -> {
+                    log.warn("방을 찾을 수 없습니다. roomId={}", roomId);
+                    return new BusinessException(ErrorCode.ROOM_NOT_FOUND);
+                });
+
+        // FINISHED 상태인 방은 조회 불가
+        if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
+            log.warn("종료된 방은 조회할 수 없습니다. roomId={}, status={}", roomId, gameRoom.getStatus());
+            throw new BusinessException(ErrorCode.ROOM_NOT_FOUND);
+        }
+
+        log.info("방 상세 정보 조회 완료. roomId={}, gameTitle={}, status={}",
+                roomId, gameRoom.getGameTitle(), gameRoom.getStatus());
+
+        return RoomDetailResponse.from(gameRoom);
     }
 }
