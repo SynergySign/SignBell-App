@@ -21,15 +21,15 @@ import java.util.stream.Collectors;
 
 /**
  * RoomListService는 게임 방 리스트를 조회하는 기능을 제공합니다.
- * 이 서비스를 통해 대기 상태의 게임 방 목록을 페이징 처리하여 가져올 수 있습니다.
+ * 이 서비스를 통해 활성 상태(WAITING, IN_PROGRESS)의 게임 방 목록을 페이징 처리하여 가져올 수 있습니다.
  *
  * 주요 기능:
- * - 게임 방 목록 조회
+ * - 게임 방 목록 조회 (WAITING, IN_PROGRESS 상태만)
  * - 특정 게임 방 상세 정보 조회
  * - 페이지 크기 유효성 검사 및 기본값 설정
  *
  * 의존성:
- * - GameRoomRepository: 대기 상태의 게임 방 정보를 데이터베이스에서 조회하기 위한 Repository
+ * - GameRoomRepository: 활성 상태의 게임 방 정보를 데이터베이스에서 조회하기 위한 Repository
  *
  * 트랜잭션:
  * - 읽기 전용(readOnly = true) 트랜잭션 설정
@@ -46,12 +46,12 @@ public class RoomListService {
     private final GameRoomRepository gameRoomRepository;
 
     /**
-     * 주어진 페이지 번호와 페이지 크기를 기반으로 대기 상태의 게임 방 목록을 조회합니다.
-     * 조회된 결과는 페이징된 형태의 응답으로 반환됩니다.
+     * 주어진 페이지 번호와 페이지 크기를 기반으로 활성 상태의 게임 방 목록을 조회합니다.
+     * WAITING 또는 IN_PROGRESS 상태의 방만 조회되며, 조회된 결과는 페이징된 형태의 응답으로 반환됩니다.
      *
      * @param page 조회할 페이지 번호 (0부터 시작)
      * @param size 한 페이지에 조회할 방의 개수 (1 이상 100 이하)
-     * @return 대기 상태의 게임 방 목록과 다음 페이지 존재 여부 정보를 포함한 응답 객체
+     * @return 활성 상태의 게임 방 목록과 다음 페이지 존재 여부 정보를 포함한 응답 객체
      */
     public RoomListSliceResponse getRoomList(int page, int size) {
 
@@ -64,8 +64,8 @@ public class RoomListService {
         // Pageable 생성
         Pageable pageable = PageRequest.of(page, size);
 
-        // WAITING 상태의 방 목록 조회
-        Slice<GameRoom> roomSlice = gameRoomRepository.findWaitingRooms(pageable);
+        // WAITING 또는 IN_PROGRESS 상태의 방 목록 조회
+        Slice<GameRoom> roomSlice = gameRoomRepository.findActiveRooms(pageable);
 
         // Entity -> DTO 변환
         List<RoomListResponse> rooms = roomSlice.getContent()

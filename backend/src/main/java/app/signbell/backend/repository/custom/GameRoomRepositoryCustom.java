@@ -13,10 +13,10 @@ import org.springframework.data.domain.Slice;
 public interface GameRoomRepositoryCustom {
 
     /**
-     * WAITING 상태의 퀴즈 방 목록을 조회합니다. (무한 스크롤)
+     * WAITING 또는 IN_PROGRESS 상태의 퀴즈 방 목록을 조회합니다. (무한 스크롤)
      *
      * @param pageable 페이징 정보
      * @return 방 목록 Slice
      */
-    Slice<GameRoom> findWaitingRooms(Pageable pageable);
+    Slice<GameRoom> findActiveRooms(Pageable pageable);
 }
