@@ -31,7 +31,7 @@ public class GameRoomRepositoryImpl implements GameRoomRepositoryCustom {
     private final JPAQueryFactory queryFactory;
 
     /**
-     * WAITING 상태의 게임방 목록을 무한 스크롤 방식으로 조회합니다.
+     * WAITING 또는 IN_PROGRESS 상태의 게임방 목록을 무한 스크롤 방식으로 조회합니다.
      * 조회 결과는 요청된 페이징 정보에 따라 정렬 및 개수 제한이 적용됩니다.
      *
      * @param pageable 페이징 정보를 포함하는 객체
@@ -40,7 +40,7 @@ public class GameRoomRepositoryImpl implements GameRoomRepositoryCustom {
      *         (다음 페이지 존재 여부 포함)
      */
     @Override
-    public Slice<GameRoom> findWaitingRooms(Pageable pageable) {
+    public Slice<GameRoom> findActiveRooms(Pageable pageable) {
         /*
             무한 스크롤 구현 로직:
             1. 요청한 size보다 1개 더 조회 (size + 1)
@@ -57,7 +57,7 @@ public class GameRoomRepositoryImpl implements GameRoomRepositoryCustom {
         List<GameRoom> roomList = queryFactory
                 .selectFrom(gameRoom)
                 .leftJoin(gameRoom.host).fetchJoin() // N+1 방지
-                .where(gameRoom.status.eq(GameRoomStatus.WAITING))
+                .where(gameRoom.status.in(GameRoomStatus.WAITING, GameRoomStatus.IN_PROGRESS))
                 .orderBy(gameRoom.createdAt.desc())
                 .offset(pageable.getOffset())           // 건너뛸 개수
                 .limit(pageable.getPageSize() + 1)      // 조회할 개수 + 1

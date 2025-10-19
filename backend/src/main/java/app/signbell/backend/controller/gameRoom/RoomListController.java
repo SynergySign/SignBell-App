@@ -1,6 +1,7 @@
 package app.signbell.backend.controller.gameRoom;
 
 import app.signbell.backend.dto.common.ApiResponse;
+import app.signbell.backend.dto.response.RoomDetailResponse;
 import app.signbell.backend.dto.response.RoomListSliceResponse;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
@@ -9,10 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * RoomListController는 퀴즈 방 리스트를 관리하는 REST API의 컨트롤러 클래스입니다.
@@ -20,11 +18,13 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * 주요 기능:
  * - 사용자 인증 정보를 기반으로 퀴즈 방 목록을 페이징 처리하여 제공
+ * - 특정 방의 상세 정보 조회
  * - 인증 주체(subject)를 Long 타입 사용자 ID로 변환
  * - 요청 성공 및 실패에 따른 로깅 처리
  *
  * 요청 처리:
  * - GET 요청: "/api/quiz/rooms" 엔드포인트에 대해 방 목록을 조회
+ * - GET 요청: "/api/quiz/rooms/{roomId}" 엔드포인트에 대해 특정 방 상세 정보를 조회
  * - 기본 페이징 매개변수: page=0, size=10
  *
  * 의존성:
@@ -78,6 +78,38 @@ public class RoomListController {
             // 이는 보통 인증 시스템 설정 문제이거나, 예상치 못한 상황
             log.error("인증된 사용자 ID(subject)를 Long으로 변환하는 데 실패했습니다: {}", subject, e);
             throw new BusinessException(ErrorCode.UNAUTHORIZED); // 인증/변환 오류
+        }
+    }
+
+    /**
+     * 특정 퀴즈 방의 상세 정보를 조회하여 클라이언트에게 응답합니다.
+     *
+     * @param roomId 조회할 방의 ID
+     * @param subject 인증된 사용자의 ID를 나타내는 문자열 (JWT 토큰에서 추출된 주체)
+     * @return 퀴즈 방 상세 정보를 포함하는 응답 객체
+     * @throws BusinessException 인증 주체(subject)가 Long 타입으로 변환되지 않을 경우 발생하며,
+     *         이는 인증 오류로 간주됩니다.
+     */
+    @GetMapping("/{roomId}")
+    public ResponseEntity<ApiResponse<RoomDetailResponse>> getRoomDetail(
+            @PathVariable Long roomId,
+            @AuthenticationPrincipal String subject) {
+
+        try {
+            Long userId = Long.valueOf(subject);
+
+            log.info("방 상세 정보 조회 요청. userId={}, roomId={}", userId, roomId);
+
+            RoomDetailResponse response = roomListService.getRoomDetail(roomId);
+
+            ApiResponse<RoomDetailResponse> apiResponse =
+                    ApiResponse.success("퀴즈 방 상세 정보를 조회했습니다.", response);
+
+            return ResponseEntity.ok(apiResponse);
+
+        } catch (NumberFormatException e) {
+            log.error("인증된 사용자 ID(subject)를 Long으로 변환하는 데 실패했습니다: {}", subject, e);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
     }
 }
