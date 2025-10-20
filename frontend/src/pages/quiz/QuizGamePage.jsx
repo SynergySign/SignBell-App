@@ -255,6 +255,37 @@ const QuizGamePage = () => {
           </div>
         )}
 
+        {/* 테스트용 버튼들 */}
+        <div className={styles.testButtons}>
+          <button 
+            className={styles.testButton}
+            onClick={() => setGamePhase('challenge')}
+          >
+            도전 신청 단계
+          </button>
+          <button 
+            className={styles.testButton}
+            onClick={() => setGamePhase('solving')}
+          >
+            문제 풀이 단계
+          </button>
+          <button 
+            className={styles.testButton}
+            onClick={() => setShowResultModal(true)}
+          >
+            결과 모달 보기
+          </button>
+          <button 
+            className={styles.testButton}
+            onClick={() => {
+              setCurrentQuestion(8);
+              moveToNextQuestion();
+            }}
+          >
+            게임 종료 (8번 문제)
+          </button>
+        </div>
+
         {/* 플레이어 카드 영역 */}
         <div className={styles.playersGrid}>
           <div className={styles.playerCard}>
