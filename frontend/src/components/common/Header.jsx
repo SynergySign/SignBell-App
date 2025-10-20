@@ -9,7 +9,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
-import './Header.scss';
+import styles from './Header.module.scss';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -39,16 +39,16 @@ const Header = () => {
   const showMainPageButtons = location.pathname === '/main';
 
   return (
-    <header className="header">
-      <div className="header-container">
-        <div className="logo" onClick={handleLogoClick}>
+    <header className={styles.header}>
+      <div className={styles.headerContainer}>
+        <div className={styles.logo} onClick={handleLogoClick}>
           SignBell
         </div>
-        <div className="header-actions">
+        <div className={styles.headerActions}>
           {showMainPageButtons && (
             <>
               <button
-                className="header-button mypage-button"
+                className={`${styles.headerButton} ${styles.mypageButton}`}
                 onClick={handleMyPageClick}
                 aria-label="마이페이지"
               >
@@ -56,7 +56,7 @@ const Header = () => {
                 <span>마이페이지</span>
               </button>
               <button
-                className="header-button logout-button"
+                className={`${styles.headerButton} ${styles.logoutButton}`}
                 onClick={handleLogoutClick}
                 aria-label="로그아웃"
               >

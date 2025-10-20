@@ -5,17 +5,18 @@
  * @최종수정일 2025-10-17
  */
 
-@import '../../styles/animations';
+@use '../../styles/animations' as *;
 
-.common-button {
+.commonButton {
   width: 100%;
   padding: 14px 20px;
   border: none;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 16px;
   font-weight: 600;
   position: relative;
   overflow: hidden;
+  letter-spacing: -0.2px;
   @include smooth-transition(all, 0.3s);
 
   &::before {
@@ -32,14 +33,15 @@
   }
 
   &.primary {
-    background-color: var(--accent-color);
-    color: var(--text-color);
+    background-color: var(--secondary-color);
+    color: var(--white-color);
     cursor: pointer;
-    box-shadow: 0 4px 8px rgba(254, 229, 0, 0.3);
+    box-shadow: 0 2px 8px rgba(144, 202, 249, 0.3);
 
     &:hover:not(.disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 12px rgba(254, 229, 0, 0.4);
+      background-color: var(--primary-color);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(187, 222, 251, 0.4);
 
       &::before {
         width: 300px;
@@ -49,12 +51,12 @@
 
     &:active:not(.disabled) {
       transform: translateY(0) scale(0.98);
-      box-shadow: 0 2px 4px rgba(254, 229, 0, 0.2);
+      box-shadow: 0 2px 4px rgba(144, 202, 249, 0.2);
     }
 
     &.disabled {
-      background-color: var(--state-disabled);
-      color: var(--text-secondary-color);
+      background-color: #e0e0e0;
+      color: #999999;
       cursor: not-allowed;
       box-shadow: none;
       transform: none;
@@ -69,7 +71,7 @@
   &.secondary {
     background-color: var(--white-color);
     color: var(--text-color);
-    border: 1px solid var(--state-disabled);
+    border: 1px solid #e0e0e0;
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
@@ -79,9 +81,9 @@
 
     &:hover:not(.disabled) {
       background-color: var(--background-color);
-      border-color: var(--text-secondary-color);
+      border-color: #999999;
       transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 
       &::before {
         width: 300px;
@@ -102,7 +104,7 @@
       &:hover {
         transform: none;
         background-color: var(--white-color);
-        border-color: var(--state-disabled);
+        border-color: #e0e0e0;
       }
     }
   }

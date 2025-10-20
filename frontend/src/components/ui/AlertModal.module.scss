@@ -1,0 +1,174 @@
+/**
+ * @파일명 AlertModal.module.scss
+ * @설명 알림 모달 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ */
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.alertModal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  background-color: var(--white-color);
+  border-radius: 16px;
+  padding: 32px;
+  z-index: 1002;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  animation: scaleIn 0.3s ease-out forwards;
+  text-align: center;
+
+  .iconWrapper {
+    margin-bottom: 16px;
+
+    .icon {
+      font-size: 48px;
+      display: inline-block;
+      animation: bounceIn 0.6s ease-out;
+    }
+  }
+
+  .title {
+    color: var(--text-color);
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    letter-spacing: -0.3px;
+  }
+
+  .message {
+    color: var(--text-color);
+    font-size: 15px;
+    margin: 0 0 24px 0;
+    line-height: 1.5;
+    letter-spacing: -0.2px;
+  }
+
+  .confirmButton {
+    width: 100%;
+    height: 48px;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: -0.2px;
+    color: var(--white-color);
+
+    &:hover {
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+
+  // 타입별 스타일
+  &.info .confirmButton {
+    background-color: var(--info-color);
+    box-shadow: 0 2px 8px rgba(41, 182, 246, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(41, 182, 246, 0.4);
+    }
+  }
+
+  &.warning .confirmButton {
+    background-color: var(--warning-color);
+    box-shadow: 0 2px 8px rgba(255, 204, 128, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(255, 204, 128, 0.4);
+    }
+  }
+
+  &.error .confirmButton {
+    background-color: var(--error-color);
+    box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(239, 83, 80, 0.4);
+    }
+  }
+
+  &.success .confirmButton {
+    background-color: var(--success-color);
+    box-shadow: 0 2px 8px rgba(102, 187, 106, 0.3);
+
+    &:hover {
+      box-shadow: 0 4px 12px rgba(102, 187, 106, 0.4);
+    }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .alertModal {
+    width: 90%;
+    padding: 24px;
+
+    .iconWrapper .icon {
+      font-size: 40px;
+    }
+
+    .title {
+      font-size: 18px;
+    }
+
+    .message {
+      font-size: 14px;
+    }
+  }
+}

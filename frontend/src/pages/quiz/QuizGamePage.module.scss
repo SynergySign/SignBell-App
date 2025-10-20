@@ -1,0 +1,893 @@
+/**
+ * @파일명 QuizGamePage.module.scss
+ * @설명 퀴즈 진행 페이지 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ */
+
+.quiz-game-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: var(--white-color);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  // 방 정보 섹션
+  .room-info-section {
+    background-color: var(--primary-color);
+    padding: 20px 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    flex-shrink: 0;
+
+    .room-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+
+      .room-number {
+        color: var(--text-color);
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0.7;
+        letter-spacing: -0.2px;
+      }
+
+      .room-title {
+        color: var(--text-color);
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.3px;
+      }
+    }
+
+    .exit-button {
+      background-color: var(--accent-color);
+      color: var(--text-color);
+      border: none;
+      border-radius: 12px;
+      padding: 10px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      letter-spacing: -0.2px;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+
+  // 메인 콘텐츠
+  .game-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+    gap: 32px;
+    overflow-y: auto;
+
+    // 문제 제시 섹션
+    .question-section {
+      background-color: var(--white-color);
+      border: 1px solid #e0e0e0;
+      border-radius: 24px;
+      padding: 32px 48px;
+      text-align: center;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      animation: fadeIn 0.5s ease-out;
+
+      .question-number {
+        color: var(--secondary-color);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+        display: block;
+        margin-bottom: 12px;
+      }
+
+      .question-text {
+        color: var(--text-color);
+        font-size: 28px;
+        font-weight: 700;
+        margin: 0;
+        letter-spacing: -0.5px;
+      }
+    }
+
+    // 도전 신청 섹션
+    .challenge-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      width: 100%;
+      padding: 20px;
+    }
+
+    // 타이머 표시
+    .timer-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 20px 40px;
+      background-color: var(--info-color);
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(41, 182, 246, 0.3);
+      animation: fadeIn 0.5s ease-out;
+
+      &.urgent {
+        background-color: var(--error-color);
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .timer-label {
+        color: var(--white-color);
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+
+      .timer-value {
+        color: var(--white-color);
+        font-size: 40px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+    }
+
+    // 도전자 모집 정보
+    .challenge-info {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+
+      .challenge-tooltip {
+        background-color: rgba(144, 202, 249, 0.15);
+        color: var(--text-color);
+        font-size: 14px;
+        font-weight: 600;
+        border-radius: 12px;
+        padding: 10px 20px;
+        letter-spacing: -0.2px;
+        border: 1px solid var(--accent-color);
+      }
+
+      .challenge-count {
+        color: var(--accent-color);
+        font-size: 24px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+    }
+
+    // 문제 도전하기 버튼
+    .challenge-button {
+      width: 100%;
+      max-width: 400px;
+      height: 60px;
+      border: none;
+      border-radius: 16px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: -0.3px;
+
+      &.active {
+        background-color: var(--accent-color);
+        color: var(--text-color);
+        box-shadow: 0 4px 12px rgba(144, 202, 249, 0.4);
+
+        &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(144, 202, 249, 0.5);
+        }
+
+        &:active {
+          transform: translateY(0);
+        }
+      }
+
+      &.disabled {
+        background-color: #e0e0e0;
+        color: #999999;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+    }
+
+    // 문제 풀이 단계
+    .solving-phase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.5s ease-out;
+      width: 100%;
+
+      .solving-message {
+        text-align: center;
+
+        h2 {
+          color: var(--text-color);
+          font-size: 22px;
+          font-weight: 600;
+          margin: 0 0 12px 0;
+          letter-spacing: -0.3px;
+        }
+
+        p {
+          color: var(--text-color);
+          font-size: 16px;
+          margin: 0;
+          opacity: 0.7;
+          letter-spacing: -0.2px;
+        }
+      }
+    }
+
+    // 내 차례 단계
+    .my-turn-phase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      animation: fadeIn 0.5s ease-out;
+      width: 100%;
+
+      .countdown-display {
+        text-align: center;
+
+        h2 {
+          color: var(--accent-color);
+          font-size: 28px;
+          font-weight: 700;
+          margin: 0 0 16px 0;
+          letter-spacing: -0.5px;
+        }
+
+        p {
+          color: var(--text-color);
+          font-size: 18px;
+          margin: 0 0 20px 0;
+          letter-spacing: -0.3px;
+        }
+
+        .countdown-number {
+          color: var(--info-color);
+          font-size: 80px;
+          font-weight: 900;
+          margin: 20px 0;
+          letter-spacing: -2px;
+          animation: pulse 1s ease-in-out infinite;
+
+          &.urgent {
+            color: var(--error-color);
+            animation: urgentPulse 0.5s ease-in-out infinite;
+          }
+        }
+
+        .prepare-hint {
+          color: var(--text-color);
+          font-size: 14px;
+          margin: 12px 0 0 0;
+          opacity: 0.7;
+          letter-spacing: -0.2px;
+        }
+
+        .signing-text {
+          color: var(--success-color);
+          font-size: 20px;
+          font-weight: 600;
+          margin: 0 0 20px 0;
+          letter-spacing: -0.3px;
+          animation: blink 1s ease-in-out infinite;
+        }
+
+        .signing-indicator {
+          font-size: 60px;
+          animation: bounce 1s ease-in-out infinite;
+        }
+
+        .signing-timer {
+          color: var(--accent-color);
+          font-size: 24px;
+          font-weight: 700;
+          margin-top: 20px;
+          letter-spacing: -0.3px;
+
+          &.urgent {
+            color: var(--error-color);
+            animation: blink 0.5s ease-in-out infinite;
+          }
+        }
+
+        .loading-spinner {
+          width: 60px;
+          height: 60px;
+          border: 6px solid rgba(144, 202, 249, 0.3);
+          border-top-color: var(--accent-color);
+          border-radius: 50%;
+          animation: spin 1s linear infinite;
+          margin: 20px 0;
+        }
+
+        .waiting-text {
+          color: var(--accent-color);
+          font-size: 22px;
+          font-weight: 700;
+          margin: 16px 0;
+          letter-spacing: -0.3px;
+        }
+
+        .waiting-hint {
+          color: var(--text-color);
+          font-size: 14px;
+          margin: 8px 0 0 0;
+          opacity: 0.7;
+          letter-spacing: -0.2px;
+        }
+      }
+    }
+
+    // 테스트용 버튼들 (맨 밑)
+    .test-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+      padding: 20px;
+      background-color: rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      width: 100%;
+      max-width: 1200px;
+
+      .test-button {
+        background-color: #666666;
+        color: var(--white-color);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        &:hover {
+          background-color: #555555;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+    }
+
+    // 메인 컨텐츠 영역 (가로 배치)
+    .main-content-row {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      gap: 40px;
+      width: 100%;
+      max-width: 1200px;
+
+      // 메인 영상 카드 (도전자)
+      .main-video-card {
+        flex: 0 0 480px;
+        max-width: 480px;
+        background-color: var(--white-color);
+        border: 3px solid var(--accent-color);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
+
+        .main-webcam {
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          background-color: var(--background-color);
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 16px;
+          overflow: hidden;
+          position: relative;
+
+          .webcam-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 16px;
+          }
+
+          .no-webcam {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+
+            span {
+              color: #999999;
+              font-size: 18px;
+              font-weight: 500;
+            }
+
+            .error-text {
+              color: var(--error-color);
+              font-size: 12px;
+              margin: 0;
+            }
+          }
+        }
+
+        .main-player-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+
+          .main-player-name {
+            color: var(--text-color);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+          }
+
+          .main-player-score {
+            color: var(--accent-color);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+          }
+
+          .webcam-toggle {
+            background-color: var(--secondary-color);
+            color: var(--white-color);
+            border: none;
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: -0.2px;
+
+            &:hover {
+              transform: translateY(-1px);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            }
+
+            &:active {
+              transform: scale(0.98);
+            }
+          }
+        }
+      }
+
+      // 게임 상태 섹션
+      .game-state-section {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 380px;
+      }
+    }
+
+    // 작은 플레이어 카드들 (아래)
+    .small-players-grid {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 24px;
+
+      .small-player-card {
+        flex: 0 0 200px;
+        background-color: var(--white-color);
+        border: 1px solid #e0e0e0;
+        border-radius: 16px;
+        padding: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.2s;
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        &.current-player {
+          border: 3px solid var(--accent-color);
+          box-shadow: 0 4px 12px rgba(255, 204, 128, 0.4);
+          animation: pulse 2s ease-in-out infinite;
+        }
+
+        .small-webcam {
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          background-color: var(--background-color);
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin-bottom: 8px;
+          position: relative;
+
+          span {
+            color: #999999;
+            font-size: 12px;
+            font-weight: 500;
+          }
+
+          .current-player-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: var(--error-color);
+            color: var(--white-color);
+            font-size: 10px;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 8px;
+            letter-spacing: -0.2px;
+          }
+        }
+
+        .small-player-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+
+          .small-player-name {
+            color: var(--text-color);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+          }
+
+          .small-player-score {
+            color: var(--accent-color);
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: -0.2px;
+          }
+        }
+      }
+    }
+  }
+
+  // 나가기 확인 모달
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1001;
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .exit-confirm-modal {
+    position: fixed;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 360px;
+    background-color: var(--white-color);
+    border-radius: 16px;
+    padding: 28px;
+    z-index: 1002;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    animation: scaleIn 0.3s ease-out forwards;
+
+    h3 {
+      color: var(--text-color);
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      letter-spacing: -0.3px;
+    }
+
+    p {
+      color: var(--text-color);
+      font-size: 15px;
+      margin: 0 0 24px 0;
+      text-align: center;
+      letter-spacing: -0.2px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+
+      button {
+        flex: 1;
+        height: 48px;
+        border: none;
+        border-radius: 12px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+
+      .cancel-button {
+        background-color: #e0e0e0;
+        color: var(--text-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+      }
+
+      .confirm-button {
+        background-color: var(--accent-color);
+        color: var(--text-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+      }
+    }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes urgentPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.7;
+  }
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 1024px) {
+  .quiz-game-page {
+    .game-content {
+      padding: 30px 20px;
+
+      .main-content-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 24px;
+
+        .main-video-card {
+          flex: 0 0 auto;
+          width: 100%;
+          max-width: 480px;
+        }
+
+        .game-state-section {
+          width: 100%;
+          min-width: auto;
+        }
+      }
+
+      .small-players-grid {
+        flex-wrap: wrap;
+        gap: 16px;
+
+        .small-player-card {
+          flex: 0 0 180px;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .quiz-game-page {
+    .room-info-section {
+      padding: 12px 20px;
+
+      .room-info {
+        .room-number {
+          font-size: 12px;
+        }
+
+        .room-title {
+          font-size: 18px;
+        }
+      }
+
+      .exit-button {
+        padding: 8px 16px;
+        font-size: 13px;
+      }
+    }
+
+    .game-content {
+      padding: 20px 16px;
+      gap: 20px;
+
+      .question-section {
+        padding: 24px 32px;
+
+        .question-number {
+          font-size: 13px;
+        }
+
+        .question-text {
+          font-size: 22px;
+        }
+      }
+
+      .challenge-info {
+        flex-direction: column;
+        gap: 12px;
+
+        .challenge-tooltip {
+          font-size: 13px;
+          padding: 6px 12px;
+        }
+
+        .challenge-count {
+          font-size: 18px;
+        }
+      }
+
+      .challenge-section {
+        max-width: 100%;
+        padding: 0 16px;
+      }
+
+      .challenge-button {
+        max-width: 100%;
+        height: 56px;
+        font-size: 17px;
+      }
+
+      .main-content-row {
+        .main-video-card {
+          padding: 16px;
+
+          .main-webcam {
+            margin-bottom: 12px;
+
+            span {
+              font-size: 16px;
+            }
+          }
+
+          .main-player-info {
+            .main-player-name {
+              font-size: 16px;
+            }
+
+            .main-player-score {
+              font-size: 16px;
+            }
+          }
+
+          .challenger-badge {
+            font-size: 13px;
+            padding: 6px 12px;
+          }
+        }
+      }
+
+      .small-players-grid {
+        gap: 12px;
+
+        .small-player-card {
+          flex: 0 0 150px;
+        }
+      }
+    }
+
+    .exit-confirm-modal {
+      width: 90%;
+      padding: 24px;
+
+      h3 {
+        font-size: 18px;
+      }
+
+      p {
+        font-size: 14px;
+      }
+    }
+  }
+}

@@ -9,7 +9,7 @@
 import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare, faCoins, faUser } from '@fortawesome/free-solid-svg-icons';
-import './UserProfileCard.scss';
+import styles from './UserProfileCard.module.scss';
 
 const UserProfileCard = () => {
   // TODO: 사용자 프로필 API 연동 필요
@@ -31,27 +31,27 @@ const UserProfileCard = () => {
   };
 
   return (
-    <div className="user-profile-card">
-      <div className="profile-image-container">
+    <div className={styles.userProfileCard}>
+      <div className={styles.profileImageContainer}>
         {userProfile.profileImage && !imageError ? (
           <img 
             src={userProfile.profileImage} 
             alt="프로필 이미지" 
-            className="profile-image"
+            className={styles.profileImage}
             onError={handleImageError}
           />
         ) : (
-          <div className="profile-image-placeholder">
+          <div className={styles.profileImagePlaceholder}>
             <FontAwesomeIcon icon={faUser} />
           </div>
         )}
       </div>
       
-      <div className="profile-info">
-        <div className="nickname-section">
-          <h2 className="nickname">{userProfile.nickname}</h2>
+      <div className={styles.profileInfo}>
+        <div className={styles.nicknameSection}>
+          <h2 className={styles.nickname}>{userProfile.nickname}</h2>
           <button 
-            className="edit-icon"
+            className={styles.editIcon}
             onClick={handleEditClick}
             aria-label="닉네임 수정"
           >
@@ -59,9 +59,9 @@ const UserProfileCard = () => {
           </button>
         </div>
         
-        <div className="score-section">
-          <FontAwesomeIcon icon={faCoins} className="coin-icon" />
-          <span className="score">{userProfile.score}</span>
+        <div className={styles.scoreSection}>
+          <FontAwesomeIcon icon={faCoins} className={styles.coinIcon} />
+          <span className={styles.score}>{userProfile.score}</span>
         </div>
       </div>
     </div>

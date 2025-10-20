@@ -12,17 +12,17 @@
  */
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import './FeatureButton.scss';
+import styles from './FeatureButton.module.scss';
 
 const FeatureButton = ({ title, icon, onClick, delay = 0, active = false }) => {
   return (
     <button 
-      className={`feature-button ${active ? 'active' : ''}`}
+      className={`${styles.featureButton} ${active ? styles.active : ''}`}
       onClick={onClick}
       style={{ animationDelay: `${delay}s` }}
     >
-      <FontAwesomeIcon icon={icon} className="button-icon" />
-      <span className="button-title">{title}</span>
+      <FontAwesomeIcon icon={icon} className={styles.buttonIcon} />
+      <span className={styles.buttonTitle}>{title}</span>
     </button>
   );
 };
