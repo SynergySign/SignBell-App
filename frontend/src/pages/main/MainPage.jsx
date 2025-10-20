@@ -10,9 +10,8 @@ import { useState } from 'react';
 import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
-import Sidebar from '../../components/main/Sidebar';
 import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
-import RealTimeQuizSidebar from '../../components/main/RealTimeQuizSidebar';
+import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
 import './MainPage.scss';
 
 const MainPage = () => {
@@ -53,14 +52,21 @@ const MainPage = () => {
         </div>
       </div>
 
-      <Sidebar
-        isOpen={activeSidebar !== null}
-        onClose={() => setActiveSidebar(null)}
-        title={activeSidebar === 'personal' ? '개인 학습' : '실시간 퀴즈'}
-      >
-        {activeSidebar === 'personal' && <PersonalStudySidebar />}
-        {activeSidebar === 'quiz' && <RealTimeQuizSidebar />}
-      </Sidebar>
+      {/* 개인 학습 사이드바 */}
+      {activeSidebar === 'personal' && (
+        <PersonalStudySidebar
+          isOpen={activeSidebar === 'personal'}
+          onClose={() => setActiveSidebar(null)}
+        />
+      )}
+
+      {/* 실시간 퀴즈 사이드바 */}
+      {activeSidebar === 'quiz' && (
+        <RealTimeQuizSidebar
+          isOpen={activeSidebar === 'quiz'}
+          onClose={() => setActiveSidebar(null)}
+        />
+      )}
     </div>
   );
 };
