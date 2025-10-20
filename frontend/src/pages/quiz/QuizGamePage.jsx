@@ -37,6 +37,16 @@ const QuizGamePage = () => {
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [currentChallenger, setCurrentChallenger] = useState(1); // 현재 도전자 순서
   const [totalChallengers, setTotalChallengers] = useState(2); // 총 도전자 수
+  const [isWaitingResult, setIsWaitingResult] = useState(false); // 수어 인식 결과 대기 중
+  const [resultMessage, setResultMessage] = useState(''); // 결과 메시지
+
+  // 임시 플레이어 데이터 (실제로는 WebSocket에서 받음)
+  const [players] = useState([
+    { id: 1, nickname: '사용자1', score: 1250, isMe: true, isCurrentPlayer: false },
+    { id: 2, nickname: '사용자2', score: 980, isMe: false, isCurrentPlayer: false },
+    { id: 3, nickname: '사용자3', score: 1100, isMe: false, isCurrentPlayer: false },
+    { id: 4, nickname: '사용자4', score: 850, isMe: false, isCurrentPlayer: false },
+  ]);
 
   // 임시 순위 데이터 (실제로는 WebSocket에서 받음)
   const [rankings] = useState([
@@ -277,22 +287,41 @@ const QuizGamePage = () => {
    * TODO: FastAPI 서버에서 받은 결과로 처리
    */
   const handleSigningResult = () => {
-    // 임시로 50% 확률로 정답/오답 처리
-    const isCorrect = Math.random() > 0.5;
+    // 수어 인식 결과 대기 상태로 전환
+    setIsWaitingResult(true);
+    setResultMessage('수어 인식 중...');
     
-    if (isCorrect) {
-      showToast('정답! 축하합니다! 다음 문제로 이동합니다.', 'success');
+    // TODO: FastAPI 서버로 수어 데이터 전송
+    // const response = await fetch('http://fastapi-server/api/verify-sign', {
+    //   method: 'POST',
+    //   body: JSON.stringify({ handLandmarks: ... })
+    // });
+    
+    // 임시: 6~10초 사이 랜덤 대기 시간
+    const waitTime = Math.floor(Math.random() * 4000) + 6000; // 6000~10000ms
+    
+    setTimeout(() => {
+      // 임시로 50% 확률로 정답/오답 처리
+      const isCorrect = Math.random() > 0.5;
       
-      setTimeout(() => {
-        moveToNextQuestion();
-      }, 2000);
-    } else {
-      showToast('오답! 아쉽습니다. 다음 도전자에게 기회가 넘어갑니다.', 'error');
-      
-      setTimeout(() => {
-        handleNextChallenger();
-      }, 2000);
-    }
+      if (isCorrect) {
+        setResultMessage('정답입니다! 🎉');
+        
+        setTimeout(() => {
+          setIsWaitingResult(false);
+          setResultMessage('');
+          moveToNextQuestion();
+        }, 2000);
+      } else {
+        setResultMessage('오답입니다 😢');
+        
+        setTimeout(() => {
+          setIsWaitingResult(false);
+          setResultMessage('');
+          handleNextChallenger();
+        }, 2000);
+      }
+    }, waitTime);
   };
 
   /**
@@ -521,22 +550,33 @@ const QuizGamePage = () => {
             {gamePhase === 'myTurn' && (
               <div className={styles.myTurnPhase}>
                 <div className={styles.countdownDisplay}>
-                  <h2>내 차례입니다!</h2>
-                  {solvingTimer > 0 ? (
+                  {isWaitingResult ? (
                     <>
-                      <p>수어 동작 준비하세요</p>
-                      <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
-                        {solvingTimer}
-                      </div>
-                      <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
+                      <h2>결과 확인 중...</h2>
+                      <div className={styles.loadingSpinner}></div>
+                      <p className={styles.waitingText}>{resultMessage}</p>
+                      <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다 (6~10초 소요)</p>
                     </>
                   ) : (
                     <>
-                      <p className={styles.signingText}>지금 수어를 표현하세요!</p>
-                      <div className={styles.signingIndicator}>🤟</div>
-                      <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
-                        남은 시간: {signingTimer}초
-                      </div>
+                      <h2>내 차례입니다!</h2>
+                      {solvingTimer > 0 ? (
+                        <>
+                          <p>수어 동작 준비하세요</p>
+                          <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
+                            {solvingTimer}
+                          </div>
+                          <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
+                        </>
+                      ) : (
+                        <>
+                          <p className={styles.signingText}>지금 수어를 표현하세요!</p>
+                          <div className={styles.signingIndicator}>🤟</div>
+                          <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
+                            남은 시간: {signingTimer}초
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -547,35 +587,25 @@ const QuizGamePage = () => {
 
         {/* 작은 플레이어 카드들 (아래) */}
         <div className={styles.smallPlayersGrid}>
-          <div className={styles.smallPlayerCard}>
-            <div className={styles.smallWebcam}>
-              <span>웹캠</span>
+          {players.map((player) => (
+            <div 
+              key={player.id} 
+              className={`${styles.smallPlayerCard} ${player.isCurrentPlayer ? styles.currentPlayer : ''}`}
+            >
+              <div className={styles.smallWebcam}>
+                <span>웹캠</span>
+                {player.isCurrentPlayer && (
+                  <div className={styles.currentPlayerBadge}>도전 중</div>
+                )}
+              </div>
+              <div className={styles.smallPlayerInfo}>
+                <span className={styles.smallPlayerName}>
+                  {player.nickname}{player.isMe ? ' (나)' : ''}
+                </span>
+                <span className={styles.smallPlayerScore}>{player.score}점</span>
+              </div>
             </div>
-            <div className={styles.smallPlayerInfo}>
-              <span className={styles.smallPlayerName}>닉네임</span>
-              <span className={styles.smallPlayerScore}>800점</span>
-            </div>
-          </div>
-
-          <div className={styles.smallPlayerCard}>
-            <div className={styles.smallWebcam}>
-              <span>웹캠</span>
-            </div>
-            <div className={styles.smallPlayerInfo}>
-              <span className={styles.smallPlayerName}>닉네임</span>
-              <span className={styles.smallPlayerScore}>800점</span>
-            </div>
-          </div>
-
-          <div className={styles.smallPlayerCard}>
-            <div className={styles.smallWebcam}>
-              <span>웹캠</span>
-            </div>
-            <div className={styles.smallPlayerInfo}>
-              <span className={styles.smallPlayerName}>닉네임</span>
-              <span className={styles.smallPlayerScore}>800점</span>
-            </div>
-          </div>
+          ))}
         </div>
 
         {/* 테스트용 버튼들 (맨 밑) */}
