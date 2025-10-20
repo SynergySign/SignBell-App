@@ -31,4 +31,17 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * @return 조건에 맞는 사용자(User) 객체를 감싸는 Optional. 사용자가 발견되지 않으면 Optional.empty()를 반환
      */
     Optional<User> findByProviderAndProviderId(LoginMethod provider, String providerId);
+
+    /**
+     * 주어진 OAuth 제공자에서 제공한 사용자 ID를 이용하여 사용자 정보를 검색합니다.
+     *
+     * @param providerId OAuth 제공자로부터 부여된 사용자 ID
+     * @return 주어진 providerId에 해당하는 사용자를 가진 Optional 객체.
+     *         사용자 정보가 없으면 비어 있는 Optional 반환.
+     * @author 송민재
+     * @since 2025.10.23
+     */
+    Optional<User> findByProviderId(String providerId);
+
+    Optional<Object> findByid(Long id);
 }
