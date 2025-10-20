@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import GameResultModal from '../../components/quiz/GameResultModal';
+import useWebcam from '../../hooks/useWebcam';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
@@ -44,6 +45,28 @@ const QuizGamePage = () => {
     { rank: 3, userId: 789, nickname: '사용자3', score: 150 },
     { rank: 4, userId: 101, nickname: '사용자4', score: 80 },
   ]);
+
+  // ============================================
+  // 웹캠 관리
+  // ============================================
+  const {
+    stream,
+    isWebcamOn,
+    error: webcamError,
+    videoRef,
+    startWebcam,
+    stopWebcam,
+    toggleWebcam
+  } = useWebcam();
+
+  // 게임 시작 시 웹캠 자동 시작
+  useEffect(() => {
+    startWebcam();
+    
+    return () => {
+      stopWebcam();
+    };
+  }, []);
 
   // ============================================
   // TODO: WebSocket 연동 영역
@@ -422,11 +445,30 @@ const QuizGamePage = () => {
           {/* 메인 영상 카드 (도전자) */}
           <div className={styles.mainVideoCard}>
             <div className={styles.mainWebcam}>
-              <span>웹캠</span>
+              {isWebcamOn ? (
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className={styles.webcamVideo}
+                />
+              ) : (
+                <div className={styles.noWebcam}>
+                  <span>웹캠 {webcamError ? '오류' : '로딩중'}</span>
+                  {webcamError && <p className={styles.errorText}>{webcamError}</p>}
+                </div>
+              )}
             </div>
             <div className={styles.mainPlayerInfo}>
               <span className={styles.mainPlayerName}>닉네임</span>
               <span className={styles.mainPlayerScore}>800점</span>
+              <button 
+                className={styles.webcamToggle}
+                onClick={toggleWebcam}
+              >
+                {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
+              </button>
             </div>
           </div>
 
