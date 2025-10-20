@@ -488,6 +488,17 @@ const QuizGamePage = () => {
                   {webcamError && <p className={styles.errorText}>{webcamError}</p>}
                 </div>
               )}
+              
+              {/* 수어 인식 결과 대기 오버레이 */}
+              {isWaitingResult && (
+                <div className={styles.resultOverlay}>
+                  <div className={styles.overlayContent}>
+                    <div className={styles.loadingSpinner}></div>
+                    <p className={styles.waitingText}>{resultMessage}</p>
+                    <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다</p>
+                  </div>
+                </div>
+              )}
             </div>
             <div className={styles.mainPlayerInfo}>
               <span className={styles.mainPlayerName}>닉네임</span>
@@ -547,36 +558,25 @@ const QuizGamePage = () => {
               </div>
             )}
 
-            {gamePhase === 'myTurn' && (
+            {gamePhase === 'myTurn' && !isWaitingResult && (
               <div className={styles.myTurnPhase}>
                 <div className={styles.countdownDisplay}>
-                  {isWaitingResult ? (
+                  <h2>내 차례입니다!</h2>
+                  {solvingTimer > 0 ? (
                     <>
-                      <h2>결과 확인 중...</h2>
-                      <div className={styles.loadingSpinner}></div>
-                      <p className={styles.waitingText}>{resultMessage}</p>
-                      <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다 (6~10초 소요)</p>
+                      <p>수어 동작 준비하세요</p>
+                      <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
+                        {solvingTimer}
+                      </div>
+                      <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
                     </>
                   ) : (
                     <>
-                      <h2>내 차례입니다!</h2>
-                      {solvingTimer > 0 ? (
-                        <>
-                          <p>수어 동작 준비하세요</p>
-                          <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
-                            {solvingTimer}
-                          </div>
-                          <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className={styles.signingText}>지금 수어를 표현하세요!</p>
-                          <div className={styles.signingIndicator}>🤟</div>
-                          <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
-                            남은 시간: {signingTimer}초
-                          </div>
-                        </>
-                      )}
+                      <p className={styles.signingText}>지금 수어를 표현하세요!</p>
+                      <div className={styles.signingIndicator}>🤟</div>
+                      <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
+                        남은 시간: {signingTimer}초
+                      </div>
                     </>
                   )}
                 </div>

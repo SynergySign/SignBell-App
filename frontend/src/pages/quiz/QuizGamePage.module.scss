@@ -449,6 +449,50 @@
               margin: 0;
             }
           }
+
+          .result-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+
+            .overlay-content {
+              text-align: center;
+              color: var(--white-color);
+
+              .loading-spinner {
+                width: 60px;
+                height: 60px;
+                border: 4px solid rgba(255, 255, 255, 0.3);
+                border-top-color: var(--accent-color);
+                border-radius: 50%;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 16px auto;
+              }
+
+              .waiting-text {
+                color: var(--white-color);
+                font-size: 18px;
+                font-weight: 700;
+                margin: 0 0 8px 0;
+                letter-spacing: -0.3px;
+              }
+
+              .waiting-hint {
+                color: rgba(255, 255, 255, 0.8);
+                font-size: 12px;
+                margin: 0;
+                letter-spacing: -0.2px;
+              }
+            }
+          }
         }
 
         .main-player-info {
