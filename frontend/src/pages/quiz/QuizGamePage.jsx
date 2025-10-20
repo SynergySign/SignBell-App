@@ -6,16 +6,30 @@
  * @반환값 {JSX.Element} 퀴즈 진행 페이지 컴포넌트
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import AlertModal from '../../components/ui/AlertModal';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions] = useState(10);
+  const [totalQuestions] = useState(8);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [timer, setTimer] = useState(10);
+  const [isTimerActive, setIsTimerActive] = useState(true);
+  const [challengersCount, setChallengersCount] = useState(0);
+  const [maxChallengers] = useState(4);
+  const [hasChallenged, setHasChallenged] = useState(false);
+  const [challengeOrder, setChallengeOrder] = useState(null);
+  const [gamePhase, setGamePhase] = useState('challenge'); // 'challenge', 'solving', 'result'
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'info'
+  });
 
   // TODO: WebRTC 연동 필요
   // TODO: WebSocket 연동 필요
@@ -24,8 +38,84 @@ const QuizGamePage = () => {
   // 임시 문제 데이터
   const questionData = {
     word: '안녕하세요',
-    challengersCount: 2,
-    maxChallengers: 4,
+  };
+
+  // 10초 타이머
+  useEffect(() => {
+    if (isTimerActive && timer > 0 && gamePhase === 'challenge') {
+      const countdown = setTimeout(() => {
+        setTimer(timer - 1);
+      }, 1000);
+
+      return () => clearTimeout(countdown);
+    } else if (timer === 0 && gamePhase === 'challenge') {
+      handleTimerEnd();
+    }
+  }, [timer, isTimerActive, gamePhase]);
+
+  const handleTimerEnd = () => {
+    setIsTimerActive(false);
+    
+    if (challengersCount === 0) {
+      // 도전자 없음 - 다음 문제로
+      showAlert(
+        '도전자 없음',
+        '도전 신청 시간이 종료되었습니다. 다음 문제로 이동합니다.',
+        'info'
+      );
+      
+      setTimeout(() => {
+        moveToNextQuestion();
+      }, 2000);
+    } else {
+      // 도전자 있음 - 문제 풀이 시작
+      showAlert(
+        '도전 마감',
+        '도전 신청이 마감되었습니다. 도전자 차례입니다.',
+        'info'
+      );
+      
+      setTimeout(() => {
+        setGamePhase('solving');
+      }, 2000);
+    }
+  };
+
+  const moveToNextQuestion = () => {
+    if (currentQuestion < totalQuestions) {
+      setCurrentQuestion(currentQuestion + 1);
+      setTimer(10);
+      setIsTimerActive(true);
+      setChallengersCount(0);
+      setHasChallenged(false);
+      setChallengeOrder(null);
+      setGamePhase('challenge');
+      // TODO: WebSocket으로 다음 문제 요청
+    } else {
+      // 게임 종료
+      showAlert(
+        '게임 종료',
+        '모든 문제가 완료되었습니다!',
+        'success'
+      );
+      // TODO: 게임 결과 모달 표시
+    }
+  };
+
+  const showAlert = (title, message, type = 'info') => {
+    setAlertModal({
+      isOpen: true,
+      title,
+      message,
+      type
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({
+      ...alertModal,
+      isOpen: false
+    });
   };
 
   const handleExit = () => {
@@ -33,13 +123,54 @@ const QuizGamePage = () => {
   };
 
   const confirmExit = () => {
-    // TODO: 방 나가기 API 연동 필요
+    // TODO: 방 나가기 WebSocket 전송
     navigate('/main');
   };
 
   const handleChallenge = () => {
-    // TODO: 도전 신청 WebSocket 전송
-    console.log('문제 도전하기');
+    if (hasChallenged) {
+      showAlert(
+        '이미 신청함',
+        '이미 도전 신청을 하셨습니다.',
+        'warning'
+      );
+      return;
+    }
+
+    if (challengersCount >= maxChallengers) {
+      showAlert(
+        '신청 마감',
+        '도전자가 모두 찼습니다.',
+        'warning'
+      );
+      return;
+    }
+
+    if (timer === 0) {
+      showAlert(
+        '시간 종료',
+        '도전 신청 시간이 종료되었습니다.',
+        'warning'
+      );
+      return;
+    }
+
+    // 도전 신청 성공
+    const order = challengersCount + 1;
+    setChallengersCount(order);
+    setHasChallenged(true);
+    setChallengeOrder(order);
+
+    showAlert(
+      '도전 신청 완료',
+      `${order}번째 도전자로 신청되었습니다!`,
+      'success'
+    );
+
+    // TODO: WebSocket으로 도전 신청 전송
+    // stompClient.send(`/app/room/${roomId}/quiz/challenge`, {}, JSON.stringify({
+    //   questionNumber: currentQuestion
+    // }));
   };
 
   return (
@@ -67,28 +198,49 @@ const QuizGamePage = () => {
           </h1>
         </div>
 
-        {/* 도전자 모집 정보 */}
-        <div className={styles.challengeInfo}>
-          <div className={styles.challengeTooltip}>
-            선착순으로 도전자를 받는중입니다.
-          </div>
-          <span className={styles.challengeCount}>
-            {questionData.challengersCount}/{questionData.maxChallengers}
-          </span>
-        </div>
+        {gamePhase === 'challenge' && (
+          <>
+            {/* 타이머 표시 */}
+            <div className={`${styles.timerDisplay} ${timer <= 3 ? styles.urgent : ''}`}>
+              <span className={styles.timerLabel}>남은 시간</span>
+              <span className={styles.timerValue}>{timer}초</span>
+            </div>
 
-        {/* 문제 도전하기 버튼 */}
-        <button 
-          className={`${styles.challengeButton} ${
-            questionData.challengersCount >= questionData.maxChallengers 
-              ? styles.disabled 
-              : styles.active
-          }`}
-          onClick={handleChallenge}
-          disabled={questionData.challengersCount >= questionData.maxChallengers}
-        >
-          문제 도전하기
-        </button>
+            {/* 도전자 모집 정보 */}
+            <div className={styles.challengeInfo}>
+              <div className={styles.challengeTooltip}>
+                선착순으로 도전자를 받는중입니다.
+              </div>
+              <span className={styles.challengeCount}>
+                {challengersCount}/{maxChallengers}
+              </span>
+            </div>
+
+            {/* 문제 도전하기 버튼 */}
+            <button 
+              className={`${styles.challengeButton} ${
+                hasChallenged || challengersCount >= maxChallengers || timer === 0
+                  ? styles.disabled 
+                  : styles.active
+              }`}
+              onClick={handleChallenge}
+              disabled={hasChallenged || challengersCount >= maxChallengers || timer === 0}
+            >
+              {hasChallenged 
+                ? `도전 신청 완료 (${challengeOrder}번째)` 
+                : '문제 도전하기'}
+            </button>
+          </>
+        )}
+
+        {gamePhase === 'solving' && (
+          <div className={styles.solvingPhase}>
+            <div className={styles.solvingMessage}>
+              <h2>도전자가 문제를 풀고 있습니다...</h2>
+              <p>잠시만 기다려주세요</p>
+            </div>
+          </div>
+        )}
 
         {/* 플레이어 카드 영역 */}
         <div className={styles.playersGrid}>
@@ -152,6 +304,15 @@ const QuizGamePage = () => {
           </div>
         </>
       )}
+
+      {/* 알림 모달 */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
     </div>
   );
 };

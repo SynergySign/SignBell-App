@@ -135,6 +135,38 @@
       }
     }
 
+    // 타이머 표시
+    .timer-display {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px 32px;
+      background-color: var(--info-color);
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(41, 182, 246, 0.3);
+      animation: fadeIn 0.5s ease-out;
+
+      &.urgent {
+        background-color: var(--error-color);
+        animation: pulse 1s ease-in-out infinite;
+      }
+
+      .timer-label {
+        color: var(--white-color);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+
+      .timer-value {
+        color: var(--white-color);
+        font-size: 32px;
+        font-weight: 700;
+        letter-spacing: -0.5px;
+      }
+    }
+
     // 문제 도전하기 버튼
     .challenge-button {
       min-width: 200px;
@@ -167,6 +199,36 @@
         color: #999999;
         cursor: not-allowed;
         box-shadow: none;
+      }
+    }
+
+    // 문제 풀이 단계
+    .solving-phase {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      animation: fadeIn 0.5s ease-out;
+
+      .solving-message {
+        text-align: center;
+
+        h2 {
+          color: var(--text-color);
+          font-size: 24px;
+          font-weight: 600;
+          margin: 0 0 12px 0;
+          letter-spacing: -0.3px;
+        }
+
+        p {
+          color: var(--text-color);
+          font-size: 16px;
+          margin: 0;
+          opacity: 0.7;
+          letter-spacing: -0.2px;
+        }
       }
     }
 
@@ -336,6 +398,15 @@
   100% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
   }
 }
 
