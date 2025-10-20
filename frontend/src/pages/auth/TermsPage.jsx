@@ -68,7 +68,7 @@ const TermsPage = () => {
   const handleSubmit = () => {
     // TODO: API 연동이 필요합니다.
     console.log('약관 동의 제출', agreements);
-    navigate('/gameroom');
+    navigate('/main');
   };
 
   const handleLogout = () => {
