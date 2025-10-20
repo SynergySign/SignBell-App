@@ -8,17 +8,17 @@
  * @반환값 {JSX.Element} 방 카드 컴포넌트
  */
 
-import './RoomCard.scss';
+import styles from './RoomCard.module.scss';
 
 const RoomCard = ({ room, onClick }) => {
   return (
-    <div className="room-card" onClick={() => onClick(room.id)}>
-      <span className="room-number">{room.id}</span>
-      <span className={`room-status ${room.status === '진행 중' ? 'in-progress' : 'waiting'}`}>
+    <div className={styles.roomCard} onClick={() => onClick(room.id)}>
+      <span className={styles.roomNumber}>{room.id}</span>
+      <span className={`${styles.roomStatus} ${room.status === '진행 중' ? styles.inProgress : styles.waiting}`}>
         {room.status}
       </span>
-      <span className="room-title">{room.title}</span>
-      <span className="room-players">
+      <span className={styles.roomTitle}>{room.title}</span>
+      <span className={styles.roomPlayers}>
         {room.currentPlayers}/{room.maxPlayers}
       </span>
     </div>

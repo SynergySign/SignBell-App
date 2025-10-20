@@ -8,7 +8,7 @@
  * @반환값 {JSX.Element} 개인 학습 사이드바 컴포넌트
  */
 
-import './PersonalStudySidebar.scss';
+import styles from './PersonalStudySidebar.module.scss';
 
 const PersonalStudySidebar = ({ onClose, isOpen }) => {
   // TODO: 개인 학습 기능 구현 필요
@@ -18,13 +18,13 @@ const PersonalStudySidebar = ({ onClose, isOpen }) => {
   return (
     <>
       {/* 오버레이 */}
-      <div className="sidebar-overlay" onClick={onClose}></div>
+      <div className={styles.sidebarOverlay} onClick={onClose}></div>
 
       {/* 사이드바 */}
-      <div className={`personal-study-sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sidebar-message">
-          <p className="message-text">개인 학습 기능은 추후 구현 예정입니다.</p>
-          <p className="message-subtext">
+      <div className={`${styles.personalStudySidebar} ${isOpen ? styles.open : ''}`}>
+        <div className={styles.sidebarMessage}>
+          <p className={styles.messageText}>개인 학습 기능은 추후 구현 예정입니다.</p>
+          <p className={styles.messageSubtext}>
             단어 학습, 퀴즈 풀이 등 다양한 학습 기능이 제공될 예정입니다.
           </p>
         </div>

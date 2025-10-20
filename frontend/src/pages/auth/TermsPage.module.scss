@@ -2,47 +2,47 @@
  * @file TermsPage 스타일 파일
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-17
- * @최종수정일 2025-10-17
+ * @최종수정일 2025-10-20
  */
 
-@import '../../styles/animations';
+@use '../../styles/animations' as *;
 
-.terms-page {
+.termsPage {
   width: 100%;
   display: flex;
   justify-content: center;
   align-items: center;
   animation: fadeIn 0.5s ease-in-out;
 
-  .terms-container {
+  .termsContainer {
     width: 100%;
     max-width: 500px;
     animation: fadeInUp 0.6s ease-out;
 
-    .terms-box {
+    .termsBox {
       background-color: var(--white-color);
       padding: 32px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       @include smooth-transition(box-shadow);
 
-      .terms-title {
+      .termsTitle {
         font-size: 24px;
         font-weight: bold;
         color: var(--text-color);
         margin-bottom: 8px;
       }
 
-      .terms-subtitle {
+      .termsSubtitle {
         font-size: 14px;
-        color: var(--text-secondary-color);
+        color: var(--text-color);
         margin-bottom: 32px;
       }
 
-      .agreements-section {
+      .agreementsSection {
         margin-bottom: 24px;
 
-        .all-agree {
+        .allAgree {
           margin-bottom: 16px;
         }
 
@@ -52,18 +52,13 @@
           margin: 16px 0;
         }
 
-        .agreement-item {
+        .agreementItem {
           display: flex;
           align-items: center;
           justify-content: space-between;
           margin-bottom: 16px;
 
-          .agreement-toggle {
-            flex: 1;
-            margin-bottom: 0;
-          }
-
-          .view-terms-button {
+          .viewTermsButton {
             background-color: var(--primary-color);
             color: var(--white-color);
             border: none;
@@ -74,7 +69,7 @@
             padding: 6px 16px;
             margin-left: 12px;
             white-space: nowrap;
-            box-shadow: 0 2px 4px rgba(74, 144, 226, 0.2);
+            box-shadow: 0 2px 4px rgba(187, 222, 251, 0.3);
             position: relative;
             overflow: hidden;
             @include smooth-transition(all, 0.3s);
@@ -94,9 +89,9 @@
             }
 
             &:hover {
-              background-color: var(--primary-color);
+              background-color: var(--secondary-color);
               transform: translateY(-2px);
-              box-shadow: 0 4px 8px rgba(74, 144, 226, 0.35);
+              box-shadow: 0 4px 8px rgba(144, 202, 249, 0.4);
 
               &::after {
                 width: 200px;
@@ -106,13 +101,13 @@
 
             &:active {
               transform: translateY(0) scale(0.95);
-              box-shadow: 0 1px 2px rgba(74, 144, 226, 0.2);
+              box-shadow: 0 1px 2px rgba(187, 222, 251, 0.2);
             }
           }
         }
       }
 
-      .button-group {
+      .buttonGroup {
         display: flex;
         flex-direction: column;
         gap: 12px;
@@ -122,7 +117,7 @@
 }
 
 
-.terms-content {
+.termsContent {
   white-space: pre-wrap;
   word-wrap: break-word;
 

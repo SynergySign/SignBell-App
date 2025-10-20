@@ -2,26 +2,24 @@
  * @file SCSS 변수 정의 파일
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-17
- * @최종수정일 2025-10-17
+ * @최종수정일 2025-10-20
  * @description SignBell 프로젝트의 색상 및 스타일 변수를 정의합니다.
  */
 
 :root {
+  /* 메인 색상 팔레트 (60-30-10 규칙) */
+  --primary-color: #BBDEFB;      /* 60% - 메인 배경색 */
+  --secondary-color: #90CAF9;    /* 30% - 주요 UI 요소 */
+  --accent-color: #FFCC80;       /* 10% - 강조 요소 */
+  
   /* 기본 색상 */
-  --background-color: #F5F5F5;
-  --white-color: #FFFFFF;
-  
-  /* 텍스트 색상 */
-  --text-color: #333333;
-  --text-secondary-color: #999999;
-  
-  /* 브랜드 색상 */
-  --primary-color: #4A90E2;
-  --secondary-color: #50C878;
-  --accent-color: #FEE500;
+  --background-color: #F8F8F8;   /* 사이드바 배경 */
+  --white-color: #FFFFFF;        /* 카드 배경, 버튼 텍스트 */
+  --text-color: #212121;         /* 주요 텍스트 */
   
   /* 상태 색상 */
-  --state-disabled: #CCCCCC;
-  --state-error: #E74C3C;
-  --state-success: #2ECC71;
+  --success-color: #66BB6A;      /* 성공, READY 표시 */
+  --error-color: #EF5350;        /* 에러, 도전 중 표시 */
+  --warning-color: #FFCC80;      /* 경고 */
+  --info-color: #29B6F6;         /* 정보, 툴팁 */
 }

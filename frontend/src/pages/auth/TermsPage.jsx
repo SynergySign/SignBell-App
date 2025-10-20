@@ -12,7 +12,7 @@ import AgreementToggle from '../../components/ui/AgreementToggle';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
-import './TermsPage.scss';
+import styles from './TermsPage.module.scss';
 
 const TermsPage = () => {
   const navigate = useNavigate();
@@ -81,14 +81,14 @@ const TermsPage = () => {
   const isAllChecked = agreements.required && agreements.optional;
 
   return (
-    <div className="terms-page">
-      <div className="terms-container">
-        <div className="terms-box">
-          <h2 className="terms-title">약관 동의</h2>
-          <p className="terms-subtitle">서비스 이용을 위해 약관에 동의해주세요</p>
+    <div className={styles.termsPage}>
+      <div className={styles.termsContainer}>
+        <div className={styles.termsBox}>
+          <h2 className={styles.termsTitle}>약관 동의</h2>
+          <p className={styles.termsSubtitle}>서비스 이용을 위해 약관에 동의해주세요</p>
 
-          <div className="agreements-section">
-            <div className="all-agree">
+          <div className={styles.agreementsSection}>
+            <div className={styles.allAgree}>
               <AgreementToggle
                 checked={isAllChecked}
                 onChange={handleAllAgree}
@@ -96,30 +96,30 @@ const TermsPage = () => {
               />
             </div>
 
-            <div className="divider"></div>
+            <div className={styles.divider}></div>
 
-            <div className="agreement-item">
+            <div className={styles.agreementItem}>
               <AgreementToggle
                 checked={agreements.required}
                 onChange={() => handleToggle('required')}
                 label="(필수) 서비스 필수 동의 약관"
               />
               <button
-                className="view-terms-button"
+                className={styles.viewTermsButton}
                 onClick={() => openTermsModal('required')}
               >
                 전문보기
               </button>
             </div>
 
-            <div className="agreement-item">
+            <div className={styles.agreementItem}>
               <AgreementToggle
                 checked={agreements.optional}
                 onChange={() => handleToggle('optional')}
                 label="(선택) 서비스 선택 동의 약관"
               />
               <button
-                className="view-terms-button"
+                className={styles.viewTermsButton}
                 onClick={() => openTermsModal('optional')}
               >
                 전문보기
@@ -127,7 +127,7 @@ const TermsPage = () => {
             </div>
           </div>
 
-          <div className="button-group">
+          <div className={styles.buttonGroup}>
             <Button
               onClick={handleSubmit}
               disabled={!isSubmitEnabled}
@@ -150,7 +150,7 @@ const TermsPage = () => {
         title={modalState.title}
       >
         <div
-          className="terms-content"
+          className={styles.termsContent}
           dangerouslySetInnerHTML={{
             __html: modalState.content
               .replace(/\n/g, '<br />')

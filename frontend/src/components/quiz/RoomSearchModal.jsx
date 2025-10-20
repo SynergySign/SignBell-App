@@ -10,7 +10,7 @@
  */
 
 import { useState } from 'react';
-import './RoomSearchModal.scss';
+import styles from './RoomSearchModal.module.scss';
 
 const RoomSearchModal = ({ isOpen, onClose, onSubmit }) => {
   const [roomNumber, setRoomNumber] = useState('');
@@ -39,31 +39,31 @@ const RoomSearchModal = ({ isOpen, onClose, onSubmit }) => {
   return (
     <>
       {/* 오버레이 */}
-      <div className="modal-overlay" onClick={handleClose}></div>
+      <div className={styles.modalOverlay} onClick={handleClose}></div>
 
       {/* 모달 */}
-      <div className={`room-search-modal ${isOpen ? 'open' : ''}`}>
+      <div className={`${styles.roomSearchModal} ${isOpen ? styles.open : ''}`}>
         {/* 모달 헤더 */}
-        <div className="modal-header">
-          <h2 className="modal-title">방 번호 입력</h2>
-          <button className="close-button" onClick={handleClose} aria-label="모달 닫기">
+        <div className={styles.modalHeader}>
+          <h2 className={styles.modalTitle}>방 번호 입력</h2>
+          <button className={styles.closeButton} onClick={handleClose} aria-label="모달 닫기">
             ✕
           </button>
         </div>
 
         {/* 모달 바디 */}
-        <div className="modal-body">
-          <div className="input-label-container">
-            <label htmlFor="room-number" className="input-label">
+        <div className={styles.modalBody}>
+          <div className={styles.inputLabelContainer}>
+            <label htmlFor="room-number" className={styles.inputLabel}>
               방 번호
             </label>
-            <span className="char-count">{roomNumber.length}/5</span>
+            <span className={styles.charCount}>{roomNumber.length}/5</span>
           </div>
           <input
             id="room-number"
             type="text"
             inputMode="numeric"
-            className="room-number-input"
+            className={styles.roomNumberInput}
             placeholder="방 번호를 입력하세요"
             value={roomNumber}
             onChange={handleInputChange}
@@ -77,9 +77,9 @@ const RoomSearchModal = ({ isOpen, onClose, onSubmit }) => {
         </div>
 
         {/* 모달 푸터 */}
-        <div className="modal-footer">
+        <div className={styles.modalFooter}>
           <button
-            className={`submit-button ${roomNumber.trim() ? 'active' : ''}`}
+            className={`${styles.submitButton} ${roomNumber.trim() ? styles.active : ''}`}
             onClick={handleSubmit}
             disabled={!roomNumber.trim()}
           >

@@ -8,7 +8,7 @@
  * @반환값 {JSX.Element} 소셜 로그인 버튼 컴포넌트
  */
 
-import './SocialLoginButton.scss';
+import styles from './SocialLoginButton.module.scss';
 
 const SocialLoginButton = ({ provider, onClick }) => {
   const getButtonText = () => {
@@ -22,7 +22,7 @@ const SocialLoginButton = ({ provider, onClick }) => {
 
   return (
     <button 
-      className={`social-login-button ${provider}`}
+      className={`${styles.socialLoginButton} ${styles[provider]}`}
       onClick={onClick}
     >
       {getButtonText()}

@@ -5,7 +5,7 @@
  * @최종수정일 2025-10-17
  */
 
-@import '../../styles/animations';
+@use '../../styles/animations' as *;
 
 .common-button {
   width: 100%;

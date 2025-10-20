@@ -12,7 +12,7 @@ import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
 import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
 import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
-import './MainPage.scss';
+import styles from './MainPage.module.scss';
 
 const MainPage = () => {
   const [activeSidebar, setActiveSidebar] = useState(null);
@@ -28,9 +28,9 @@ const MainPage = () => {
   };
 
   return (
-    <div className="main-page">
-      <div className="main-content">
-        <div className="left-section">
+    <div className={styles.mainPage}>
+      <div className={styles.mainContent}>
+        <div className={styles.leftSection}>
           <FeatureButton
             title="개인 학습"
             icon={faBook}
@@ -47,7 +47,7 @@ const MainPage = () => {
           />
         </div>
 
-        <div className="center-section">
+        <div className={styles.centerSection}>
           <UserProfileCard />
         </div>
       </div>

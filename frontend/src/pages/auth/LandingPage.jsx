@@ -8,7 +8,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import SocialLoginButton from '../../components/auth/SocialLoginButton';
-import './LandingPage.scss';
+import styles from './LandingPage.module.scss';
 
 const LandingPage = () => {
   const navigate = useNavigate();
@@ -22,20 +22,20 @@ const LandingPage = () => {
   };
 
   return (
-    <div className="landing-page">
-      <div className="landing-content">
-        <div className="service-intro">
-          <h1 className="service-title">SignBell</h1>
-          <p className="service-description">
+    <div className={styles.landingPage}>
+      <div className={styles.landingContent}>
+        <div className={styles.serviceIntro}>
+          <h1 className={styles.serviceTitle}>SignBell</h1>
+          <p className={styles.serviceDescription}>
             수어로 소통하는 새로운 방법
           </p>
         </div>
 
-        <div className="login-box">
-          <h2 className="login-title">로그인</h2>
-          <p className="login-subtitle">소셜 계정으로 로그인</p>
+        <div className={styles.loginBox}>
+          <h2 className={styles.loginTitle}>로그인</h2>
+          <p className={styles.loginSubtitle}>소셜 계정으로 로그인</p>
           
-          <div className="login-buttons">
+          <div className={styles.loginButtons}>
             <SocialLoginButton 
               provider="kakao" 
               onClick={handleKakaoLogin}
