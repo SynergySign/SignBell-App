@@ -11,6 +11,7 @@ import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
 import Sidebar from '../../components/main/Sidebar';
+import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
 import './MainPage.scss';
 
 const MainPage = () => {
@@ -56,12 +57,7 @@ const MainPage = () => {
         onClose={() => setActiveSidebar(null)}
         title={activeSidebar === 'personal' ? '개인 학습' : '실시간 퀴즈'}
       >
-        {activeSidebar === 'personal' && (
-          <div>
-            <p>개인 학습 기능은 추후 구현 예정입니다.</p>
-            {/* TODO: PersonalStudySidebar 컴포넌트 추가 */}
-          </div>
-        )}
+        {activeSidebar === 'personal' && <PersonalStudySidebar />}
         {activeSidebar === 'quiz' && (
           <div>
             <p>실시간 퀴즈 기능은 추후 구현 예정입니다.</p>

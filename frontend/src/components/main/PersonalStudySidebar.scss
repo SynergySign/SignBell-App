@@ -1,0 +1,35 @@
+/**
+ * @file PersonalStudySidebar 스타일 파일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ * @최종수정일 2025-10-20
+ */
+
+.personal-study-sidebar {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+
+  .sidebar-message {
+    text-align: center;
+    max-width: 300px;
+
+    .message-text {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-color);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .message-subtext {
+      font-size: 14px;
+      color: #757575;
+      line-height: 1.6;
+      margin: 0;
+    }
+  }
+}
