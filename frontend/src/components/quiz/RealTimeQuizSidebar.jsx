@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import RoomCard from './RoomCard';
 import './RealTimeQuizSidebar.scss';
 
 const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
@@ -92,20 +93,7 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
         {/* 방 목록 */}
         <div className="room-list">
           {waitingRooms.map((room) => (
-            <div
-              key={room.id}
-              className="room-card"
-              onClick={() => handleRoomClick(room.id)}
-            >
-              <span className="room-number">{room.id}</span>
-              <span className={`room-status ${room.status === '진행 중' ? 'in-progress' : 'waiting'}`}>
-                {room.status}
-              </span>
-              <span className="room-title">{room.title}</span>
-              <span className="room-players">
-                {room.currentPlayers}/{room.maxPlayers}
-              </span>
-            </div>
+            <RoomCard key={room.id} room={room} onClick={handleRoomClick} />
           ))}
         </div>
       </div>
