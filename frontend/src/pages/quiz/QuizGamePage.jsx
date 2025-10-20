@@ -9,6 +9,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import AlertModal from '../../components/ui/AlertModal';
+import GameResultModal from '../../components/quiz/GameResultModal';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
@@ -17,6 +18,7 @@ const QuizGamePage = () => {
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions] = useState(8);
   const [showExitModal, setShowExitModal] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
   const [timer, setTimer] = useState(10);
   const [isTimerActive, setIsTimerActive] = useState(true);
   const [challengersCount, setChallengersCount] = useState(0);
@@ -30,6 +32,14 @@ const QuizGamePage = () => {
     message: '',
     type: 'info'
   });
+
+  // 임시 순위 데이터 (실제로는 WebSocket에서 받음)
+  const [rankings, setRankings] = useState([
+    { rank: 1, userId: 123, nickname: '사용자1', score: 350 },
+    { rank: 2, userId: 456, nickname: '사용자2', score: 200 },
+    { rank: 3, userId: 789, nickname: '사용자3', score: 150 },
+    { rank: 4, userId: 101, nickname: '사용자4', score: 80 },
+  ]);
 
   // TODO: WebRTC 연동 필요
   // TODO: WebSocket 연동 필요
@@ -92,14 +102,17 @@ const QuizGamePage = () => {
       setGamePhase('challenge');
       // TODO: WebSocket으로 다음 문제 요청
     } else {
-      // 게임 종료
-      showAlert(
-        '게임 종료',
-        '모든 문제가 완료되었습니다!',
-        'success'
-      );
-      // TODO: 게임 결과 모달 표시
+      // 게임 종료 - 결과 모달 표시
+      setTimeout(() => {
+        setShowResultModal(true);
+      }, 1000);
+      // TODO: WebSocket으로 게임 종료 알림
     }
+  };
+
+  const handleReturnToRoom = () => {
+    // TODO: WebSocket으로 대기실 복귀 전송
+    navigate(`/quiz/waiting/${roomId}`);
   };
 
   const showAlert = (title, message, type = 'info') => {
@@ -312,6 +325,14 @@ const QuizGamePage = () => {
         title={alertModal.title}
         message={alertModal.message}
         type={alertModal.type}
+      />
+
+      {/* 게임 결과 모달 */}
+      <GameResultModal
+        isOpen={showResultModal}
+        onClose={() => setShowResultModal(false)}
+        onReturnToRoom={handleReturnToRoom}
+        rankings={rankings}
       />
     </div>
   );

@@ -1,0 +1,245 @@
+/**
+ * @파일명 GameResultModal.module.scss
+ * @설명 게임 결과 모달 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ */
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 1001;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+.gameResultModal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  background-color: var(--primary-color);
+  border-radius: 20px;
+  padding: 40px;
+  z-index: 1002;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+  animation: scaleIn 0.3s ease-out forwards;
+
+  .modalHeader {
+    text-align: center;
+    margin-bottom: 32px;
+
+    .modalTitle {
+      color: var(--text-color);
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+  }
+
+  .rankingsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+
+    .rankItem {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background-color: var(--white-color);
+      padding: 16px 20px;
+      border-radius: 16px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      animation: slideInUp 0.5s ease-out forwards;
+      opacity: 0;
+
+      &.rank1 {
+        border: 2px solid #FFD700;
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+      }
+
+      &.rank2 {
+        border: 2px solid #C0C0C0;
+        box-shadow: 0 4px 12px rgba(192, 192, 192, 0.3);
+      }
+
+      &.rank3 {
+        border: 2px solid #CD7F32;
+        box-shadow: 0 4px 12px rgba(205, 127, 50, 0.3);
+      }
+
+      .rankIconWrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+
+        .rankIcon {
+          font-size: 32px;
+
+          &.gold {
+            color: #FFD700;
+          }
+
+          &.silver {
+            color: #C0C0C0;
+          }
+
+          &.bronze {
+            color: #CD7F32;
+          }
+        }
+      }
+
+      .rankInfo {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+
+        .rankNumber {
+          color: var(--text-color);
+          font-size: 18px;
+          font-weight: 700;
+          letter-spacing: -0.3px;
+          min-width: 40px;
+        }
+
+        .playerNickname {
+          color: var(--text-color);
+          font-size: 18px;
+          font-weight: 600;
+          letter-spacing: -0.3px;
+        }
+      }
+
+      .playerScore {
+        color: var(--accent-color);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+      }
+    }
+  }
+
+  .returnButton {
+    width: 100%;
+    height: 56px;
+    background-color: var(--accent-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: -0.3px;
+    box-shadow: 0 2px 8px rgba(144, 202, 249, 0.3);
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(144, 202, 249, 0.4);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .gameResultModal {
+    width: 90%;
+    padding: 32px 24px;
+
+    .modalHeader {
+      margin-bottom: 24px;
+
+      .modalTitle {
+        font-size: 24px;
+      }
+    }
+
+    .rankingsSection {
+      gap: 12px;
+      margin-bottom: 24px;
+
+      .rankItem {
+        padding: 12px 16px;
+        gap: 12px;
+
+        .rankIconWrapper {
+          width: 32px;
+          height: 32px;
+
+          .rankIcon {
+            font-size: 24px;
+          }
+        }
+
+        .rankInfo {
+          gap: 8px;
+
+          .rankNumber {
+            font-size: 16px;
+            min-width: 35px;
+          }
+
+          .playerNickname {
+            font-size: 16px;
+          }
+        }
+
+        .playerScore {
+          font-size: 16px;
+        }
+      }
+    }
+
+    .returnButton {
+      height: 48px;
+      font-size: 16px;
+    }
+  }
+}
