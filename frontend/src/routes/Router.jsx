@@ -10,6 +10,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout';
 import LandingPage from '../pages/auth/LandingPage';
 import TermsPage from '../pages/auth/TermsPage';
+import MainPage from '../pages/main/MainPage';
 import GameRoom from '../pages/GameRoom';
 
 const Router = () => {
@@ -24,6 +25,11 @@ const Router = () => {
         <Route path="/terms" element={
           <MainLayout>
             <TermsPage />
+          </MainLayout>
+        } />
+        <Route path="/main" element={
+          <MainLayout>
+            <MainPage />
           </MainLayout>
         } />
         <Route path="/gameroom" element={
