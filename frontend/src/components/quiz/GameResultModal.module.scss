@@ -1,0 +1,265 @@
+/**
+ * @파일명 GameResultModal.module.scss
+ * @설명 게임 결과 모달 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ */
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  animation: fadeIn 0.3s ease-out;
+  backdrop-filter: blur(2px);
+}
+
+.gameResultModal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 500px;
+  background-color: var(--white-color);
+  border-radius: 24px;
+  padding: 40px;
+  z-index: 1002;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  animation: scaleIn 0.3s ease-out forwards;
+
+  .modalHeader {
+    text-align: center;
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #f0f0f0;
+
+    .modalTitle {
+      color: var(--text-color);
+      font-size: 28px;
+      font-weight: 700;
+      margin: 0;
+      letter-spacing: -0.5px;
+    }
+  }
+
+  .rankingsSection {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 32px;
+
+    .rankItem {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background-color: #f8f9fa;
+      padding: 18px 24px;
+      border-radius: 16px;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      animation: slideInUp 0.5s ease-out forwards;
+      opacity: 0;
+      transition: all 0.2s;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      &.rank1 {
+        background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%);
+        border: 2px solid #FFD700;
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.25);
+      }
+
+      &.rank2 {
+        background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
+        border: 2px solid #C0C0C0;
+        box-shadow: 0 4px 12px rgba(192, 192, 192, 0.25);
+      }
+
+      &.rank3 {
+        background: linear-gradient(135deg, #fff4e6 0%, #ffffff 100%);
+        border: 2px solid #CD7F32;
+        box-shadow: 0 4px 12px rgba(205, 127, 50, 0.25);
+      }
+
+      .rankIconWrapper {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+
+        .rankIcon {
+          font-size: 32px;
+
+          &.gold {
+            color: #FFD700;
+          }
+
+          &.silver {
+            color: #C0C0C0;
+          }
+
+          &.bronze {
+            color: #CD7F32;
+          }
+        }
+      }
+
+      .rankInfo {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+
+        .rankNumber {
+          color: var(--text-color);
+          font-size: 20px;
+          font-weight: 700;
+          letter-spacing: -0.3px;
+          min-width: 50px;
+          background-color: var(--primary-color);
+          padding: 4px 12px;
+          border-radius: 8px;
+          text-align: center;
+        }
+
+        .playerNickname {
+          color: var(--text-color);
+          font-size: 18px;
+          font-weight: 600;
+          letter-spacing: -0.3px;
+        }
+      }
+
+      .playerScore {
+        color: var(--accent-color);
+        font-size: 20px;
+        font-weight: 700;
+        letter-spacing: -0.3px;
+        background-color: rgba(144, 202, 249, 0.15);
+        padding: 4px 12px;
+        border-radius: 8px;
+      }
+    }
+  }
+
+  .returnButton {
+    width: 100%;
+    height: 56px;
+    background-color: var(--accent-color);
+    color: var(--text-color);
+    border: none;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: -0.3px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    margin-top: 8px;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes slideInUp {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .gameResultModal {
+    width: 90%;
+    padding: 32px 24px;
+
+    .modalHeader {
+      margin-bottom: 24px;
+
+      .modalTitle {
+        font-size: 24px;
+      }
+    }
+
+    .rankingsSection {
+      gap: 12px;
+      margin-bottom: 24px;
+
+      .rankItem {
+        padding: 12px 16px;
+        gap: 12px;
+
+        .rankIconWrapper {
+          width: 32px;
+          height: 32px;
+
+          .rankIcon {
+            font-size: 24px;
+          }
+        }
+
+        .rankInfo {
+          gap: 8px;
+
+          .rankNumber {
+            font-size: 16px;
+            min-width: 35px;
+          }
+
+          .playerNickname {
+            font-size: 16px;
+          }
+        }
+
+        .playerScore {
+          font-size: 16px;
+        }
+      }
+    }
+
+    .returnButton {
+      height: 48px;
+      font-size: 16px;
+    }
+  }
+}

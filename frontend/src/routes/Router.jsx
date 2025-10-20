@@ -12,6 +12,8 @@ import LandingPage from '../pages/auth/LandingPage';
 import TermsPage from '../pages/auth/TermsPage';
 import MainPage from '../pages/main/MainPage';
 import GameRoom from '../pages/GameRoom';
+import QuizWaitingRoom from '../pages/quiz/QuizWaitingRoom';
+import QuizGamePage from '../pages/quiz/QuizGamePage';
 
 const Router = () => {
   return (
@@ -37,6 +39,8 @@ const Router = () => {
             <GameRoom />
           </MainLayout>
         } />
+        <Route path="/quiz/waiting/:roomId" element={<QuizWaitingRoom />} />
+        <Route path="/quiz/game/:roomId" element={<QuizGamePage />} />
       </Routes>
     </BrowserRouter>
   );

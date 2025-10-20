@@ -10,10 +10,9 @@ import { useState } from 'react';
 import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
-import Sidebar from '../../components/main/Sidebar';
 import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
-import RealTimeQuizSidebar from '../../components/main/RealTimeQuizSidebar';
-import './MainPage.scss';
+import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
+import styles from './MainPage.module.scss';
 
 const MainPage = () => {
   const [activeSidebar, setActiveSidebar] = useState(null);
@@ -29,9 +28,9 @@ const MainPage = () => {
   };
 
   return (
-    <div className="main-page">
-      <div className="main-content">
-        <div className="left-section">
+    <div className={styles.mainPage}>
+      <div className={styles.mainContent}>
+        <div className={styles.leftSection}>
           <FeatureButton
             title="개인 학습"
             icon={faBook}
@@ -48,19 +47,26 @@ const MainPage = () => {
           />
         </div>
 
-        <div className="center-section">
+        <div className={styles.centerSection}>
           <UserProfileCard />
         </div>
       </div>
 
-      <Sidebar
-        isOpen={activeSidebar !== null}
-        onClose={() => setActiveSidebar(null)}
-        title={activeSidebar === 'personal' ? '개인 학습' : '실시간 퀴즈'}
-      >
-        {activeSidebar === 'personal' && <PersonalStudySidebar />}
-        {activeSidebar === 'quiz' && <RealTimeQuizSidebar />}
-      </Sidebar>
+      {/* 개인 학습 사이드바 */}
+      {activeSidebar === 'personal' && (
+        <PersonalStudySidebar
+          isOpen={activeSidebar === 'personal'}
+          onClose={() => setActiveSidebar(null)}
+        />
+      )}
+
+      {/* 실시간 퀴즈 사이드바 */}
+      {activeSidebar === 'quiz' && (
+        <RealTimeQuizSidebar
+          isOpen={activeSidebar === 'quiz'}
+          onClose={() => setActiveSidebar(null)}
+        />
+      )}
     </div>
   );
 };

@@ -1,0 +1,72 @@
+/**
+ * @파일명 Toast.module.scss
+ * @설명 토스트 알림 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-20
+ */
+
+.toast {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 300px;
+  max-width: 500px;
+  padding: 16px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 2000;
+  animation: slideDown 0.3s ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .message {
+    color: var(--white-color);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    text-align: center;
+  }
+
+  &.info {
+    background-color: var(--info-color);
+  }
+
+  &.success {
+    background-color: var(--success-color);
+  }
+
+  &.warning {
+    background-color: var(--warning-color);
+  }
+
+  &.error {
+    background-color: var(--error-color);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .toast {
+    top: 80px;
+    min-width: 280px;
+    max-width: 90%;
+    padding: 14px 20px;
+
+    .message {
+      font-size: 14px;
+    }
+  }
+}

@@ -5,15 +5,39 @@
  * @최종수정일 2025-10-20
  */
 
-.personal-study-sidebar {
+// 오버레이
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.personal-study-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 400px;
+  height: 100vh;
+  background-color: var(--background-color);
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px;
+  animation: slideInRight 0.3s ease-out;
+
+  &.open {
+    animation: slideInRight 0.3s ease-out;
+  }
 
   @media (max-width: 768px) {
+    width: 100%;
     padding: 16px;
   }
 
@@ -48,5 +72,24 @@
         font-size: 13px;
       }
     }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
   }
 }

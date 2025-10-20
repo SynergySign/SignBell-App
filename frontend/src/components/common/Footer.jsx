@@ -6,12 +6,12 @@
  * @반환값 {JSX.Element} 푸터 컴포넌트
  */
 
-import './Footer.scss';
+import styles from './Footer.module.scss';
 
 const Footer = () => {
   return (
-    <footer className="footer">
-      <div className="footer-container">
+    <footer className={styles.footer}>
+      <div className={styles.footerContainer}>
         <p>&copy; 2025 SignBell. All rights reserved.</p>
       </div>
     </footer>

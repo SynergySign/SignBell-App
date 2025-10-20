@@ -5,6 +5,14 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
 
+  // CSS 설정
+  css: {
+    modules: {
+      localsConvention: 'camelCase',
+      generateScopedName: '[name]__[local]___[hash:base64:5]'
+    }
+  },
+
   // 개발 서버 설정을 추가합니다.
   server: {
     proxy: {
