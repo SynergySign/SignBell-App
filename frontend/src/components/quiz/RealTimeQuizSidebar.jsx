@@ -11,11 +11,13 @@
 import { useState } from 'react';
 import RoomCard from './RoomCard';
 import CreateRoomModal from './CreateRoomModal';
+import RoomSearchModal from './RoomSearchModal';
 import './RealTimeQuizSidebar.scss';
 
 const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   const [activeTab, setActiveTab] = useState('quiz'); // 'personal' | 'quiz'
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
+  const [isRoomSearchModalOpen, setIsRoomSearchModalOpen] = useState(false);
   const [waitingRooms, setWaitingRooms] = useState([
     { id: 112399, title: '방 제목1', status: '진행 중', currentPlayers: 3, maxPlayers: 4 },
     { id: 21555, title: '방 제목2', status: '대기 중', currentPlayers: 1, maxPlayers: 4 },
@@ -30,8 +32,13 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   };
 
   const handleRoomNumberInput = () => {
-    // TODO: 방 번호 입력 모달 표시
-    console.log('방 번호 입력 모달 열기');
+    setIsRoomSearchModalOpen(true);
+  };
+
+  const handleRoomSearchSubmit = (roomNumber) => {
+    // TODO: 방 번호로 방 검색 API 연동 필요
+    console.log('방 검색:', roomNumber);
+    // TODO: 방 검색 후 퀴즈 대기방으로 이동
   };
 
   const handleCreateRoom = () => {
@@ -119,6 +126,13 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
         isOpen={isCreateRoomModalOpen}
         onClose={() => setIsCreateRoomModalOpen(false)}
         onSubmit={handleCreateRoomSubmit}
+      />
+
+      {/* 방 번호 입력 모달 */}
+      <RoomSearchModal
+        isOpen={isRoomSearchModalOpen}
+        onClose={() => setIsRoomSearchModalOpen(false)}
+        onSubmit={handleRoomSearchSubmit}
       />
     </>
   );

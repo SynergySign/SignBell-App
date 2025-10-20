@@ -1,6 +1,6 @@
 /**
- * @파일명 CreateRoomModal.scss
- * @설명 방 만들기 모달 스타일
+ * @파일명 RoomSearchModal.scss
+ * @설명 방 번호 입력 모달 스타일
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
  */
@@ -18,9 +18,9 @@
 }
 
 // 모달
-.create-room-modal {
+.room-search-modal {
   position: fixed;
-  top: 45%; // 약간 위쪽으로 조정
+  top: 45%;
   left: calc(50% - 200px); // 사이드바 너비(400px)의 절반을 빼서 중앙 정렬
   width: 360px;
   background-color: var(--white-color);
@@ -99,7 +99,7 @@
       }
     }
 
-    .room-title-input {
+    .room-number-input {
       width: 100%;
       background-color: var(--background-color);
       border: none;
@@ -179,23 +179,12 @@
   }
 }
 
-@keyframes scaleOut {
-  from {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-}
-
 // 반응형 디자인
 @media (max-width: 768px) {
-  .create-room-modal {
+  .room-search-modal {
     width: 90%;
     padding: 24px;
-    top: 45%; // 모바일에서도 동일하게 적용
+    top: 45%;
     left: 50%; // 모바일에서는 사이드바가 전체 화면이므로 정중앙
 
     .modal-header {

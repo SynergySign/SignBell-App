@@ -1,39 +1,37 @@
 /**
- * @개요 방 만들기 모달 컴포넌트
+ * @개요 방 번호 입력 모달 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
  * @최종수정일 2025-10-20
  * @매개변수 {boolean} props.isOpen - 모달 열림 상태
  * @매개변수 {function} props.onClose - 모달 닫기 함수
- * @매개변수 {function} props.onSubmit - 방 생성 제출 함수
- * @반환값 {JSX.Element} 방 만들기 모달 컴포넌트
+ * @매개변수 {function} props.onSubmit - 방 검색 제출 함수
+ * @반환값 {JSX.Element} 방 번호 입력 모달 컴포넌트
  */
 
 import { useState } from 'react';
-import './CreateRoomModal.scss';
+import './RoomSearchModal.scss';
 
-const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
-  const [roomTitle, setRoomTitle] = useState('');
+const RoomSearchModal = ({ isOpen, onClose, onSubmit }) => {
+  const [roomNumber, setRoomNumber] = useState('');
 
   const handleSubmit = () => {
-    if (roomTitle.trim()) {
-      onSubmit(roomTitle);
-      setRoomTitle('');
+    if (roomNumber.trim()) {
+      onSubmit(roomNumber);
+      setRoomNumber('');
       onClose();
     }
   };
 
   const handleClose = () => {
-    setRoomTitle('');
+    setRoomNumber('');
     onClose();
   };
 
   const handleInputChange = (e) => {
-    const value = e.target.value;
-    // 20자 이하로 제한
-    if (value.length <= 20) {
-      setRoomTitle(value);
-    }
+    // 숫자만 입력 가능
+    const value = e.target.value.replace(/[^0-9]/g, '');
+    setRoomNumber(value);
   };
 
   if (!isOpen) return null;
@@ -44,10 +42,10 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
       <div className="modal-overlay" onClick={handleClose}></div>
 
       {/* 모달 */}
-      <div className={`create-room-modal ${isOpen ? 'open' : ''}`}>
+      <div className={`room-search-modal ${isOpen ? 'open' : ''}`}>
         {/* 모달 헤더 */}
         <div className="modal-header">
-          <h2 className="modal-title">방 만들기</h2>
+          <h2 className="modal-title">방 번호 입력</h2>
           <button className="close-button" onClick={handleClose} aria-label="모달 닫기">
             ✕
           </button>
@@ -56,34 +54,36 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
         {/* 모달 바디 */}
         <div className="modal-body">
           <div className="input-label-container">
-            <label htmlFor="room-title" className="input-label">
-              방 제목
+            <label htmlFor="room-number" className="input-label">
+              방 번호
             </label>
-            <span className="char-count">{roomTitle.length}/20</span>
+            <span className="char-count">{roomNumber.length}/5</span>
           </div>
           <input
-            id="room-title"
+            id="room-number"
             type="text"
-            className="room-title-input"
-            placeholder="방 제목을 입력하세요"
-            value={roomTitle}
+            inputMode="numeric"
+            className="room-number-input"
+            placeholder="방 번호를 입력하세요"
+            value={roomNumber}
             onChange={handleInputChange}
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && roomTitle.trim()) {
+              if (e.key === 'Enter' && roomNumber.trim()) {
                 handleSubmit();
               }
             }}
+            maxLength={5}
           />
         </div>
 
         {/* 모달 푸터 */}
         <div className="modal-footer">
           <button
-            className={`submit-button ${roomTitle.trim() ? 'active' : ''}`}
+            className={`submit-button ${roomNumber.trim() ? 'active' : ''}`}
             onClick={handleSubmit}
-            disabled={!roomTitle.trim()}
+            disabled={!roomNumber.trim()}
           >
-            생성하기
+            검색하기
           </button>
         </div>
       </div>
@@ -91,4 +91,4 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
   );
 };
 
-export default CreateRoomModal;
+export default RoomSearchModal;
