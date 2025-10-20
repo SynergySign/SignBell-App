@@ -55,53 +55,42 @@
         .agreementItem {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          margin-bottom: 16px;
+          gap: 12px;
+          margin-bottom: 12px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          > div {
+            flex: 1;
+            min-width: 0;
+          }
 
           .viewTermsButton {
-            background-color: var(--primary-color);
+            background-color: var(--secondary-color);
             color: var(--white-color);
             border: none;
-            border-radius: 16px;
+            border-radius: 12px;
             font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            padding: 6px 16px;
-            margin-left: 12px;
+            padding: 8px 16px;
             white-space: nowrap;
-            box-shadow: 0 2px 4px rgba(187, 222, 251, 0.3);
-            position: relative;
-            overflow: hidden;
-            @include smooth-transition(all, 0.3s);
-            @include button-press;
-
-            &::after {
-              content: '';
-              position: absolute;
-              top: 50%;
-              left: 50%;
-              width: 0;
-              height: 0;
-              border-radius: 50%;
-              background: rgba(255, 255, 255, 0.4);
-              transform: translate(-50%, -50%);
-              transition: width 0.5s, height 0.5s;
-            }
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            letter-spacing: -0.2px;
+            @include smooth-transition(all, 0.2s);
 
             &:hover {
-              background-color: var(--secondary-color);
-              transform: translateY(-2px);
-              box-shadow: 0 4px 8px rgba(144, 202, 249, 0.4);
-
-              &::after {
-                width: 200px;
-                height: 200px;
-              }
+              background-color: var(--primary-color);
+              transform: translateY(-1px);
+              box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
             }
 
             &:active {
-              transform: translateY(0) scale(0.95);
-              box-shadow: 0 1px 2px rgba(187, 222, 251, 0.2);
+              transform: translateY(0) scale(0.98);
+              box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             }
           }
         }

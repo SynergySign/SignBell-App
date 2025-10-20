@@ -7,7 +7,7 @@
 
 @use '../../styles/animations' as *;
 
-.modal-overlay {
+.modalOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -21,36 +21,37 @@
   animation: fadeIn 0.3s ease-out;
   backdrop-filter: blur(2px);
 
-  .modal-container {
+  .modalContainer {
     background-color: var(--white-color);
-    border-radius: 12px;
+    border-radius: 16px;
     width: 90%;
     max-width: 600px;
     max-height: 80vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     animation: scaleIn 0.3s ease-out;
 
-    .modal-header {
+    .modalHeader {
       display: flex;
       justify-content: space-between;
       align-items: center;
       padding: 20px 24px;
       border-bottom: 1px solid #e0e0e0;
 
-      .modal-title {
+      .modalTitle {
         font-size: 20px;
-        font-weight: bold;
+        font-weight: 600;
         color: var(--text-color);
         margin: 0;
+        letter-spacing: -0.3px;
       }
 
-      .modal-close {
+      .modalClose {
         background: none;
         border: none;
         font-size: 24px;
-        color: var(--text-secondary-color);
+        color: #999999;
         cursor: pointer;
         padding: 0;
         width: 32px;
@@ -73,7 +74,7 @@
       }
     }
 
-    .modal-content {
+    .modalContent {
       flex: 1;
       overflow-y: auto;
       padding: 24px;
@@ -82,10 +83,11 @@
 
       h2 {
         font-size: 18px;
-        font-weight: bold;
+        font-weight: 600;
         margin-top: 24px;
         margin-bottom: 12px;
-        color: var(--primary-color);
+        color: var(--secondary-color);
+        letter-spacing: -0.3px;
 
         &:first-child {
           margin-top: 0;
@@ -98,11 +100,13 @@
         margin-top: 16px;
         margin-bottom: 8px;
         color: var(--text-color);
+        letter-spacing: -0.2px;
       }
 
       p {
         margin-bottom: 12px;
         font-size: 14px;
+        letter-spacing: -0.2px;
       }
 
       ul, ol {
@@ -112,6 +116,7 @@
         li {
           margin-bottom: 8px;
           font-size: 14px;
+          letter-spacing: -0.2px;
         }
       }
 
@@ -122,34 +127,34 @@
       }
     }
 
-    .modal-footer {
+    .modalFooter {
       padding: 16px 24px;
       border-top: 1px solid #e0e0e0;
       display: flex;
       justify-content: flex-end;
 
-      .modal-button {
+      .modalButton {
         padding: 10px 24px;
-        background-color: var(--primary-color);
-        color: var(--white-color);
+        background-color: var(--accent-color);
+        color: var(--text-color);
         border: none;
-        border-radius: 6px;
+        border-radius: 12px;
         font-size: 14px;
         font-weight: 600;
         cursor: pointer;
-        box-shadow: 0 2px 4px rgba(74, 144, 226, 0.3);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        letter-spacing: -0.2px;
         @include smooth-transition(all, 0.3s);
         @include button-press;
 
         &:hover {
-          background-color: var(--primary-color);
           transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(74, 144, 226, 0.4);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
         }
 
         &:active {
           transform: translateY(0) scale(0.95);
-          box-shadow: 0 1px 2px rgba(74, 144, 226, 0.2);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
       }
     }

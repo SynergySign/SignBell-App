@@ -5,22 +5,23 @@
  * @최종수정일 2025-10-17
  */
 
-.agreement-toggle {
-  margin-bottom: 16px;
+.agreementToggle {
+  margin-bottom: 0;
 
-  .toggle-label {
+  .toggleLabel {
     display: flex;
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
     user-select: none;
 
-    .toggle-text {
+    .toggleText {
       font-size: 15px;
       color: var(--text-color);
+      letter-spacing: -0.2px;
     }
 
-    .toggle-switch {
+    .toggleSwitch {
       position: relative;
       width: 51px;
       height: 31px;
@@ -30,23 +31,23 @@
         width: 0;
         height: 0;
 
-        &:checked + .toggle-slider {
+        &:checked + .toggleSlider {
           background-color: var(--secondary-color);
         }
 
-        &:checked + .toggle-slider:before {
+        &:checked + .toggleSlider:before {
           transform: translateX(20px);
         }
       }
 
-      .toggle-slider {
+      .toggleSlider {
         position: absolute;
         cursor: pointer;
         top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        background-color: var(--state-disabled);
+        background-color: #e0e0e0;
         transition: 0.3s;
         border-radius: 31px;
 
@@ -60,6 +61,7 @@
           background-color: var(--white-color);
           transition: 0.3s;
           border-radius: 50%;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       }
     }
