@@ -10,10 +10,12 @@
 
 import { useState } from 'react';
 import RoomCard from './RoomCard';
+import CreateRoomModal from './CreateRoomModal';
 import './RealTimeQuizSidebar.scss';
 
 const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   const [activeTab, setActiveTab] = useState('quiz'); // 'personal' | 'quiz'
+  const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   const [waitingRooms, setWaitingRooms] = useState([
     { id: 112399, title: '방 제목1', status: '진행 중', currentPlayers: 3, maxPlayers: 4 },
     { id: 21555, title: '방 제목2', status: '대기 중', currentPlayers: 1, maxPlayers: 4 },
@@ -33,8 +35,22 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   };
 
   const handleCreateRoom = () => {
-    // TODO: 방 만들기 모달 표시
-    console.log('방 만들기 모달 열기');
+    setIsCreateRoomModalOpen(true);
+  };
+
+  const handleCreateRoomSubmit = (roomTitle) => {
+    // TODO: 방 생성 API 연동 필요
+    console.log('방 생성:', roomTitle);
+    // 임시로 새 방을 목록에 추가
+    const newRoom = {
+      id: Math.floor(Math.random() * 1000000),
+      title: roomTitle,
+      status: '대기 중',
+      currentPlayers: 1,
+      maxPlayers: 4,
+    };
+    setWaitingRooms([newRoom, ...waitingRooms]);
+    // TODO: 방 생성 후 퀴즈 대기방으로 이동
   };
 
   const handleRoomClick = (roomId) => {
@@ -97,6 +113,13 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
           ))}
         </div>
       </div>
+
+      {/* 방 만들기 모달 */}
+      <CreateRoomModal
+        isOpen={isCreateRoomModalOpen}
+        onClose={() => setIsCreateRoomModalOpen(false)}
+        onSubmit={handleCreateRoomSubmit}
+      />
     </>
   );
 };
