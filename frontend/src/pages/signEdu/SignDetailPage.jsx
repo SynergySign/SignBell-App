@@ -4,6 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSignDetail } from '../../services/signedu/signEdu.js';
 import useSignEduWebcam from '../../services/signedu/signEduWebcam.js';
+import {
+  connect as wsConnect,
+  disconnect as wsDisconnect,
+  sendMeta as wsSendMeta,
+  onStatus as wsOnStatus,
+  onMessage as wsOnMessage,
+  getStatus as wsGetStatus,
+  SESSION_ID as WS_SESSION_ID,
+} from '../../services/signedu/signEduWebSocket';
 
 // 안전한 URL 변환: 페이지가 HTTPS인 경우 http:// -> https://로 변환하여 Mixed Content 경고를 방지
 const sanitizeVideoUrl = (url) => {
@@ -165,8 +174,78 @@ const SignDetailPage = () => {
           </div>
         </div>
       </div>
+
+      {/* 웹소켓 연결 UI (SignDetailPage에 추가) */}
+      <div className="mt-6 p-4 border rounded bg-white">
+        <WebSocketSection />
+      </div>
     </div>
   );
 };
+
+// 별도 컴포넌트로 분리: SignDetailPage 내에서만 사용되는 간단한 웹소켓 UI
+function WebSocketSection() {
+  const [wsStatus, setWsStatus] = React.useState(wsGetStatus());
+  const [wsMessages, setWsMessages] = React.useState([]);
+
+  React.useEffect(() => {
+    const offStatus = wsOnStatus((s) => setWsStatus(s));
+    const offMsg = wsOnMessage((m) => setWsMessages((prev) => [...prev, m]));
+    return () => {
+      offStatus();
+      offMsg();
+    };
+  }, []);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-lg font-medium">웹소켓</div>
+        <div className="text-sm text-gray-500">세션: <code>{WS_SESSION_ID}</code></div>
+      </div>
+
+      <p className="mb-2">Status: <strong>{wsStatus}</strong></p>
+
+      <div className="mb-3">
+        <button
+          onClick={() => wsConnect()}
+          className="px-3 py-1 bg-indigo-600 text-white rounded"
+          disabled={wsStatus === 'Connected'}
+        >
+          웹소켓 연결하기
+        </button>
+
+        <button
+          onClick={() => wsDisconnect()}
+          className="ml-2 px-3 py-1 bg-gray-200 rounded"
+          disabled={wsStatus !== 'Connected'}
+        >
+          연결 해제
+        </button>
+
+        <button
+          onClick={() => { try { wsSendMeta(); } catch (e) { alert(e.message); } }}
+          className="ml-2 px-3 py-1 bg-green-500 text-white rounded"
+          disabled={wsStatus !== 'Connected'}
+        >
+          테스트 'meta' 전송
+        </button>
+      </div>
+
+      <div>
+        <h4 className="font-medium mb-2">수신 메시지</h4>
+        <div style={{ background: '#f4f4f4', padding: 8, height: 160, overflowY: 'auto' }}>
+          {wsMessages.length === 0 ? (
+            <div className="text-sm text-gray-500">(메시지 없음)</div>
+          ) : (
+            wsMessages.map((m, i) => (
+              <div key={i} className="text-sm">{JSON.stringify(m)}</div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default SignDetailPage;
