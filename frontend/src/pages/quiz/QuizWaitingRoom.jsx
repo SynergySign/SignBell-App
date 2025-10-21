@@ -30,22 +30,22 @@ const QuizWaitingRoom = () => {
   } = useWebcam();
 
   // 임시 참가자 데이터 (실제로는 WebSocket에서 받음)
-  const [participants] = useState([
+  const [participants, setParticipants] = useState([
     { 
       id: 1, 
       nickname: '사용자1', 
       score: 1250, 
       isMe: true, 
-      isHost: false, 
-      isReady: false,
-      webcamStatus: 'on' // 'on', 'off', 'denied'
+      isHost: isHost, 
+      isReady: isReady,
+      webcamStatus: isWebcamOn ? 'on' : webcamError ? 'denied' : 'off'
     },
     { 
       id: 2, 
       nickname: '사용자2', 
       score: 980, 
       isMe: false, 
-      isHost: true, 
+      isHost: !isHost, 
       isReady: true,
       webcamStatus: 'on'
     },
@@ -68,6 +68,25 @@ const QuizWaitingRoom = () => {
       webcamStatus: 'denied'
     },
   ]);
+
+  // 내 정보 실시간 업데이트
+  useEffect(() => {
+    setParticipants(prev => prev.map((participant, index) => 
+      participant.isMe 
+        ? { 
+            ...participant, 
+            isHost: isHost,
+            isReady: isReady,
+            webcamStatus: isWebcamOn ? 'on' : webcamError ? 'denied' : 'off'
+          }
+        : index === 1 // 두 번째 참가자를 반대 방장 상태로
+        ? {
+            ...participant,
+            isHost: !isHost
+          }
+        : participant
+    ));
+  }, [isReady, isWebcamOn, webcamError, isHost]);
 
   // 웹캠 권한 요청
   const handleWebcamRequest = async () => {
@@ -135,22 +154,44 @@ const QuizWaitingRoom = () => {
 
       {/* 메인 콘텐츠 */}
       <main className={styles.waitingContent}>
-        {/* 캠 상태 툴팁 */}
-        <div className={styles.camStatusTooltip}>
-          <span style={{ color: getWebcamStatusColor(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off') }}>
-            {getWebcamStatusText(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off')}
-          </span>
+        {/* 웹캠 제어 버튼 (상단) */}
+        <div className={styles.webcamControlSection}>
+          <button 
+            className={styles.webcamControlButton}
+            onClick={isWebcamOn ? stopWebcam : handleWebcamRequest}
+          >
+            {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
+          </button>
+          <div className={styles.webcamStatus}>
+            <div 
+              className={styles.webcamStatusDot}
+              style={{ backgroundColor: getWebcamStatusColor(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off') }}
+            ></div>
+            <span className={styles.webcamStatusText}>
+              {getWebcamStatusText(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off')}
+            </span>
+          </div>
         </div>
 
         {/* 준비/시작 버튼 */}
-        <button 
-          className={`${styles.actionButton} ${
-            isHost ? styles.startButton : (isReady ? styles.readyActive : styles.readyInactive)
-          }`}
-          onClick={isHost ? handleStartGame : handleReadyToggle}
-        >
-          {isHost ? 'START' : (isReady ? 'READY' : 'NOT READY')}
-        </button>
+        <div className={styles.actionButtonContainer}>
+          <button 
+            className={`${styles.actionButton} ${
+              isHost ? styles.startButton : (isReady ? styles.readyActive : styles.readyInactive)
+            } ${!isWebcamOn ? styles.disabled : ''}`}
+            onClick={isWebcamOn ? (isHost ? handleStartGame : handleReadyToggle) : undefined}
+            disabled={!isWebcamOn}
+          >
+            {isHost ? 'START' : (isReady ? 'READY' : 'NOT READY')}
+          </button>
+          
+          {/* 웹캠 필수 툴팁 */}
+          {!isWebcamOn && (
+            <div className={styles.webcamRequiredTooltip}>
+              <span>웹캠을 켜야 {isHost ? '게임을 시작' : '준비'}할 수 있습니다</span>
+            </div>
+          )}
+        </div>
 
         {/* 참가자 카드 영역 */}
         <div className={styles.participantsGrid}>
@@ -190,22 +231,19 @@ const QuizWaitingRoom = () => {
                 <span className={styles.nickname}>
                   {participant.nickname}{participant.isMe ? ' (나)' : ''}
                 </span>
-                <span className={styles.score}>💰 {participant.score}</span>
+                <span className={styles.score}>{participant.score}점</span>
               </div>
 
               {/* READY 표시 */}
-              {participant.isReady && (
+              {participant.isReady && !participant.isHost && (
                 <div className={styles.readyBadge}>READY</div>
               )}
 
-              {/* 웹캠 제어 버튼 (본인만) */}
-              {participant.isMe && (
-                <button 
-                  className={styles.webcamToggle}
-                  onClick={isWebcamOn ? stopWebcam : handleWebcamRequest}
-                >
-                  {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
-                </button>
+              {/* 내 READY 상태 표시 (방장이 아닌 경우) */}
+              {participant.isMe && !participant.isHost && (
+                <div className={`${styles.myReadyStatus} ${participant.isReady ? styles.ready : styles.notReady}`}>
+                  {participant.isReady ? 'READY' : 'NOT READY'}
+                </div>
               )}
             </div>
           ))}
