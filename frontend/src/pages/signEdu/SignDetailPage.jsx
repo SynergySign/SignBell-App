@@ -23,8 +23,14 @@ const SignDetailPage = () => {
     const [connectionStatus, setConnectionStatus] = useState('비활성화됨');
     const localVideoRef = useRef(null);
 
-    const wordPk = signDetail?.signId;
-    const wordName = signDetail?.title;
+    // DTO 필드에 맞춘 변수 (백엔드 SignDetailResponseDto 필드명 사용)
+    // SignDetailResponseDto { signId, wordName, description, videoUrl }
+    const wordPk = signDetail?.signId ?? signDetail?.id ?? signDetail?.wordId;
+    const wordName = signDetail?.wordName ?? signDetail?.title ?? signDetail?.name ?? '';
+
+    // description / video url (백엔드 필드명 우선, 기존 프론트의 다른 이름에 대한 페일백 유지)
+    const descriptionText = signDetail?.description ?? signDetail?.desc ?? '';
+    const videoUrl = signDetail?.videoUrl ?? signDetail?.url ?? '';
     const sessionIdRef = useRef(null);
     const wsRef = useRef(null);
 
@@ -194,8 +200,12 @@ const SignDetailPage = () => {
 
     return (
         <div className="p-5">
-            <h1 className="text-2xl font-bold mb-4">{signDetail.title || '단어 상세'}</h1>
-            {signDetail.description && <p className="mb-3">{signDetail.description}</p>}
+            <h1 className="text-2xl font-bold mb-4">{wordName || '단어 상세'}</h1>
+            {descriptionText ? (
+                <p className="mb-3">{descriptionText}</p>
+            ) : (
+                <p className="mb-3 text-gray-500">설명이 없습니다.</p>
+            )}
 
             <div className="flex gap-6 mb-4">
                 <div>
@@ -204,8 +214,8 @@ const SignDetailPage = () => {
                 </div>
                 <div>
                     <div className="mb-2">참조 비디오</div>
-                    {signDetail.url ? (
-                        <video ref={targetVideoRef} src={signDetail.url} controls style={{ width: 320 }} />
+                    {videoUrl ? (
+                        <video ref={targetVideoRef} src={videoUrl} controls style={{ width: 320 }} />
                     ) : (
                         <div className="w-[320px] h-[180px] bg-gray-100 flex items-center justify-center">비디오 없음</div>
                     )}
