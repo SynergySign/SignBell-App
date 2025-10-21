@@ -58,7 +58,7 @@ logging:
 
 cookie:
   domain: localhost
-  secure: ${COOKIE_SECURE:false}  # 환경변수로 제어 가능하도록 설정
+  secure: ${COOKIE_SECURE:true}  # 환경변수로 제어 가능하도록 설정
   http-only: true
   same-site: ${COOKIE_SAME_SITE:Lax}  # 환경변수로 제어 가능하도록 설정
   access-token-name: ACCESS_TOKEN
