@@ -19,7 +19,7 @@ const LandingPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const intervalRef = useRef(null);
     // ❗ 추가: 백엔드 카카오 엔드포인트와 인증 상태
-    const KAKAO_AUTH_URL = 'http://localhost:9000/oauth2/authorization/kakao';
+    const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
     const navigate = useNavigate();
 
     // ❗ 추가: 이미 로그인 상태면 홈으로 이동
