@@ -2,12 +2,16 @@ package app.signbell.backend.controller.signEdu;
 
 import app.signbell.backend.dto.response.signEdu.SignDetailResponseDto;
 import app.signbell.backend.dto.response.signEdu.SignSimpleResponseDto;
+import app.signbell.backend.exception.BusinessException;
+import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.service.SignEduService;
+import app.signbell.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,13 +25,22 @@ import java.util.List;
 public class SignEduController {
 
     private final SignEduService signEduService;
+    private final UserService userService; // 인증된 사용자 검증을 위해 UserService 주입
 
     /**
      * 모든 카테고리 목록을 조회하는 API
      * @return 카테고리 문자열 리스트
      */
     @GetMapping("/categories")
-    public ResponseEntity<List<String>> getAllCategoryTypes() {
+    public ResponseEntity<List<String>> getAllCategoryTypes(@AuthenticationPrincipal String subject) {
+        // 인증된 사용자인지 검증
+        try {
+            Long userId = Long.valueOf(subject);
+            userService.findMeById(userId);
+        } catch (NumberFormatException | NullPointerException e) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
         List<String> categoryTypes = signEduService.findAllCategoryTypes();
         return ResponseEntity.ok(categoryTypes);
     }
@@ -43,7 +56,16 @@ public class SignEduController {
     @GetMapping
     public ResponseEntity<Page<SignSimpleResponseDto>> getSigns(
             @RequestParam(value = "category", required = false) String category,
-            @PageableDefault(size = 20, sort = "title") Pageable pageable) {
+            @PageableDefault(size = 20, sort = "title") Pageable pageable,
+            @AuthenticationPrincipal String subject) {
+        // 인증된 사용자인지 검증
+        try {
+            Long userId = Long.valueOf(subject);
+            userService.findMeById(userId);
+        } catch (NumberFormatException | NullPointerException e) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
         Page<SignSimpleResponseDto> signsPage = signEduService.findSigns(category, pageable);
         return ResponseEntity.ok(signsPage);
     }
@@ -55,8 +77,18 @@ public class SignEduController {
      */
     @GetMapping("/{signId}")
     public ResponseEntity<SignDetailResponseDto> getSignDetails(
-            @PathVariable("signId") Long signId) {
+            @PathVariable("signId") Long signId,
+            @AuthenticationPrincipal String subject) {
+        // 인증된 사용자인지 검증
+        try {
+            Long userId = Long.valueOf(subject);
+            userService.findMeById(userId);
+        } catch (NumberFormatException | NullPointerException e) {
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+
         SignDetailResponseDto signDetails = signEduService.findSignById(signId);
         return ResponseEntity.ok(signDetails);
     }
+
 }

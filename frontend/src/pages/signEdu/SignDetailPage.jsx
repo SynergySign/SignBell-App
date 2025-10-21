@@ -1,7 +1,7 @@
 // SignDetailPage.jsx (임시 테스트 버전)
 // WebRTC 로직을 모두 제거하고 WebSocket 연결 및 인증만 테스트합니다.
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
 
@@ -50,7 +50,10 @@ const SignDetailPage = () => {
         const fetchDetails = async () => {
             setLoading(true);
             try {
-                const response = await axios.get(`${API_BASE_URL}/api/sign-edu/${signId}`);
+                const response = await axios.get(`${API_BASE_URL}/api/sign-edu/${signId}`, {
+                    // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
+                    withCredentials: true
+                });
                 setSignDetail(response.data);
             } catch (err) {
                 console.error("단어 상세 정보 API 호출 실패:", err);

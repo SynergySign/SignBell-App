@@ -1,7 +1,6 @@
 // src/pages/SignEduPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import axios from 'axios';
 // 단일 단어 아이템을 렌더링하는 컴포넌트 임포트
 import SignItem from '../../components/signedu/SignItem';
@@ -22,7 +21,10 @@ const SignWordList = ({ selectedCategory }) => {
 
         setLoading(true);
         // GET /api/sign-edu?category=카테고리명&size=20
-        axios.get(`${API_BASE_URL}/api/sign-edu?category=${selectedCategory}&size=20`)
+        axios.get(`${API_BASE_URL}/api/sign-edu?category=${selectedCategory}&size=20`, {
+            // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
+            withCredentials: true
+        })
             .then(response => {
                 // 가정: Spring 응답은 { content: [...], ... } Page 객체 형태
                 setWords(response.data.content || response.data);
@@ -62,7 +64,10 @@ const SignEduPage = () => {
 
     // 1. 카테고리 목록 조회 (/api/sign-edu/categories)
     useEffect(() => {
-        axios.get(`${API_BASE_URL}/api/sign-edu/categories`)
+        axios.get(`${API_BASE_URL}/api/sign-edu/categories`, {
+            // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
+            withCredentials: true
+        })
             .then(response => {
                 setCategories(response.data); // List<String> 형태
                 setLoading(false);
@@ -107,7 +112,7 @@ const SignEduPage = () => {
             {error && <p className="text-center text-red-500 mb-6 font-bold">{error}</p>}
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {categories.map((category, index) => (
+                {categories.map((category) => (
                     <div
                         key={category} // 경고 해결: category 문자열을 key로 사용
                         onClick={() => handleCategoryClick(category)}
@@ -122,4 +127,3 @@ const SignEduPage = () => {
 };
 
 export default SignEduPage;
-
