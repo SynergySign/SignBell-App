@@ -16,6 +16,11 @@ import QuizWaitingRoom from '../pages/quiz/QuizWaitingRoom';
 import QuizGamePage from '../pages/quiz/QuizGamePage';
 import PopupClosePage from '../pages/auth/PopupClosePage';
 
+// ===== 임시 개인 수어학습 페이지 컴포넌트 임포트
+import SignEduPage from '../pages/signEdu/SignEduPage';
+import SignDetailPage from '../pages/signEdu/SignDetailPage';
+// =============================================
+
 const Router = () => {
   return (
     <BrowserRouter>
@@ -41,6 +46,26 @@ const Router = () => {
             <GameRoom />
           </MainLayout>
         } />
+
+        {/* 👇️ 2. [개인 학습] 카테고리/목록 페이지 라우트 추가 */}
+        <Route path="/personal-study" element={
+          <MainLayout>
+            <SignEduPage />
+          </MainLayout>
+        } />
+
+        {/* 👇️ 3. [개인 학습] 상세 페이지 라우트 추가 (URL 파라미터 사용) */}
+        <Route path="/personal-study/:signId" element={
+          <MainLayout>
+            <SignDetailPage />
+          </MainLayout>
+        } />
+
+
+
+
+
+
         {/* MainLayout을 사용하지 않는 독립적인 라우트들 */}
         <Route path="/quiz/waiting/:roomId" element={<QuizWaitingRoom />} />
         <Route path="/quiz/game/:roomId" element={<QuizGamePage />} />

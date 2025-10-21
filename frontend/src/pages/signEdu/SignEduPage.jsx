@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 // 단일 단어 아이템을 렌더링하는 컴포넌트 임포트
-import SignItem from '../components/signedu/SignItem';
+import SignItem from '../../components/signedu/SignItem';
 
 // --- 환경 변수 사용 ---
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
