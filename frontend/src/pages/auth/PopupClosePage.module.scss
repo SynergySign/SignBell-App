@@ -1,0 +1,245 @@
+/*
+  반띵 PopupClosePage 스타일
+  LoginPage와 일관된 디자인 시스템 적용
+*/
+
+// 컬러 변수 (프로젝트 컬러 가이드 기준)
+$primary-color: #A29BFE;     // 라벤더 (Primary 60%)
+$secondary-color: #FD79A8;   // 로즈 (Secondary 30%)
+$accent-color: #FDCB6E;      // 선샤인 옐로우 (Accent 10%)
+$text-color: #2D3436;        // 차콜 그레이
+$background-color: #FAFAFA;  // 라이트 그레이
+$white: #FFFFFF;
+$error-color: #FF6B6B;       // 에러 메시지 색상
+$success-color: #00B894;     // 성공 메시지 색상
+$border-color: rgba($text-color, 0.1);
+$shadow-color: rgba($text-color, 0.15);
+
+// 브레이크포인트
+$mobile: 480px;
+$tablet: 768px;
+$desktop: 1024px;
+
+// 애니메이션
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes bounce {
+  0%, 20%, 53%, 80%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  40%, 43% {
+    transform: translate3d(0, -15px, 0);
+  }
+  70% {
+    transform: translate3d(0, -7px, 0);
+  }
+  90% {
+    transform: translate3d(0, -3px, 0);
+  }
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  50% { width: 70%; }
+  100% { width: 90%; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+// 레이아웃 가이드의 컨테이너 스타일 적용
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  padding-left: 20px;
+  padding-right: 20px;
+  box-sizing: border-box;
+  font-family: 'Pretendard', 'Apple SD Gothic Neo', sans-serif;
+}
+
+.popupContainer {
+  min-height: 100vh;
+  background-color: $background-color;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.popupMain {
+  width: 100%;
+  max-width: 420px;
+  animation: slideUp 0.6s ease-out;
+}
+
+.popupCard {
+  background: $white;
+  border-radius: 16px;
+  padding: 2.5rem;
+  box-shadow: 0 8px 32px rgba($primary-color, 0.15);
+  border: 1px solid $border-color;
+  text-align: center;
+
+  @media (max-width: $mobile) {
+    padding: 2rem 1.5rem;
+    margin: 1rem;
+    border-radius: 12px;
+  }
+}
+
+// 에러 상태 스타일
+.errorHeader {
+  margin-bottom: 2rem;
+}
+
+.errorIcon {
+  font-size: 4rem;
+  color: $error-color;
+  margin-bottom: 1rem;
+  animation: bounce 0.8s ease-out;
+  display: block;
+
+  // 아이콘이 중앙에 정렬되도록
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.errorTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: $error-color;
+  margin: 0 0 0.5rem 0;
+
+  @media (max-width: $mobile) {
+    font-size: 1.3rem;
+  }
+}
+
+.errorSubtitle {
+  font-size: 0.95rem;
+  color: rgba($text-color, 0.7);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.errorContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.errorMessage {
+  background: linear-gradient(135deg, rgba($error-color, 0.1) 0%, rgba($error-color, 0.05) 100%);
+  border: 1px solid rgba($error-color, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  color: $error-color;
+  font-size: 0.9rem;
+}
+
+.errorText {
+  font-weight: 500;
+}
+
+.actionContainer {
+  display: flex;
+  justify-content: center;
+}
+
+.retryButton {
+  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
+  color: $white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba($primary-color, 0.3);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba($primary-color, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// 성공/로딩 상태 스타일
+.successHeader {
+  margin-bottom: 2rem;
+}
+
+.loadingSpinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba($primary-color, 0.3);
+  border-top: 4px solid $primary-color;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem auto;
+}
+
+.successTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  background: linear-gradient(135deg, $primary-color 0%, $secondary-color 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+
+  @media (max-width: $mobile) {
+    font-size: 1.3rem;
+  }
+}
+
+.successSubtitle {
+  font-size: 0.95rem;
+  color: rgba($text-color, 0.7);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.successContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.processingMessage {
+  color: rgba($text-color, 0.8);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.6;
+  animation: pulse 2s ease-in-out infinite;
+}

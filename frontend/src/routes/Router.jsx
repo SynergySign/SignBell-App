@@ -14,11 +14,13 @@ import MainPage from '../pages/main/MainPage';
 import GameRoom from '../pages/GameRoom';
 import QuizWaitingRoom from '../pages/quiz/QuizWaitingRoom';
 import QuizGamePage from '../pages/quiz/QuizGamePage';
+import PopupClosePage from '../pages/auth/PopupClosePage';
 
 const Router = () => {
   return (
     <BrowserRouter>
       <Routes>
+        {/* MainLayout을 사용하는 라우트들 */}
         <Route path="/" element={
           <MainLayout>
             <LandingPage />
@@ -39,8 +41,12 @@ const Router = () => {
             <GameRoom />
           </MainLayout>
         } />
+        {/* MainLayout을 사용하지 않는 독립적인 라우트들 */}
         <Route path="/quiz/waiting/:roomId" element={<QuizWaitingRoom />} />
         <Route path="/quiz/game/:roomId" element={<QuizGamePage />} />
+
+        {/* 팝업 닫기 페이지 라우트 (다른 컴포넌트에 영향을 주지 않음) */}
+        <Route path="/popup-close" element={<PopupClosePage />} />
       </Routes>
     </BrowserRouter>
   );

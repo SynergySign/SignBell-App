@@ -1,4 +1,4 @@
-package app.signbell.backend.dto.response;
+package app.signbell.backend.dto.response.userData;
 
 import app.signbell.backend.entity.User;
 import lombok.AllArgsConstructor;

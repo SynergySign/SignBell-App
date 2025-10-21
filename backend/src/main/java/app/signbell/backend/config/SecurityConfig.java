@@ -38,7 +38,7 @@ public class SecurityConfig {
 
     // 허용할 엔드포인트 목록을 배열로 따로 관리
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/**", // 프로젝트 초기 설정이므로 임시로 모든 엔드포인트 허용, 이후에 조정 필요
+             // 프로젝트 초기 설정이므로 임시로 모든 엔드포인트 허용, 이후에 조정 필요
             "/",
             "/ws/**",
             "/health",

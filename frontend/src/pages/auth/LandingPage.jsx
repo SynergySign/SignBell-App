@@ -9,16 +9,68 @@
 import { useNavigate } from 'react-router-dom';
 import SocialLoginButton from '../../components/auth/SocialLoginButton';
 import styles from './LandingPage.module.scss';
+import React, {useEffect, useRef, useState} from 'react';
+import { useAuthStore } from '../../store/auth/authStore.js';
 
 const LandingPage = () => {
-  const navigate = useNavigate();
+
+    const { isAuthenticated } = useAuthStore();
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const intervalRef = useRef(null);
+    // ❗ 추가: 백엔드 카카오 엔드포인트와 인증 상태
+    const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
+    const navigate = useNavigate();
+
+    // ❗ 추가: 이미 로그인 상태면 홈으로 이동
+    useEffect(() => {
+        console.log('isAuthenticated:', isAuthenticated);
+        if (isAuthenticated) {
+            navigate('/main', { replace: true }); // Router.jsx에 '/main'이 있으므로 이동
+        }
+    }, [isAuthenticated, navigate]);
+
+    // ❗ 추가: 컴포넌트 언마운트 시 인터벌 정리
+    useEffect(() => {
+        return () => {
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+            }
+        };
+    }, []);
 
   const handleKakaoLogin = () => {
     // TODO: API 연동이 필요합니다.
     console.log('카카오 로그인 클릭');
+
+      setIsLoading(true);
+      setError('');
+
+      // 팝업창 열기
+      // 주의: 백엔드 리디렉션 URI가 'http://localhost:5173/popup-close'와 일치해야 합니다.
+      const popup = window.open(KAKAO_AUTH_URL, 'KakaoLoginPopup', 'width=460,height=600,left=100,top=100');
+      // 팝업이 열리지 않았을 경우
+      if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+          setIsLoading(false);
+          setError('팝업 차단을 해제하고 다시 시도해 주세요.');
+          return;
+      }
+
+      if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+      }
+
+      // 팝업 창이 강제로 닫혔는지 확인하는 로직
+      intervalRef.current = setInterval(() => {
+          if (popup.closed) {
+              setIsLoading(false);
+              setError('로그인 창이 닫혔습니다. 다시 시도해 주세요.');
+              clearInterval(intervalRef.current);
+          }
+      }, 500);
     
     // 약관 동의 페이지로 이동
-    navigate('/terms');
+    // navigate('/terms');
   };
 
   return (
@@ -36,6 +88,11 @@ const LandingPage = () => {
           <p className={styles.loginSubtitle}>소셜 계정으로 로그인</p>
           
           <div className={styles.loginButtons}>
+              {error && (
+                  <p>에러가 발생했습니다.</p>
+              )}
+
+
             <SocialLoginButton 
               provider="kakao" 
               onClick={handleKakaoLogin}

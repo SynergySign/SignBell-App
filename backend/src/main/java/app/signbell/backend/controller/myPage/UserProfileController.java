@@ -2,7 +2,7 @@ package app.signbell.backend.controller.myPage;
 
 import app.signbell.backend.dto.common.ApiResponse;
 import app.signbell.backend.dto.request.UserProfileUpdateRequest;
-import app.signbell.backend.dto.response.UserProfileResponse;
+import app.signbell.backend.dto.response.userData.UserProfileResponse;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.service.UserProfileService;

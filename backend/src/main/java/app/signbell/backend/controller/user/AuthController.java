@@ -1,4 +1,4 @@
-package app.signbell.backend.controller;
+package app.signbell.backend.controller.user;
 
 
 import app.signbell.backend.util.CookieUtil;
