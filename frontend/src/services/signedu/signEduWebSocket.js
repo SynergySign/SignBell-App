@@ -1,9 +1,10 @@
 // WebSocket service for SignEdu (no JSX)
 // Provides: connect, disconnect, sendMeta, onStatus, onMessage, getStatus, SESSION_ID
 
-const SERVER_HOST = '127.0.0.1:8000';
 export const SESSION_ID = `react-client-cookie-${Date.now()}`; // 테스트용 임시 세션 ID
 
+// 항상 wss로 연결하도록 강제하고, 프록시를 통해 쿠키가 전달되도록
+// 브라우저의 현재 호스트(window.location.host)를 사용합니다.
 let socket = null;
 let _status = 'Disconnected';
 const statusListeners = new Set();
@@ -25,9 +26,10 @@ function notifyMessage(msg) {
 export function connect(sessionId = SESSION_ID) {
   if (socket && socket.readyState === WebSocket.OPEN) return socket;
 
-  const scheme = (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:') ? 'wss' : 'ws';
-  const wsUrl = `${scheme}://${SERVER_HOST}/ws/${sessionId}`;
-  console.log(`(Cookie Auth) Connecting to ${wsUrl}...`);
+  // 반드시 wss로 연결합니다. 프록시가 /ws 경로를 백엔드 FastAPI로 전달합니다.
+  const host = (typeof window !== 'undefined' && window.location && window.location.host) ? window.location.host : 'localhost:8443';
+  const wsUrl = `wss://${host}/ws/${sessionId}`;
+  console.log(`(Cookie Auth via Proxy) Connecting to ${wsUrl}...`);
 
   try {
     const s = new WebSocket(wsUrl);
@@ -41,7 +43,7 @@ export function connect(sessionId = SESSION_ID) {
 
     s.onmessage = (event) => {
       let msg;
-      try { msg = JSON.parse(event.data); } catch (e) { msg = { raw: event.data }; }
+      try { msg = JSON.parse(event.data); } catch { msg = { raw: event.data }; }
       console.log('RECV:', msg);
       notifyMessage(msg);
     };
