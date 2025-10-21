@@ -208,16 +208,71 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   // ============================================
   // 📌 방 번호 입력
   // ============================================
+  // 방 번호 입력 모달 열기
   const handleRoomNumberInput = () => {
     setIsRoomSearchModalOpen(true);
   };
 
-  const handleRoomSearchSubmit = (roomNumber) => {
-    // TODO: 방 번호로 방 검색 API 연동 필요
+  // 방 번호로 방 입장 - WebSocket 세션 체크 후 입장
+  const handleRoomSearchSubmit = async (roomNumber) => {
     console.log('방 검색:', roomNumber);
-    // 임시로 해당 방 번호로 이동
-    navigate(`/quiz/waiting/${roomNumber}`);
-    onClose();
+    // TODO: 방 번호로 방 검색 API 연동 필요
+
+    // 기본 입력 검증
+    if (!roomNumber || isNaN(roomNumber)) {
+      showAlert('입력 오류', '방 번호는 숫자만 입력할 수 있습니다.', 'warning');
+      return;
+    }
+
+    // 세션 체크: 이미 다른 탭에서 게임 중인지 확인
+    try {
+      const sessionStatus = await RoomService.checkWsSession();
+
+      // active=true: 이미 다른 탭에서 WebSocket 연결 중
+      if (sessionStatus.active) {
+        showAlert(
+          '입장 불가',
+          '이미 다른 탭에서 게임에 참여 중입니다. 기존 탭을 종료해주세요.',
+          'warning'
+        );
+        return; // 입장 불가
+      }
+
+      // 방 상세 조회 API 호출 (유효성 검증)
+      const roomDetail = await RoomService.getRoomDetail(roomNumber);
+
+      if (!roomDetail || !roomDetail.gameRoomId) {
+        showAlert('방을 찾을 수 없습니다.', '존재하지 않는 방 번호입니다.', 'error');
+        return;
+      }
+
+      // 상태 검증
+      if (roomDetail.status === 'IN_PROGRESS') {
+        showAlert('입장 불가', '이미 게임이 진행 중인 방입니다.', 'warning');
+        return;
+      }
+      if (roomDetail.status === 'FINISHED') {
+        showAlert('입장 불가', '종료된 방은 입장할 수 없습니다.', 'warning');
+        return;
+      }
+
+      // 모든 조건 통과 → 입장
+      navigate(`/quiz/waiting/${roomNumber}`);
+      onClose(); // 사이드바 닫기
+    } catch (err) {
+      console.error('방 번호 검증 실패:', err);
+
+      const errorCode = err.response?.data?.error;
+
+      if (errorCode === 'ROOM_NOT_FOUND') {
+        showAlert('입장 불가', '해당 방을 찾을 수 없습니다.', 'error');
+      } else if (errorCode === 'UNAUTHORIZED') {
+        showAlert('로그인 필요', '로그인이 필요합니다.', 'warning');
+        setTimeout(() => navigate('/'), 2000);
+      } else {
+        showAlert('오류', '방 검증 중 오류가 발생했습니다.', 'error');
+      }
+    }
   };
   
   // ============================================
@@ -278,7 +333,7 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
         case 'UNAUTHORIZED':
           setCreateRoomError('로그인이 필요합니다.');
           // 로그인 페이지로 이동
-          navigate('/');
+          setTimeout(() => navigate('/'), 2000);
           break;
         default:
           setCreateRoomError('방 생성에 실패했습니다. 다시 시도해주세요.');
