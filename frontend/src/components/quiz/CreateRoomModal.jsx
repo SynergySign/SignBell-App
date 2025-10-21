@@ -9,23 +9,38 @@
  * @반환값 {JSX.Element} 방 만들기 모달 컴포넌트
  */
 
-import { useState } from 'react';
+import {useEffect, useState} from 'react';
 import styles from './CreateRoomModal.module.scss';
 
-const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
+const CreateRoomModal = ({ isOpen, onClose, onSubmit, loading = false, error = null }) => {
   const [roomTitle, setRoomTitle] = useState('');
 
-  const handleSubmit = () => {
-    if (roomTitle.trim()) {
-      onSubmit(roomTitle);
+  // 모달이 열릴 때마다 입력값 초기화
+  useEffect(() => {
+    if (isOpen) {
       setRoomTitle('');
-      onClose();
+    }
+  }, [isOpen]);
+
+  const handleSubmit = async () => {
+    if (roomTitle.trim() && !loading) {
+      // onSubmit이 Promise를 반환하므로 await
+      const success = await onSubmit(roomTitle);
+
+      // 성공한 경우에만 모달 닫기 및 초기화
+      if (success) {
+        setRoomTitle('');
+        onClose();
+      }
+      // 실패한 경우 모달은 열린 채로 유지하여 에러 메시지 표시
     }
   };
 
   const handleClose = () => {
-    setRoomTitle('');
-    onClose();
+    if (!loading) {
+      setRoomTitle('');
+      onClose();
+    }
   };
 
   const handleInputChange = (e) => {
@@ -41,14 +56,25 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
   return (
     <>
       {/* 오버레이 */}
-      <div className={styles.modalOverlay} onClick={handleClose}></div>
+      <div
+        className={styles.modalOverlay}
+        onClick={handleClose}
+        style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
+      >
+
+      </div>
 
       {/* 모달 */}
       <div className={`${styles.createRoomModal} ${isOpen ? styles.open : ''}`}>
         {/* 모달 헤더 */}
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>방 만들기</h2>
-          <button className={styles.closeButton} onClick={handleClose} aria-label="모달 닫기">
+          <button
+            className={styles.closeButton}
+            onClick={handleClose}
+            aria-label="모달 닫기"
+            disabled={loading}
+          >
             ✕
           </button>
         </div>
@@ -69,11 +95,29 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
             value={roomTitle}
             onChange={handleInputChange}
             onKeyPress={(e) => {
-              if (e.key === 'Enter' && roomTitle.trim()) {
+              if (e.key === 'Enter' && roomTitle.trim() && !loading) { // 로딩중이 아닐 때만 엔터로 제출 가능
                 handleSubmit();
               }
             }}
+            disabled={loading}
+            autoFocus
           />
+
+          {/* 에러 메시지 표시 */}
+          {error && (
+            <div>
+            {/*<div className={styles.errorMessage}>*/}
+              {error}
+            </div>
+          )}
+
+          {/* 로딩 표시 */}
+          {loading && (
+            <div>
+            {/*<div className={styles.loadingMessage}>*/}
+              방을 생성하는 중입니다...
+            </div>
+          )}
         </div>
 
         {/* 모달 푸터 */}
@@ -81,9 +125,9 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit }) => {
           <button
             className={`${styles.submitButton} ${roomTitle.trim() ? styles.active : ''}`}
             onClick={handleSubmit}
-            disabled={!roomTitle.trim()}
+            disabled={!roomTitle.trim() || loading}
           >
-            생성하기
+            {loading ? '생성 중...' : '생성하기'}
           </button>
         </div>
       </div>

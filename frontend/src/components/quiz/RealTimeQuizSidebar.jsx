@@ -16,6 +16,7 @@ import RoomSearchModal from './RoomSearchModal';
 import AlertModal from '../ui/AlertModal';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import styles from './RealTimeQuizSidebar.module.scss';
+import {RoomService} from '../../services/api/roomService.js';
 
 const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   const navigate = useNavigate();
@@ -23,6 +24,11 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
   const [isRoomSearchModalOpen, setIsRoomSearchModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // 방 생성 관련 상태
+  const [createRoomLoading, setCreateRoomLoading] = useState(false);
+  const [createRoomError, setCreateRoomError] = useState(null);
+
   const [alertModal, setAlertModal] = useState({
     isOpen: false,
     title: '',
@@ -86,23 +92,74 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
     setIsCreateRoomModalOpen(true);
   };
 
-  const handleCreateRoomSubmit = (roomTitle) => {
+  // 방 생성 제출 함수
+  const handleCreateRoomSubmit = async (roomTitle) => {
     // TODO: 방 생성 API 연동 필요
+    // 방 생성 API 연동 완료
+
     console.log('방 생성:', roomTitle);
+
+    setCreateRoomLoading(true);
+    setCreateRoomError(null);
+
+    try {
+      // API 호출
+      const result = await RoomService.createRoom(roomTitle);
+
+      console.log('방 생성 성공:', result);
+
+      // 방 생성 후 퀴즈 대기방으로 이동
+      navigate(`/quiz/waiting/${result.gameRoomId}`);
+      onClose();
+
+    } catch (err) {
+
+      console.error('방 생성 중 오류:', err);
+
+      // 에러 처리
+      const errorCode = err.response?.data?.error;
+      const errorMessage = err.response?.data?.detail;
+
+      switch (errorCode) {
+        case 'VALIDATION_ERROR':
+          setCreateRoomError(errorMessage || '방 제목을 확인해주세요.');
+          break;
+        case 'PARTICIPANT_ALREADY_IN_ROOM':
+          setCreateRoomError('이미 다른 방에 참여 중입니다.');
+          break;
+        case 'USER_NOT_FOUND':
+          setCreateRoomError('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+          break;
+        case 'UNAUTHORIZED':
+          setCreateRoomError('로그인이 필요합니다.');
+          // 로그인 페이지로 이동
+          navigate('/');
+          break;
+        default:
+          setCreateRoomError('방 생성에 실패했습니다. 다시 시도해주세요.');
+      }
+      return false; // 실패 반환
+    } finally {
+      setCreateRoomLoading(false);
+    }
+
     // 임시로 새 방을 목록에 추가
-    const newRoomId = Math.floor(Math.random() * 100000);
-    const newRoom = {
-      id: newRoomId,
-      title: roomTitle,
-      status: '대기 중',
-      currentPlayers: 1,
-      maxPlayers: 4,
-    };
-    setWaitingRooms([newRoom, ...waitingRooms]);
-    // 방 생성 후 퀴즈 대기방으로 이동
-    navigate(`/quiz/waiting/${newRoomId}`);
-    onClose();
-  };
+    // const newRoomId = Math.floor(Math.random() * 100000);
+    // const newRoom = {
+    //   id: newRoomId,
+    //   title: roomTitle,
+    //   status: '대기 중',
+    //   currentPlayers: 1,
+    //   maxPlayers: 4,
+    // };
+    // setWaitingRooms([newRoom, ...waitingRooms]);
+    // // 방 생성 후 퀴즈 대기방으로 이동
+    // navigate(`/quiz/waiting/${newRoomId}`);
+    // onClose();
+  }
+
+
+
 
   const handleRoomClick = (roomId) => {
     const room = waitingRooms.find(r => r.id === roomId);
@@ -209,8 +266,13 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
       {/* 방 만들기 모달 */}
       <CreateRoomModal
         isOpen={isCreateRoomModalOpen}
-        onClose={() => setIsCreateRoomModalOpen(false)}
+        onClose={() => {
+          setIsCreateRoomModalOpen(false);
+          setCreateRoomError(null); // 에러 초기화
+        }}
         onSubmit={handleCreateRoomSubmit}
+        loading={createRoomLoading}
+        error={createRoomError}
       />
 
       {/* 방 번호 입력 모달 */}
