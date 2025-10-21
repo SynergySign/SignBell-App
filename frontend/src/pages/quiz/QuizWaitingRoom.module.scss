@@ -1,5 +1,5 @@
 /**
- * @파일명 QuizWaitingRoom.scss
+ * @파일명 QuizWaitingRoom.module.scss
  * @설명 퀴즈 대기방 페이지 스타일
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
@@ -18,7 +18,7 @@
 
   // 방 정보 섹션
   .room-info-section {
-    background-color: var(--primary-color);
+    background-color: var(--info-color);
     padding: 20px 32px;
     display: flex;
     justify-content: space-between;
@@ -32,15 +32,15 @@
       gap: 4px;
 
       .room-number {
-        color: var(--text-color);
+        color: var(--white-color);
         font-size: 13px;
         font-weight: 500;
-        opacity: 0.7;
+        opacity: 0.9;
         letter-spacing: -0.2px;
       }
 
       .room-title {
-        color: var(--text-color);
+        color: var(--white-color);
         font-size: 20px;
         font-weight: 600;
         margin: 0;
@@ -73,7 +73,7 @@
   }
 
   // 메인 콘텐츠
-  .waiting-room-content {
+  .waiting-content {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -82,22 +82,68 @@
     gap: 32px;
     overflow-y: auto;
 
-    // 캠 상태 툴팁
-    .cam-tooltip {
-      background-color: var(--info-color);
-      color: var(--white-color);
-      font-size: 14px;
-      font-weight: 600;
-      border-radius: 20px;
-      padding: 8px 16px;
-      letter-spacing: -0.2px;
-      box-shadow: 0 2px 8px rgba(41, 182, 246, 0.3);
-      animation: fadeIn 0.5s ease-out;
+    // 웹캠 제어 섹션
+    .webcam-control-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background-color: var(--background-color);
+      padding: 16px 24px;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 
-      &.off {
-        background-color: var(--error-color);
-        box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+      .webcam-control-button {
+        background-color: var(--info-color);
+        color: var(--white-color);
+        border: none;
+        border-radius: 12px;
+        padding: 12px 20px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
       }
+
+      .webcam-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .webcam-status-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 2px solid var(--white-color);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .webcam-status-text {
+          color: var(--text-color);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.2px;
+        }
+      }
+    }
+
+    // 준비/시작 버튼 컨테이너
+    .action-button-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
     }
 
     // 준비/시작 버튼
@@ -107,77 +153,278 @@
       border: none;
       border-radius: 16px;
       font-size: 18px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
       letter-spacing: -0.3px;
 
-      &.active {
+      &.start-button {
         background-color: var(--accent-color);
         color: var(--text-color);
-        box-shadow: 0 2px 8px rgba(144, 202, 249, 0.3);
+        box-shadow: 0 4px 12px rgba(255, 204, 128, 0.4);
+
+        &:hover:not(.disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(255, 204, 128, 0.5);
+        }
+      }
+
+      &.ready-active {
+        background-color: var(--success-color);
+        color: var(--white-color);
+        box-shadow: 0 4px 12px rgba(102, 187, 106, 0.4);
+
+        &:hover:not(.disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(102, 187, 106, 0.5);
+        }
+      }
+
+      &.ready-inactive {
+        background-color: var(--secondary-color);
+        color: var(--white-color);
+        box-shadow: 0 4px 12px rgba(144, 202, 249, 0.4);
+
+        &:hover:not(.disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(144, 202, 249, 0.5);
+        }
+      }
+
+      &.disabled {
+        background-color: #e0e0e0 !important;
+        color: #999999 !important;
+        cursor: not-allowed !important;
+        box-shadow: none !important;
+        transform: none !important;
+      }
+
+      &:active:not(.disabled) {
+        transform: translateY(0);
+      }
+    }
+
+    // 웹캠 필수 툴팁
+    .webcam-required-tooltip {
+      background-color: var(--error-color);
+      color: var(--white-color);
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 12px;
+      padding: 8px 16px;
+      letter-spacing: -0.2px;
+      box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+      animation: pulse 2s ease-in-out infinite;
+      text-align: center;
+      max-width: 250px;
+
+      span {
+        display: block;
+      }
+    }
+
+    // 참가자 카드 영역
+    .participants-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      width: 100%;
+      max-width: 1200px;
+
+      .participant-card {
+        background-color: var(--white-color);
+        border: 2px solid #e0e0e0;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transition: all 0.2s;
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
 
         &:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+        }
+
+        // 캠 상태 점
+        .cam-status-dot {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 2px solid var(--white-color);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+          z-index: 2;
+        }
+
+        // 방장 표시
+        .host-badge {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          background-color: var(--accent-color);
+          color: var(--text-color);
+          font-size: 12px;
+          font-weight: 700;
+          padding: 4px 8px;
+          border-radius: 8px;
+          letter-spacing: -0.2px;
+          z-index: 2;
+        }
+
+        // 웹캠 영역
+        .webcam-area {
+          width: 100%;
+          aspect-ratio: 4 / 3;
+          border-radius: 16px;
+          overflow: hidden;
+          margin: 20px 0 16px 0; // 상단 마진 더 추가로 캠 상태 점과 방장 표시와 겹치지 않도록
+          position: relative;
+
+          .webcam-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .webcam-placeholder {
+            width: 100%;
+            height: 100%;
+            background-color: var(--background-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            span {
+              color: #999999;
+              font-size: 16px;
+              font-weight: 500;
+            }
+          }
+        }
+
+        // 참가자 정보
+        .participant-info {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 40px; // READY 상태 공간 확보
+
+          .nickname {
+            color: var(--text-color);
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+            text-align: center;
+          }
+
+          .score {
+            color: var(--accent-color);
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+          }
+        }
+
+        // READY 표시 (다른 사람)
+        .ready-badge {
+          position: absolute;
+          bottom: 16px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: var(--success-color);
+          color: var(--white-color);
+          font-size: 12px;
+          font-weight: 700;
+          padding: 6px 12px;
+          border-radius: 8px;
+          letter-spacing: -0.2px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        // 내 READY 상태 표시
+        .my-ready-status {
+          position: absolute;
+          bottom: 16px;
+          left: 50%;
+          transform: translateX(-50%);
+          font-size: 12px;
+          font-weight: 700;
+          padding: 6px 12px;
+          border-radius: 8px;
+          letter-spacing: -0.2px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+          &.ready {
+            background-color: var(--success-color);
+            color: var(--white-color);
+          }
+
+          &.not-ready {
+            background-color: var(--secondary-color);
+            color: var(--white-color);
+          }
+        }
+      }
+
+      // 빈 자리 카드
+      .empty-card {
+        background-color: var(--white-color);
+        border: 2px dashed var(--secondary-color);
+        border-radius: 20px;
+        padding: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 320px;
+
+        span {
+          color: var(--secondary-color);
+          font-size: 16px;
+          font-weight: 600;
+          letter-spacing: -0.3px;
+        }
+      }
+    }
+
+    // 테스트 버튼들
+    .test-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+      padding: 20px;
+      background-color: rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+
+      .test-button {
+        background-color: #666666;
+        color: var(--white-color);
+        border: none;
+        border-radius: 8px;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+
+        &:hover {
+          background-color: #555555;
           transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(144, 202, 249, 0.4);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
         }
 
         &:active {
           transform: scale(0.98);
         }
-      }
-
-      &.disabled {
-        background-color: #e0e0e0;
-        color: #999999;
-        cursor: not-allowed;
-        box-shadow: none;
-      }
-    }
-
-    // 참여자 카드 영역
-    .participants-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 24px;
-      margin-top: 20px;
-      animation: fadeIn 0.5s ease-out;
-    }
-
-    // 웹캠 설정 안내 툴팁
-    .webcam-warning {
-      background-color: var(--warning-color);
-      color: var(--text-color);
-      font-size: 12px;
-      font-weight: 500;
-      border-radius: 8px;
-      padding: 8px 12px;
-      letter-spacing: -0.2px;
-      box-shadow: 0 2px 4px rgba(255, 204, 128, 0.2);
-      animation: fadeIn 0.5s ease-out;
-    }
-
-    // 캠 토글 버튼 (테스트용)
-    .cam-toggle-button {
-      background-color: var(--secondary-color);
-      color: var(--text-color);
-      border: none;
-      border-radius: 12px;
-      padding: 10px 20px;
-      font-size: 14px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      letter-spacing: -0.2px;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-
-      &:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      }
-
-      &:active {
-        transform: scale(0.98);
       }
     }
   }
@@ -244,8 +491,8 @@
       }
 
       .cancel-button {
-        background-color: #e0e0e0;
-        color: var(--text-color);
+        background-color: var(--secondary-color);
+        color: var(--white-color);
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
         &:hover {
@@ -292,9 +539,8 @@
 // 반응형 디자인
 @media (max-width: 1024px) {
   .quiz-waiting-room {
-    .waiting-room-content {
+    .waiting-content {
       padding: 30px 20px;
-      gap: 24px;
 
       .participants-grid {
         grid-template-columns: repeat(2, 1fr);
@@ -325,34 +571,31 @@
       }
     }
 
-    .waiting-room-content {
+    .waiting-content {
       padding: 20px 16px;
-      gap: 20px;
+      gap: 24px;
 
-      .cam-tooltip {
-        font-size: 12px;
-        padding: 6px 12px;
-      }
+      .action-button-container {
+        .action-button {
+          min-width: 160px;
+          height: 48px;
+          font-size: 16px;
+        }
 
-      .action-button {
-        min-width: 160px;
-        height: 48px;
-        font-size: 16px;
+        .webcam-required-tooltip {
+          font-size: 12px;
+          padding: 6px 12px;
+          max-width: 200px;
+        }
       }
 
       .participants-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: 1fr;
         gap: 16px;
-      }
 
-      .webcam-warning {
-        font-size: 11px;
-        padding: 6px 10px;
-      }
-
-      .cam-toggle-button {
-        padding: 8px 16px;
-        font-size: 13px;
+        .participant-card {
+          padding: 16px;
+        }
       }
     }
 

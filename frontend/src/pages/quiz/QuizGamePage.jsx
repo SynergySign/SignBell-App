@@ -40,13 +40,74 @@ const QuizGamePage = () => {
   const [isWaitingResult, setIsWaitingResult] = useState(false); // 수어 인식 결과 대기 중
   const [resultMessage, setResultMessage] = useState(''); // 결과 메시지
 
-  // 임시 플레이어 데이터 (실제로는 WebSocket에서 받음)
-  const [players] = useState([
-    { id: 1, nickname: '사용자1', score: 1250, isMe: true, isCurrentPlayer: false },
-    { id: 2, nickname: '사용자2', score: 980, isMe: false, isCurrentPlayer: false },
-    { id: 3, nickname: '사용자3', score: 1100, isMe: false, isCurrentPlayer: false },
-    { id: 4, nickname: '사용자4', score: 850, isMe: false, isCurrentPlayer: false },
+  // 플레이어 데이터 (실제로는 WebSocket에서 받음)
+  const [players, setPlayers] = useState([
+    { id: 1, nickname: '사용자1', score: 1250, isMe: true, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
+    { id: 2, nickname: '사용자2', score: 980, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
+    { id: 3, nickname: '사용자3', score: 1100, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
+    { id: 4, nickname: '사용자4', score: 850, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
   ]);
+
+  // 도전자 대기열 (선착순)
+  const [challengerQueue, setChallengerQueue] = useState([]);
+  
+  // 현재 도전자 정보 (메인 카드에 표시될 사용자)
+  const [currentChallengerInfo, setCurrentChallengerInfo] = useState({
+    id: null,
+    nickname: '대기중',
+    score: 0
+  });
+
+  // 현재 도전자 및 플레이어 상태 업데이트
+  useEffect(() => {
+    if (gamePhase === 'myTurn') {
+      // 내 정보를 메인 카드에 표시
+      const myInfo = players.find(player => player.isMe);
+      if (myInfo) {
+        setCurrentChallengerInfo({
+          id: myInfo.id,
+          nickname: myInfo.nickname,
+          score: myInfo.score
+        });
+        
+        // 내가 현재 플레이어로 설정
+        setPlayers(prev => prev.map(player => ({
+          ...player,
+          isCurrentPlayer: player.isMe
+        })));
+      }
+    } else if (gamePhase === 'solving' && challengerQueue.length > 0) {
+      // 현재 도전자 정보 설정
+      const currentChallengerIndex = currentChallenger - 1;
+      if (challengerQueue[currentChallengerIndex]) {
+        const challengerInfo = challengerQueue[currentChallengerIndex];
+        setCurrentChallengerInfo({
+          id: challengerInfo.id,
+          nickname: challengerInfo.nickname,
+          score: challengerInfo.score
+        });
+        
+        // 현재 도전자를 현재 플레이어로 설정
+        setPlayers(prev => prev.map(player => ({
+          ...player,
+          isCurrentPlayer: player.id === challengerInfo.id
+        })));
+      }
+    } else {
+      // 도전 신청 단계 또는 기본 상태 - 메인 카드는 대기중으로 표시
+      setCurrentChallengerInfo({
+        id: null,
+        nickname: '대기중',
+        score: 0
+      });
+      
+      // 모든 플레이어의 현재 플레이어 상태 해제
+      setPlayers(prev => prev.map(player => ({
+        ...player,
+        isCurrentPlayer: false
+      })));
+    }
+  }, [gamePhase, challengerQueue, currentChallenger]);
 
   // 임시 순위 데이터 (실제로는 WebSocket에서 받음)
   const [rankings] = useState([
@@ -77,6 +138,14 @@ const QuizGamePage = () => {
       stopWebcam();
     };
   }, []);
+
+  // 게임 단계 변경 시 웹캠 자동 관리
+  useEffect(() => {
+    if ((gamePhase === 'myTurn' || gamePhase === 'solving') && !isWebcamOn) {
+      // 내 차례이거나 문제 풀이 단계일 때 웹캠 자동 켜기
+      startWebcam();
+    }
+  }, [gamePhase]);
 
   // ============================================
   // TODO: WebSocket 연동 영역
@@ -215,7 +284,7 @@ const QuizGamePage = () => {
   const handleTimerEnd = () => {
     setIsTimerActive(false);
     
-    if (challengersCount === 0) {
+    if (challengersCount === 0 || challengerQueue.length === 0) {
       // 도전자 없음 - 다음 문제로
       showToast('도전 신청 시간이 종료되었습니다. 다음 문제로 이동합니다.', 'info');
       
@@ -223,11 +292,23 @@ const QuizGamePage = () => {
         moveToNextQuestion();
       }, 2000);
     } else {
-      // 도전자 있음 - 문제 풀이 시작
+      // 도전자 있음 - 첫 번째 도전자부터 시작
+      const firstChallenger = challengerQueue[0];
+      setTotalChallengers(challengerQueue.length);
+      setCurrentChallenger(1);
+      
       showToast('도전 신청이 마감되었습니다. 도전자 차례입니다.', 'info');
       
       setTimeout(() => {
-        setGamePhase('solving');
+        // 첫 번째 도전자가 나인지 확인
+        if (firstChallenger && firstChallenger.id === players.find(p => p.isMe)?.id) {
+          setGamePhase('myTurn');
+          setSolvingTimer(5);
+          setSigningTimer(10);
+          showToast('내 차례! 준비하세요! 5초 후 수어 동작을 시작합니다.', 'info');
+        } else {
+          setGamePhase('solving');
+        }
       }, 2000);
     }
   };
@@ -247,6 +328,17 @@ const QuizGamePage = () => {
       setHasChallenged(false);
       setChallengeOrder(null);
       setGamePhase('challenge');
+      setCurrentChallenger(1);
+      
+      // 도전자 대기열 및 플레이어 상태 초기화
+      setChallengerQueue([]);
+      setPlayers(prev => prev.map(player => ({
+        ...player,
+        hasChallenged: false,
+        challengeOrder: null,
+        isCurrentPlayer: false
+      })));
+      
       // TODO: WebSocket 전송
       // stompClient.send(`/app/room/${roomId}/quiz/next`, {}, JSON.stringify({
       //   questionNumber: currentQuestion + 1
@@ -331,13 +423,29 @@ const QuizGamePage = () => {
    * TODO: WebSocket으로 다음 도전자 알림
    */
   const handleNextChallenger = () => {
-    if (currentChallenger < totalChallengers) {
+    const totalChallengerCount = challengerQueue.length;
+    
+    if (currentChallenger < totalChallengerCount) {
+      const nextChallengerIndex = currentChallenger; // 0-based index
+      const nextChallenger = challengerQueue[nextChallengerIndex];
+      
       setCurrentChallenger(currentChallenger + 1);
-      setGamePhase('solving');
-      showToast(`${currentChallenger + 1}번째 도전자 차례입니다.`, 'info');
+      
+      // 내 차례인지 확인
+      if (nextChallenger && nextChallenger.id === players.find(p => p.isMe)?.id) {
+        setGamePhase('myTurn');
+        setSolvingTimer(5);
+        setSigningTimer(10);
+        showToast('내 차례! 준비하세요! 5초 후 수어 동작을 시작합니다.', 'info');
+      } else {
+        setGamePhase('solving');
+        showToast(`${nextChallenger?.nickname || '도전자'}의 차례입니다.`, 'info');
+      }
+      
       // TODO: WebSocket 전송
       // stompClient.send(`/app/room/${roomId}/quiz/nextChallenger`, {}, JSON.stringify({
-      //   challengerOrder: currentChallenger + 1
+      //   challengerOrder: currentChallenger + 1,
+      //   challengerId: nextChallenger?.id
       // }));
     } else {
       // 모든 도전자 실패 - 다음 문제로
@@ -415,7 +523,9 @@ const QuizGamePage = () => {
    * TODO: WebSocket으로 도전 신청 전송
    */
   const handleChallenge = () => {
-    if (hasChallenged) {
+    const myInfo = players.find(player => player.isMe);
+    
+    if (!myInfo || myInfo.hasChallenged) {
       showToast('이미 도전 신청을 하셨습니다.', 'warning');
       return;
     }
@@ -436,11 +546,28 @@ const QuizGamePage = () => {
     setHasChallenged(true);
     setChallengeOrder(order);
 
+    // 플레이어 상태 업데이트
+    setPlayers(prev => prev.map(player => 
+      player.isMe 
+        ? { ...player, hasChallenged: true, challengeOrder: order }
+        : player
+    ));
+
+    // 도전자 대기열에 추가
+    setChallengerQueue(prev => [...prev, {
+      id: myInfo.id,
+      nickname: myInfo.nickname,
+      score: myInfo.score,
+      order: order
+    }]);
+
     showToast(`도전 신청 완료! ${order}번째 도전자로 신청되었습니다!`, 'success');
 
     // TODO: WebSocket으로 도전 신청 전송
     // stompClient.send(`/app/room/${roomId}/quiz/challenge`, {}, JSON.stringify({
-    //   questionNumber: currentQuestion
+    //   questionNumber: currentQuestion,
+    //   playerId: myInfo.id,
+    //   order: order
     // }));
   };
 
@@ -452,9 +579,17 @@ const QuizGamePage = () => {
           <span className={styles.roomNumber}>방 번호: #{roomId}</span>
           <h2 className={styles.roomTitle}>방 제목</h2>
         </div>
-        <button className={styles.exitButton} onClick={handleExit}>
-          나가기
-        </button>
+        <div className={styles.headerControls}>
+          <button 
+            className={styles.webcamToggleHeader}
+            onClick={toggleWebcam}
+          >
+            {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
+          </button>
+          <button className={styles.exitButton} onClick={handleExit}>
+            나가기
+          </button>
+        </div>
       </div>
 
       {/* 메인 콘텐츠 */}
@@ -473,8 +608,13 @@ const QuizGamePage = () => {
         <div className={styles.mainContentRow}>
           {/* 메인 영상 카드 (도전자) */}
           <div className={styles.mainVideoCard}>
+            {/* 도전 중 표시 */}
+            {(gamePhase === 'myTurn' || gamePhase === 'solving') && (
+              <div className={styles.mainChallengerBadge}>도전 중</div>
+            )}
+            
             <div className={styles.mainWebcam}>
-              {isWebcamOn ? (
+              {gamePhase === 'myTurn' && isWebcamOn ? (
                 <video
                   ref={videoRef}
                   autoPlay
@@ -482,22 +622,20 @@ const QuizGamePage = () => {
                   muted
                   className={styles.webcamVideo}
                 />
+              ) : gamePhase === 'solving' && currentChallengerInfo.id && !players.find(p => p.id === currentChallengerInfo.id)?.isMe ? (
+                <div className={styles.challengerWebcam}>
+                  <span>{currentChallengerInfo.nickname}의 웹캠</span>
+                  {/* TODO: WebRTC로 다른 사용자의 웹캠 스트림 표시 */}
+                </div>
               ) : (
-                <div className={styles.noWebcam}>
-                  <span>웹캠 {webcamError ? '오류' : '로딩중'}</span>
-                  {webcamError && <p className={styles.errorText}>{webcamError}</p>}
+                <div className={styles.challengerWebcam}>
+                  <span>{gamePhase === 'myTurn' ? '내 웹캠' : currentChallengerInfo.nickname !== '대기중' ? `${currentChallengerInfo.nickname}의 웹캠` : '도전자 웹캠'}</span>
                 </div>
               )}
             </div>
             <div className={styles.mainPlayerInfo}>
-              <span className={styles.mainPlayerName}>닉네임</span>
-              <span className={styles.mainPlayerScore}>800점</span>
-              <button 
-                className={styles.webcamToggle}
-                onClick={toggleWebcam}
-              >
-                {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
-              </button>
+              <span className={styles.mainPlayerName}>{currentChallengerInfo.nickname}</span>
+              <span className={styles.mainPlayerScore}>{currentChallengerInfo.score}점</span>
             </div>
           </div>
 
@@ -550,33 +688,28 @@ const QuizGamePage = () => {
             {gamePhase === 'myTurn' && (
               <div className={styles.myTurnPhase}>
                 <div className={styles.countdownDisplay}>
+                  <h2>내 차례입니다!</h2>
                   {isWaitingResult ? (
                     <>
-                      <h2>결과 확인 중...</h2>
                       <div className={styles.loadingSpinner}></div>
                       <p className={styles.waitingText}>{resultMessage}</p>
-                      <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다 (6~10초 소요)</p>
+                      <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다</p>
+                    </>
+                  ) : solvingTimer > 0 ? (
+                    <>
+                      <p>수어 동작 준비하세요</p>
+                      <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
+                        {solvingTimer}
+                      </div>
+                      <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
                     </>
                   ) : (
                     <>
-                      <h2>내 차례입니다!</h2>
-                      {solvingTimer > 0 ? (
-                        <>
-                          <p>수어 동작 준비하세요</p>
-                          <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
-                            {solvingTimer}
-                          </div>
-                          <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
-                        </>
-                      ) : (
-                        <>
-                          <p className={styles.signingText}>지금 수어를 표현하세요!</p>
-                          <div className={styles.signingIndicator}>🤟</div>
-                          <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
-                            남은 시간: {signingTimer}초
-                          </div>
-                        </>
-                      )}
+                      <p className={styles.signingText}>지금 수어를 표현하세요!</p>
+                      <div className={styles.signingIndicator}>🤟</div>
+                      <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
+                        남은 시간: {signingTimer}초
+                      </div>
                     </>
                   )}
                 </div>
@@ -587,15 +720,31 @@ const QuizGamePage = () => {
 
         {/* 작은 플레이어 카드들 (아래) */}
         <div className={styles.smallPlayersGrid}>
-          {players.map((player) => (
+          {players
+            .filter(player => {
+              // 문제 풀이 단계에서는 현재 도전자를 제외하고 표시
+              if (gamePhase === 'solving' || gamePhase === 'myTurn') {
+                return !player.isCurrentPlayer;
+              }
+              // 도전 신청 단계에서는 모든 플레이어 표시
+              return true;
+            })
+            .map((player) => (
             <div 
               key={player.id} 
-              className={`${styles.smallPlayerCard} ${player.isCurrentPlayer ? styles.currentPlayer : ''}`}
+              className={styles.smallPlayerCard}
             >
               <div className={styles.smallWebcam}>
-                <span>웹캠</span>
-                {player.isCurrentPlayer && (
-                  <div className={styles.currentPlayerBadge}>도전 중</div>
+                {player.isMe && isWebcamOn && gamePhase !== 'myTurn' ? (
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={styles.smallWebcamVideo}
+                  />
+                ) : (
+                  <span>웹캠</span>
                 )}
               </div>
               <div className={styles.smallPlayerInfo}>
@@ -612,21 +761,61 @@ const QuizGamePage = () => {
         <div className={styles.testButtons}>
           <button 
             className={styles.testButton}
-            onClick={() => setGamePhase('challenge')}
+            onClick={() => {
+              setGamePhase('challenge');
+              setTimer(10);
+              setIsTimerActive(true);
+            }}
           >
             도전 신청 단계
           </button>
           <button 
             className={styles.testButton}
-            onClick={() => setGamePhase('solving')}
+            onClick={() => {
+              // 임시로 다른 플레이어들도 도전 신청 추가
+              const otherPlayers = players.filter(p => !p.isMe);
+              const newQueue = otherPlayers.slice(0, 2).map((player, index) => ({
+                id: player.id,
+                nickname: player.nickname,
+                score: player.score,
+                order: index + 1
+              }));
+              setChallengerQueue(newQueue);
+              setChallengersCount(newQueue.length);
+              setTotalChallengers(newQueue.length);
+              setCurrentChallenger(1);
+              
+              // 플레이어 상태 업데이트
+              setPlayers(prev => prev.map(player => ({
+                ...player,
+                isCurrentPlayer: player.id === newQueue[0].id
+              })));
+              
+              setGamePhase('solving');
+            }}
           >
-            문제 풀이 단계
+            문제 풀이 단계 (다른 사람)
           </button>
           <button 
             className={styles.testButton}
-            onClick={handleMyTurn}
+            onClick={() => {
+              // 내가 첫 번째 도전자로 설정
+              const myInfo = players.find(p => p.isMe);
+              if (myInfo) {
+                setChallengerQueue([{
+                  id: myInfo.id,
+                  nickname: myInfo.nickname,
+                  score: myInfo.score,
+                  order: 1
+                }]);
+                setChallengersCount(1);
+                setTotalChallengers(1);
+                setCurrentChallenger(1);
+                handleMyTurn();
+              }
+            }}
           >
-            내 차례 (카운트다운)
+            내 차례 (1번째 도전자)
           </button>
           <button 
             className={styles.testButton}
