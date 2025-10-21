@@ -1,12 +1,12 @@
 // src/pages/SignEduPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { listSignEdu, getCategories } from '../../services/signedu/signEdu.js';
 // 단일 단어 아이템을 렌더링하는 컴포넌트 임포트
 import SignItem from '../../components/signedu/SignItem';
 
 // --- 환경 변수 사용 ---
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+// API 호출은 src/services/signEdu.js로 분리되었습니다.
 // --------------------
 
 // 단어 목록 컴포넌트 (SignWordList): 카테고리 선택 후 해당 단어들을 조회하고 SignItem으로 렌더링
@@ -20,22 +20,19 @@ const SignWordList = ({ selectedCategory }) => {
         if (!selectedCategory) return;
 
         setLoading(true);
-        // GET /api/sign-edu?category=카테고리명&size=20
-        axios.get(`${API_BASE_URL}/api/sign-edu?category=${selectedCategory}&size=20`, {
-            // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
-            withCredentials: true
-        })
-            .then(response => {
-                // 가정: Spring 응답은 { content: [...], ... } Page 객체 형태
-                setWords(response.data.content || response.data);
-                setLoading(false);
-            })
-            .catch(err => {
+        (async () => {
+            try {
+                // listSignEdu는 content 페이징 구조를 처리하여 배열을 반환합니다.
+                const items = await listSignEdu({ category: selectedCategory, size: 20 });
+                setWords(items || []);
+            } catch (err) {
                 console.error(`단어 목록 API 호출 실패 (${selectedCategory}):`, err);
                 setError(`'${selectedCategory}' 단어 목록을 불러오는 데 실패했습니다. 서버 연결 확인 필요.`);
-                setLoading(false);
                 setWords([]);
-            });
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, [selectedCategory]);
 
     if (loading) return <div className="p-5 text-center text-gray-600">단어 목록을 불러오는 중...</div>;
@@ -64,20 +61,18 @@ const SignEduPage = () => {
 
     // 1. 카테고리 목록 조회 (/api/sign-edu/categories)
     useEffect(() => {
-        axios.get(`${API_BASE_URL}/api/sign-edu/categories`, {
-            // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
-            withCredentials: true
-        })
-            .then(response => {
-                setCategories(response.data); // List<String> 형태
-                setLoading(false);
-            })
-            .catch(err => {
+        (async () => {
+            try {
+                const cats = await getCategories();
+                setCategories(cats);
+            } catch (err) {
                 console.error("카테고리 목록 API 호출 실패:", err);
                 setError("카테고리 목록을 불러오는 데 실패했습니다. 서버 연결 확인 필요.");
-                setLoading(false);
                 setCategories(["기본", "인사", "동물", "음식", "장소"]); // 실패 시 더미 카테고리 사용
-            });
+            } finally {
+                setLoading(false);
+            }
+        })();
     }, []);
 
     const handleCategoryClick = (category) => {

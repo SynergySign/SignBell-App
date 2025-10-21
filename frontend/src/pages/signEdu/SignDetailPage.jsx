@@ -1,251 +1,172 @@
-// SignDetailPage.jsx (임시 테스트 버전)
-// WebRTC 로직을 모두 제거하고 WebSocket 연결 및 인증만 테스트합니다.
+// SignDetailPage.jsx
+// 단일 수어 단어의 상세 정보(제목, 설명, 동영상)를 보여줍니다.
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { getSignDetail } from '../../services/signedu/signEdu.js';
+import useSignEduWebcam from '../../services/signedu/signEduWebcam.js';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { useParams } from 'react-router-dom';
-import axios from 'axios';
-
-// --- 환경 변수 사용 ---
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const WS_BASE_URL = import.meta.env.VITE_WS_URL;
+// 안전한 URL 변환: 페이지가 HTTPS인 경우 http:// -> https://로 변환하여 Mixed Content 경고를 방지
+const sanitizeVideoUrl = (url) => {
+  if (!url || typeof url !== 'string') return url;
+  try {
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'https:') {
+      if (url.startsWith('http://')) {
+        return 'https:' + url.slice(5); // http:// -> https://
+      }
+    }
+  } catch {
+    // 안전하게 실패하면 원본 URL 반환
+    return url;
+  }
+  return url;
+};
 
 const SignDetailPage = () => {
-    const { signId } = useParams();
+  const { signId } = useParams();
+  const navigate = useNavigate();
 
-    // --- Page State & Refs ---
-    const [signDetail, setSignDetail] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-    const targetVideoRef = useRef(null);
+  const [signDetail, setSignDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-    // --- Learning Connection State ---
-    const [isWebcamActive, setIsWebcamActive] = useState(false);
-    const [connectionStatus, setConnectionStatus] = useState('비활성화됨');
-    const localVideoRef = useRef(null);
+  // 웹캠 훅 사용: start/stop, 장치목록, 선택 deviceId, videoRef 등 제공
+  const {
+    isCamOn,
+    camError,
+    devices,
+    selectedDeviceId,
+    setSelectedDeviceId,
+    videoRef,
+    startCamera,
+    stopCamera,
+    refreshDevices,
+  } = useSignEduWebcam();
 
-    // DTO 필드에 맞춘 변수 (백엔드 SignDetailResponseDto 필드명 사용)
-    // SignDetailResponseDto { signId, wordName, description, videoUrl }
-    const wordPk = signDetail?.signId ?? signDetail?.id ?? signDetail?.wordId;
-    const wordName = signDetail?.wordName ?? signDetail?.title ?? signDetail?.name ?? '';
+  useEffect(() => {
+    if (!signId) {
+      setError('유효한 단어 ID가 없습니다.');
+      setLoading(false);
+      return;
+    }
 
-    // description / video url (백엔드 필드명 우선, 기존 프론트의 다른 이름에 대한 페일백 유지)
-    const descriptionText = signDetail?.description ?? signDetail?.desc ?? '';
-    const videoUrl = signDetail?.videoUrl ?? signDetail?.url ?? '';
-    const sessionIdRef = useRef(null);
-    const wsRef = useRef(null);
+    setLoading(true);
+    // 서비스로 분리된 API 호출 사용
+    (async () => {
+      try {
+        const dto = await getSignDetail(signId);
+        setSignDetail(dto);
+      } catch (err) {
+        console.error('SignDetail API 호출 실패:', err);
+        setError('단어 상세 정보를 불러오는 데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [signId]);
 
-    // 브라우저 환경에서 안전하게 ws/wss URL을 생성하는 헬퍼
-    const buildWebSocketUrl = (sessionId) => {
-        if (!sessionId) return null;
-        if (WS_BASE_URL?.startsWith('ws://') || WS_BASE_URL?.startsWith('wss://')) {
-            return `${WS_BASE_URL.replace(/\/+$/,'')}/${sessionId}`;
-        }
-        if (WS_BASE_URL?.startsWith('http://') || WS_BASE_URL?.startsWith('https://')) {
-            const proto = WS_BASE_URL.startsWith('https://') ? 'wss' : 'ws';
-            const hostAndPath = WS_BASE_URL.replace(/^https?:\/\//, '').replace(/\/+$/,'');
-            return `${proto}://${hostAndPath}/${sessionId}`;
-        }
-        const proto = (typeof window !== 'undefined' && window.location?.protocol === 'https:') ? 'wss' : 'ws';
-        const host = (typeof window !== 'undefined') ? window.location.host : 'localhost:9000';
-        const base = WS_BASE_URL ? WS_BASE_URL.replace(/^\/+|\/+$/g, '') : 'ws';
-        return `${proto}://${host}/${base}/${sessionId}`.replace(/\/+/g, '/').replace(':/','://');
-    };
+  if (loading) return <div className="p-5 text-center text-gray-600">단어 정보를 불러오는 중...</div>;
+  if (error) return <div className="p-5 text-center text-red-500 font-bold">오류: {error}</div>;
+  if (!signDetail) return <div className="p-5 text-center text-gray-500">단어 정보가 없습니다.</div>;
 
-    // 1. 데이터 로드 로직
-    useEffect(() => {
-        const fetchDetails = async () => {
-            setLoading(true);
-            try {
-                const response = await axios.get(`${API_BASE_URL}/api/sign-edu/${signId}`, {
-                    // 쿠키 기반 인증을 위해 withCredentials 옵션 추가
-                    withCredentials: true
-                });
-                setSignDetail(response.data);
-            } catch (err) {
-                console.error("단어 상세 정보 API 호출 실패:", err);
-                setError("단어 상세 정보를 불러오는 데 실패했습니다.");
-            } finally {
-                setLoading(false);
-            }
-        };
-        fetchDetails();
-    }, [signId]);
+  // 렌더 시 비디오 URL을 안전하게 변환하여 Mixed Content 경고를 방지
+  const safeVideoUrl = sanitizeVideoUrl(signDetail.videoUrl);
 
-    // 2. [수정됨] WebSocket 연결 로직 (WebRTC 없음)
-    useEffect(() => {
-        if (!isWebcamActive || !wordPk || !wordName || !sessionIdRef.current) return;
+  return (
+    <div className="p-5 max-w-4xl mx-auto">
+      <button
+        onClick={() => navigate(-1)}
+        className="mb-4 px-3 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition"
+      >
+        &larr; 뒤로
+      </button>
 
-        let stream = null;
+      <h1 className="text-3xl font-bold mb-4 text-indigo-700">{signDetail.wordName}</h1>
 
-        const setupWebcamAndConnect = async () => {
-            try {
-                setConnectionStatus('웹캠 연결 중...');
-                stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = stream;
-                }
-                // 웹캠 성공 시 바로 WebSocket 연결 시도
-                connectToFastAPIServer();
+      <div className="mb-6 text-gray-700 whitespace-pre-line">{signDetail.description || '상세 설명이 없습니다.'}</div>
 
-            } catch (err) {
-                console.error("Error accessing media devices:", err);
-                setConnectionStatus('웹캠 연결 실패');
-                setError("웹캠 접근 권한이 거부되었습니다. 카메라를 활성화해 주세요.");
-            }
-        };
-
-        const connectToFastAPIServer = async () => {
-            setConnectionStatus('WebSocket 연결 중...');
-            const wsUrl = buildWebSocketUrl(sessionIdRef.current);
-            if (!wsUrl) {
-                console.error('WebSocket URL을 생성할 수 없습니다. sessionId:', sessionIdRef.current);
-                setConnectionStatus('WebSocket URL 생성 실패');
-                return;
-            }
-
-            try {
-                if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
-                    wsRef.current.close();
-                }
-            } catch (e) {
-                console.warn('기존 WebSocket 닫기 실패:', e);
-            }
-
-            try {
-                wsRef.current = new WebSocket(wsUrl);
-            } catch (err) {
-                console.error('WebSocket 객체 생성 실패:', err);
-                setConnectionStatus('WebSocket 생성 실패');
-                return;
-            }
-
-            // [수정됨] onopen: WebRTC 대신 'meta' 메시지를 바로 전송
-            wsRef.current.onopen = () => {
-                console.log('✅✅✅ WebSocket 연결 성공! ✅✅✅');
-                setConnectionStatus('WebSocket 연결 성공 (인증 완료)');
-
-                console.log("테스트: 'meta' 메시지 전송 시도...");
-                wsRef.current.send(JSON.stringify({
-                    type: "meta",
-                    word_pk: wordPk,
-                    word_name: wordName,
-                }));
-            };
-
-            // [수정됨] onmessage: 'meta_ack' 수신 확인
-            wsRef.current.onmessage = async (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-
-                    if (msg.type === 'meta_ack') {
-                        console.log('✅✅✅ 서버로부터 "meta_ack" 수신! 완벽한 성공입니다.');
-                        setConnectionStatus('연결 완료! (테스트 성공)');
-                    } else {
-                        console.log("서버로부터 기타 메시지 수신:", msg);
-                    }
-                } catch (e) {
-                    console.warn('WebSocket 수신 메시지 파싱 실패:', e, event.data);
-                }
-            };
-
-            wsRef.current.onerror = (e) => {
-                console.error('WebSocket error:', e);
-                setConnectionStatus('WebSocket 연결 실패');
-            };
-
-            // [수정됨] onclose: 에러 코드 상세 로깅
-            wsRef.current.onclose = (ev) => {
-                console.info('WebSocket closed:', ev);
-                if (ev.code === 1006) {
-                    console.error("❌ 1006 에러: SSL/TLS 인증서 신뢰 문제. 브라우저가 연결을 거부했습니다. [1단계]를 다시 수행하세요.");
-                    setConnectionStatus('WebSocket 실패 (1006: 인증서)');
-                } else if (ev.code >= 4000 || ev.code === 1008) {
-                    console.error(`❌ ${ev.code} 에러: 인증 실패 (401/403). JWT 시크릿 키 또는 쿠키 설정을 확인하세요.`);
-                    setConnectionStatus(`WebSocket 실패 (${ev.code}: 인증)`);
-                } else if (!isWebcamActive) {
-                    setConnectionStatus('비활성화됨');
-                } else {
-                    setConnectionStatus('WebSocket 연결 종료');
-                }
-            };
-        };
-
-        setupWebcamAndConnect();
-
-        // 정리 함수
-        return () => {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
-            wsRef.current?.close();
-            setConnectionStatus('비활성화됨');
-        };
-    }, [isWebcamActive, wordPk, wordName]);
-
-
-    // 2-5. 데이터 제공 시작 핸들러
-    const handleStartLearning = () => {
-        if (!signDetail) return;
-        sessionIdRef.current = `learning_${wordPk || 'pending'}_${Date.now()}`;
-        setIsWebcamActive(true);
-    };
-
-    // 3. 렌더링 (View)
-    // [수정됨] '녹화 시작' 버튼 비활성화 (테스트용)
-    const isButtonDisabled = true;
-
-    if (loading) return <div className="p-5 text-center text-gray-600">단어 상세 정보를 불러오는 중입니다...</div>;
-    if (error) return <div className="p-5 text-center text-red-600">{error}</div>;
-    if (!signDetail) return <div className="p-5 text-center text-gray-600">단어 정보를 찾을 수 없습니다.</div>;
-
-    return (
-        <div className="p-5">
-            <h1 className="text-2xl font-bold mb-4">{wordName || '단어 상세'}</h1>
-            {descriptionText ? (
-                <p className="mb-3">{descriptionText}</p>
-            ) : (
-                <p className="mb-3 text-gray-500">설명이 없습니다.</p>
-            )}
-
-            <div className="flex gap-6 mb-4">
-                <div>
-                    <div className="mb-2">로컬 웹캠</div>
-                    <video ref={localVideoRef} autoPlay muted playsInline style={{ width: 320, background: '#000' }} />
-                </div>
-                <div>
-                    <div className="mb-2">참조 비디오</div>
-                    {videoUrl ? (
-                        <video ref={targetVideoRef} src={videoUrl} controls style={{ width: 320 }} />
-                    ) : (
-                        <div className="w-[320px] h-[180px] bg-gray-100 flex items-center justify-center">비디오 없음</div>
-                    )}
-                </div>
-            </div>
-
-            <div className="mb-4">
-                <div className="mb-2">상태: <strong>{connectionStatus}</strong></div>
-            </div>
-
-            <div className="flex gap-3">
-                <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded"
-                    onClick={() => {
-                        if (!isWebcamActive) handleStartLearning();
-                        else setIsWebcamActive(false);
-                    }}
-                >
-                    {isWebcamActive ? '웹캠 중지' : '웹캠 시작'}
-                </button>
-
-                <button
-                    className={`px-4 py-2 rounded ${isButtonDisabled ? 'bg-gray-400 text-gray-700' : 'bg-green-600 text-white'}`}
-                    disabled={isButtonDisabled}
-                >
-                    (연결 테스트 중)
-                </button>
-            </div>
+      {safeVideoUrl ? (
+        <div className="mb-6">
+          <video controls style={{ width: '100%', maxHeight: '60vh' }}>
+            <source src={safeVideoUrl} />
+            현재 브라우저는 video 태그를 지원하지 않습니다.
+          </video>
         </div>
-    );
+      ) : (
+        <div className="text-center text-gray-500">동영상이 없습니다.</div>
+      )}
+
+      {/* 웹캠 연결 UI */}
+      <div className="mt-4 p-4 border rounded bg-gray-50">
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-lg font-medium">웹캠</div>
+          <div>
+            <button
+              onClick={() => {
+                if (isCamOn) stopCamera();
+                else startCamera();
+              }}
+              className={`px-3 py-2 rounded-lg text-white ${isCamOn ? 'bg-red-500 hover:bg-red-600' : 'bg-green-600 hover:bg-green-700'}`}
+            >
+              {isCamOn ? '웹캠 연결 끊기' : '웹캠 연결하기'}
+            </button>
+          </div>
+        </div>
+
+        {camError && <div className="text-sm text-red-500 mb-2">{camError}</div>}
+
+        {/* 장치 선택 및 재시도 버튼 */}
+        <div className="flex items-center gap-2 mb-3">
+          <select
+            value={selectedDeviceId}
+            onChange={(e) => setSelectedDeviceId(e.target.value)}
+            className="px-2 py-1 border rounded"
+          >
+            <option value="">기본(전면) 카메라</option>
+            {devices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>{d.label || '카메라 ' + (devices.indexOf(d) + 1)}</option>
+            ))}
+          </select>
+
+          <button
+            onClick={async () => {
+              // 먼저 기존 스트림 정리
+              stopCamera();
+              // 잠시 대기 후 재시도
+              setTimeout(() => startCamera(selectedDeviceId || undefined), 300);
+            }}
+            className="px-3 py-1 bg-yellow-500 text-white rounded"
+          >
+            재시도
+          </button>
+
+          <button
+            onClick={async () => {
+              // 장치 목록 갱신
+              await refreshDevices();
+            }}
+            className="px-3 py-1 bg-blue-500 text-white rounded"
+          >
+            장치 목록 갱신
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <div className="text-sm text-gray-600 mb-2">내 카메라 미리보기</div>
+            <div className="bg-black rounded overflow-hidden" style={{ minHeight: 180 }}>
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default SignDetailPage;
