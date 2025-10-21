@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useAuthStore } from '../../../../../BanThing-dev/frontend/src/stores/authStore.js';
+import { useAuthStore } from '../../store/auth/authStore.js'
 
 // axios 인스턴스 만들기
 // - baseURL: 프론트에서는 /api 로 호출 → vite 프록시가 백엔드로 전달
@@ -70,7 +70,7 @@ apiClient.interceptors.response.use(
         // apiClient.js, authService.js 두 파일이 서로 동시에 import 하려고 하므로
         // "순환 의존성(circular dependency)" 문제 발생
         // 그러므로, 동적 import를 통해 함수 실행 시점에 AuthService 를 가져옵니다.
-        const { AuthService } = await import('../../../../../BanThing-dev/frontend/src/services/authService.js');
+        const { AuthService } = await import('../../services/api/authService.js');
 
         // refreshPromise 에 "리프레시 요청"을 저장해 두고, 다른 요청들도 이 약속을 함께 기다리게 합니다.
         refreshPromise = AuthService.refresh();
