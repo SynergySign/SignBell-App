@@ -13,7 +13,7 @@ const SignItem = ({ sign }) => {
     return (
         <Link
             key={signId}
-            to={`/signedu/${signId}`} // 단어 상세 페이지로 이동
+            to={`/personal-study/${signId}`} // 라우터 경로에 맞게 단어 상세 페이지로 이동
             className="block bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition duration-300 ease-in-out transform hover:-translate-y-1"
         >
             {/* 요구사항 1: 단어 제목만 렌더링 */}

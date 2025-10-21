@@ -6,7 +6,8 @@
  * @반환값 {JSX.Element} 라우터 컴포넌트
  */
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import MainLayout from '../layout/MainLayout';
 import LandingPage from '../pages/auth/LandingPage';
 import TermsPage from '../pages/auth/TermsPage';
@@ -20,6 +21,18 @@ import PopupClosePage from '../pages/auth/PopupClosePage';
 import SignEduPage from '../pages/signEdu/SignEduPage';
 import SignDetailPage from '../pages/signEdu/SignDetailPage';
 // =============================================
+
+// 레거시 경로(`/signedu/:signId`)를 새 경로(`/personal-study/:signId`)로 리다이렉트하는 컴포넌트
+const SigneduRedirect = () => {
+  const { signId } = useParams();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (signId) {
+      navigate(`/personal-study/${signId}`, { replace: true });
+    }
+  }, [signId, navigate]);
+  return null;
+};
 
 const Router = () => {
   return (
@@ -61,10 +74,8 @@ const Router = () => {
           </MainLayout>
         } />
 
-
-
-
-
+        {/* 레거시 링크 호환: /signedu/:signId -> /personal-study/:signId 로 리다이렉트 */}
+        <Route path="/signedu/:signId" element={<SigneduRedirect />} />
 
         {/* MainLayout을 사용하지 않는 독립적인 라우트들 */}
         <Route path="/quiz/waiting/:roomId" element={<QuizWaitingRoom />} />
