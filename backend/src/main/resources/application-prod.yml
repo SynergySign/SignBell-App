@@ -1,5 +1,14 @@
 server:
   port: ${PORT:8080}
+  # HTTPS 강제 설정 (프록시 뒤에서 실행되는 경우)
+  forward-headers-strategy: framework
+  # 보안 헤더 설정
+  servlet:
+    session:
+      cookie:
+        secure: true
+        http-only: true
+        same-site: none
 
 spring:
   # database setting
