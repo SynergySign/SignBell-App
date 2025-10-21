@@ -38,7 +38,7 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/fastapi/, ''),
-        secure: true,
+        secure: false,
       },
 
       // 프론트엔드에서 직접 '/ws/:session' 같은 경로로 접속할 경우를 위한 WS 프록시

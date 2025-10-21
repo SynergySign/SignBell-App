@@ -28,7 +28,7 @@ export function connect(sessionId = SESSION_ID) {
 
   // 반드시 wss로 연결합니다. 프록시가 /ws 경로를 백엔드 FastAPI로 전달합니다.
   const host = (typeof window !== 'undefined' && window.location && window.location.host) ? window.location.host : 'localhost:8443';
-  const wsUrl = `wss://${host}/ws/${sessionId}`;
+  const wsUrl = `wss://${host}/fastapi/ws/${sessionId}`;
   console.log(`(Cookie Auth via Proxy) Connecting to ${wsUrl}...`);
 
   try {
