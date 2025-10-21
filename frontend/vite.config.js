@@ -28,7 +28,8 @@ export default defineConfig({
         changeOrigin: true, // CORS 오류를 방지하기 위해 origin 헤더를 변경합니다.
         ws: true, // WebSocket 프록시를 활성화합니다. (매우 중요!)
         // 경로를 다시 작성합니다. 예: /api/ws -> /ws
-        rewrite: (path) => path.replace(/^\/api/, ''),
+        // rewrite: (path) => path.replace(/^\/api/, ''),
+        secure: false, // 자체 서명 인증서 사용 시
       }
     }
   }
