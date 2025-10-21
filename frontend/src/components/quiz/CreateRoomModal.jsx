@@ -2,10 +2,12 @@
  * @개요 방 만들기 모달 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-20
+ * @최종수정일 2025-10-21
  * @매개변수 {boolean} props.isOpen - 모달 열림 상태
  * @매개변수 {function} props.onClose - 모달 닫기 함수
  * @매개변수 {function} props.onSubmit - 방 생성 제출 함수
+ * @매개변수 {function} props.loading - 방 생성 중 로딩 상태
+ * @매개변수 {function} props.error - 방 생성 에러 메시지
  * @반환값 {JSX.Element} 방 만들기 모달 컴포넌트
  */
 
@@ -27,10 +29,9 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit, loading = false, error = n
       // onSubmit이 Promise를 반환하므로 await
       const success = await onSubmit(roomTitle);
 
-      // 성공한 경우에만 모달 닫기 및 초기화
+      // 성공한 경우에만 입력값 초기화
       if (success) {
         setRoomTitle('');
-        onClose();
       }
       // 실패한 경우 모달은 열린 채로 유지하여 에러 메시지 표시
     }
@@ -74,6 +75,7 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit, loading = false, error = n
             onClick={handleClose}
             aria-label="모달 닫기"
             disabled={loading}
+            style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
           >
             ✕
           </button>
@@ -111,13 +113,6 @@ const CreateRoomModal = ({ isOpen, onClose, onSubmit, loading = false, error = n
             </div>
           )}
 
-          {/* 로딩 표시 */}
-          {loading && (
-            <div>
-            {/*<div className={styles.loadingMessage}>*/}
-              방을 생성하는 중입니다...
-            </div>
-          )}
         </div>
 
         {/* 모달 푸터 */}

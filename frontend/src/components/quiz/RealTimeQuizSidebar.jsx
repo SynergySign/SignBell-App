@@ -2,7 +2,7 @@
  * @개요 실시간 퀴즈 사이드바 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-20
+ * @최종수정일 2025-10-21
  * @매개변수 {function} props.onClose - 사이드바 닫기 함수
  * @매개변수 {boolean} props.isOpen - 사이드바 열림 상태
  * @반환값 {JSX.Element} 실시간 퀴즈 사이드바 컴포넌트
@@ -108,13 +108,23 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
 
       console.log('방 생성 성공:', result);
 
-      // 방 생성 후 퀴즈 대기방으로 이동
-      navigate(`/quiz/waiting/${result.gameRoomId}`);
-      onClose();
+      // 방 생성 후 퀴즈 대기방으로 2초 후 이동
+      setTimeout(() => {
+        // 방 생성 로딩 종료, 모달 닫기
+        setCreateRoomLoading(false);
+        setIsCreateRoomModalOpen(false);
+        
+        navigate(`/quiz/waiting/${result.gameRoomId}`);
+        onClose();
+      }, 2000);
+
+      return true;
 
     } catch (err) {
 
       console.error('방 생성 중 오류:', err);
+
+      setCreateRoomLoading(false); // 방 생성 에러 시에는 즉시 로딩 끝
 
       // 에러 처리
       const errorCode = err.response?.data?.error;
@@ -139,8 +149,6 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
           setCreateRoomError('방 생성에 실패했습니다. 다시 시도해주세요.');
       }
       return false; // 실패 반환
-    } finally {
-      setCreateRoomLoading(false);
     }
 
     // 임시로 새 방을 목록에 추가
