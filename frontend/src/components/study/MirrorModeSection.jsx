@@ -101,6 +101,15 @@ const MirrorModeSection = ({ word }) => {
               />
             </div>
           )}
+
+          {/* 연습 안내 */}
+          <div className={styles.practiceGuide}>
+            <h4>연습 방법</h4>
+            <ul>
+              <li>웹캠을 켜고 화면에 나타나는 자신의 모습을 확인하세요</li>
+              <li>참고 영상을 보며 동일한 수어 동작을 따라해보세요</li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
