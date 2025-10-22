@@ -5,6 +5,7 @@ import app.signbell.backend.dto.response.userData.UserInfoResponse;
 import app.signbell.backend.dto.response.userData.UserResponse;
 import app.signbell.backend.service.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,18 +33,35 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
+@Slf4j
 public class UserController {
 
     private final UserService userService;
 
     @GetMapping("/me")
     public ResponseEntity<?> me(@AuthenticationPrincipal String subject) {
-        // subject는 OAuth2 nameAttributeKey(google: sub, kakao: id) → providerId로 사용 중
-        UserInfoResponse dto = userService.findMeById(Long.valueOf(subject));
+        log.info("GET /api/users/me called with subject: {}", subject);
+        try {
+            // subject는 OAuth2 nameAttributeKey(google: sub, kakao: id) → providerId로 사용 중
+            UserInfoResponse dto = userService.findMeById(Long.valueOf(subject));
+            log.info("User found: {}", dto);
 
-        ApiResponse<UserInfoResponse> apiResponse = ApiResponse.success("사용자의 정보가 성공적으로 조회되었습니다.", dto);
+            ApiResponse<UserInfoResponse> apiResponse = ApiResponse.success("사용자의 정보가 성공적으로 조회되었습니다.", dto);
 
-        return ResponseEntity.ok(apiResponse);
+            return ResponseEntity.ok(apiResponse);
+        } catch (NumberFormatException e) {
+            log.error("Invalid subject format: {}", subject, e);
+            return ResponseEntity.badRequest().body(ApiResponse.<UserInfoResponse>builder()
+                    .success(false)
+                    .message("잘못된 사용자 ID 형식입니다.")
+                    .build());
+        } catch (Exception e) {
+            log.error("Error in /api/users/me", e);
+            return ResponseEntity.internalServerError().body(ApiResponse.<UserInfoResponse>builder()
+                    .success(false)
+                    .message("사용자 정보 조회 중 오류가 발생했습니다.")
+                    .build());
+        }
     }
 
     /*@PutMapping("/me/agreement")

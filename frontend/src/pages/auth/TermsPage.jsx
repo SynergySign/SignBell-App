@@ -12,10 +12,12 @@ import AgreementToggle from '../../components/ui/AgreementToggle';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
+import { useAuthStore } from '../../store/auth/authStore';
 import styles from './TermsPage.module.scss';
 
 const TermsPage = () => {
   const navigate = useNavigate();
+  const { user, refreshMeSilent } = useAuthStore();
   const [agreements, setAgreements] = useState({
     required: false,
     optional: false,
@@ -25,6 +27,7 @@ const TermsPage = () => {
     title: '',
     content: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleToggle = (key) => {
     setAgreements(prev => ({
@@ -65,10 +68,40 @@ const TermsPage = () => {
     });
   };
 
-  const handleSubmit = () => {
-    // TODO: API 연동이 필요합니다.
-    console.log('약관 동의 제출', agreements);
-    navigate('/popup-close');
+  const handleSubmit = async () => {
+    if (!user?.userId) {
+      console.error('User ID not found');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/my-page/users/${user.userId}/terms-agreement`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          optionalAgree: agreements.optional, // 선택 동의만 전달
+        }),
+      });
+
+      if (response.ok) {
+        console.log('약관 동의 성공');
+        // 사용자 정보 갱신
+        await refreshMeSilent();
+        navigate('/popup-close');
+      } else {
+        console.error('약관 동의 실패:', response.status);
+        alert('약관 동의 처리 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('약관 동의 API 호출 실패:', error);
+      alert('약관 동의 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleLogout = () => {
@@ -130,9 +163,9 @@ const TermsPage = () => {
           <div className={styles.buttonGroup}>
             <Button
               onClick={handleSubmit}
-              disabled={!isSubmitEnabled}
+              disabled={!isSubmitEnabled || isSubmitting}
             >
-              제출
+              {isSubmitting ? '처리 중...' : '제출'}
             </Button>
             <Button
               onClick={handleLogout}

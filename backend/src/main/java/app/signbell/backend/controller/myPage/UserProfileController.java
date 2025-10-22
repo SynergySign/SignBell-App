@@ -1,6 +1,7 @@
 package app.signbell.backend.controller.myPage;
 
 import app.signbell.backend.dto.common.ApiResponse;
+import app.signbell.backend.dto.request.TermsAgreementRequest;
 import app.signbell.backend.dto.request.UserProfileUpdateRequest;
 import app.signbell.backend.dto.response.userData.UserProfileResponse;
 import app.signbell.backend.exception.BusinessException;
@@ -75,6 +76,30 @@ public class UserProfileController {
             }
             UserProfileResponse response = userProfileService.updateUserProfile(userId, request);
             return ResponseEntity.ok(ApiResponse.success("프로필 수정 성공", response));
+        } catch (NumberFormatException e) {
+            log.error("인증된 사용자 ID(subject)를 Long으로 변환 실패: {}", subject, e);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    /**
+     * 약관 동의를 처리합니다.
+     * - requiredAgree를 true로 설정
+     * - optionalAgree는 요청값에 따라 설정
+     */
+    @PatchMapping("/{userId}/terms-agreement")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateTermsAgreement(
+            @PathVariable("userId") Long userId,
+            @RequestBody TermsAgreementRequest request,
+            @AuthenticationPrincipal String subject
+    ) {
+        try {
+            Long currentUserId = Long.valueOf(subject);
+            if (!userId.equals(currentUserId)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN);
+            }
+            UserProfileResponse response = userProfileService.updateTermsAgreement(userId, request.getOptionalAgree());
+            return ResponseEntity.ok(ApiResponse.success("약관 동의 처리 성공", response));
         } catch (NumberFormatException e) {
             log.error("인증된 사용자 ID(subject)를 Long으로 변환 실패: {}", subject, e);
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
