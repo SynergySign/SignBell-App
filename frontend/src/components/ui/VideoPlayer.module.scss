@@ -1,0 +1,228 @@
+/**
+ * @개요 영상 플레이어 컴포넌트 스타일 정의
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-01-21
+ * @최종수정일 2025-01-21
+ */
+
+.video-player {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background-color: var(--text-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  // 비디오 요소
+  .video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+  }
+
+  // 플레이 버튼 오버레이
+  .play-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.4);
+    }
+
+    .play-button {
+      width: 60px;
+      height: 60px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: var(--text-color);
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: var(--white-color);
+        transform: scale(1.1);
+      }
+    }
+  }
+
+  // 컨트롤 바
+  .controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+    padding: 12px;
+    box-sizing: border-box;
+
+    .progress-bar {
+      width: 100%;
+      height: 4px;
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: height 0.2s;
+
+      &:hover {
+        height: 6px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background-color: var(--secondary-color);
+        border-radius: 2px;
+        transition: width 0.1s;
+      }
+    }
+
+    .control-buttons {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+
+      .play-pause-button {
+        background: none;
+        border: none;
+        color: var(--white-color);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 4px;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background-color: rgba(255, 255, 255, 0.2);
+        }
+      }
+
+      .time-display {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--white-color);
+        font-size: 12px;
+        font-weight: 500;
+        font-family: monospace;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .video-title {
+        color: var(--white-color);
+        font-size: 12px;
+        font-weight: 500;
+        opacity: 0.9;
+        max-width: 150px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+  }
+
+  // 로딩 상태
+  .loading-state {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--white-color);
+    text-align: center;
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid var(--white-color);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    .loading-message {
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0;
+      opacity: 0.9;
+    }
+  }
+
+  // 에러 상태
+  .error-state {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--white-color);
+    text-align: center;
+    padding: 20px;
+
+    .error-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+
+    .error-message {
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 8px 0;
+    }
+
+    .error-subtext {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  }
+}
+
+// 애니메이션
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .video-player {
+    .play-overlay {
+      .play-button {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+      }
+    }
+
+    .controls {
+      padding: 8px;
+
+      .control-buttons {
+        .video-title {
+          max-width: 100px;
+        }
+      }
+    }
+  }
+}

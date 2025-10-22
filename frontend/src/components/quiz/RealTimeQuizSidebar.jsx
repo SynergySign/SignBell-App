@@ -18,7 +18,7 @@ import SkeletonLoader from '../ui/SkeletonLoader';
 import styles from './RealTimeQuizSidebar.module.scss';
 import {RoomService} from '../../services/api/roomService.js';
 
-const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
+const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('quiz'); // 'personal' | 'quiz'
   const [isCreateRoomModalOpen, setIsCreateRoomModalOpen] = useState(false);
@@ -119,6 +119,7 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
    */
   useEffect(() => {
     if (isOpen) {
+      setActiveTab('quiz'); // 실시간 퀴즈 사이드바가 열릴 때 실시간 퀴즈 탭 활성화
       setWaitingRooms([]);      // 방 목록 비우기
       setCurrentPage(0);        // 페이지 0으로 초기화
       setHasMore(true);         // 더 불러올 데이터 있음으로 설정
@@ -202,7 +203,10 @@ const RealTimeQuizSidebar = ({ onClose, isOpen }) => {
   // ============================================
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    // TODO: 탭 전환 시 개인 학습 사이드바로 전환 필요
+    // 메인페이지의 사이드바 상태 변경
+    if (onTabChange) {
+      onTabChange(tab);
+    }
   };
   
   // ============================================

@@ -16,6 +16,7 @@ import GameRoom from '../pages/GameRoom';
 import QuizWaitingRoom from '../pages/quiz/QuizWaitingRoom';
 import QuizGamePage from '../pages/quiz/QuizGamePage';
 import PopupClosePage from '../pages/auth/PopupClosePage';
+import StudyDataPage from '../pages/study/StudyDataPage';
 
 // ===== 임시 개인 수어학습 페이지 컴포넌트 임포트
 import SignEduPage from '../pages/signEdu/SignEduPage';
@@ -76,6 +77,13 @@ const Router = () => {
 
         {/* 레거시 링크 호환: /signedu/:signId -> /personal-study/:signId 로 리다이렉트 */}
         <Route path="/signedu/:signId" element={<SigneduRedirect />} />
+
+        {/* 수어 연습 영상 데이터 제공 페이지 */}
+        <Route path="/study/data/:wordId" element={
+          <MainLayout>
+            <StudyDataPage />
+          </MainLayout>
+        } />
 
         {/* MainLayout을 사용하지 않는 독립적인 라우트들 */}
         <Route path="/quiz/waiting/:roomId" element={<QuizWaitingRoom />} />
