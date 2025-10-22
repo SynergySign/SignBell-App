@@ -2,7 +2,7 @@
 // Sign education 관련 API 호출을 분리한 모듈입니다.
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 const api = axios.create({ baseURL: API_BASE_URL, withCredentials: true });
 
 /**
