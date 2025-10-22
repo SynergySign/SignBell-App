@@ -1,0 +1,213 @@
+/**
+ * @개요 거울 모드 섹션 컴포넌트 스타일 정의
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-01-21
+ * @최종수정일 2025-01-21
+ */
+
+.mirror-mode-section {
+  // 펼치기 바
+  .mirror-mode-toggle {
+    width: 100%;
+    background-color: var(--secondary-color);
+    color: var(--white-color);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+    letter-spacing: -0.2px;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(144, 202, 249, 0.3);
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    .toggle-icon {
+      font-size: 14px;
+      transition: transform 0.3s ease;
+
+      &.expanded {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  // 펼쳐진 콘텐츠
+  .mirror-mode-content {
+    margin-top: 16px;
+    padding: 20px;
+    background-color: var(--background-color);
+    border-radius: 12px;
+    animation: slideDown 0.3s ease-out;
+
+    // 웹캠 제어 영역
+    .webcam-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+
+      .webcam-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          
+          &.on {
+            background-color: var(--success-color);
+            animation: pulse 2s infinite;
+          }
+
+          &.off {
+            background-color: var(--error-color);
+          }
+        }
+
+        .status-text {
+          color: var(--text-color);
+          font-size: 14px;
+          font-weight: 600;
+          letter-spacing: -0.2px;
+        }
+      }
+
+      .webcam-button {
+        border: none;
+        border-radius: 8px;
+        padding: 8px 16px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        letter-spacing: -0.2px;
+
+        &.turn-on {
+          background-color: var(--text-color);
+          color: var(--white-color);
+        }
+
+        &.turn-off {
+          background-color: var(--error-color);
+          color: var(--white-color);
+        }
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        &:active {
+          transform: scale(0.98);
+        }
+      }
+    }
+
+    // 웹캠 필수 툴팁
+    .webcam-required-tooltip {
+      background-color: var(--error-color);
+      color: var(--white-color);
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 8px 12px;
+      text-align: center;
+      margin-bottom: 16px;
+      animation: pulse 2s infinite;
+    }
+
+    // 웹캠 에러 메시지
+    .webcam-error {
+      background-color: var(--error-color);
+      color: var(--white-color);
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+
+    // 웹캠 컨테이너
+    .webcam-container {
+      position: relative;
+      width: 300px;
+      height: 200px;
+      margin: 0 auto 16px;
+      border-radius: 8px;
+      overflow: hidden;
+      background-color: var(--text-color);
+
+      .webcam-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1); // 거울 효과
+      }
+
+
+    }
+
+
+  }
+}
+
+// 애니메이션
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .mirror-mode-section {
+    .mirror-mode-content {
+      padding: 16px;
+
+      .webcam-container {
+        width: 100%;
+        height: 150px;
+      }
+
+      .webcam-controls {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+
+        .webcam-button {
+          width: 100%;
+        }
+      }
+    }
+  }
+}

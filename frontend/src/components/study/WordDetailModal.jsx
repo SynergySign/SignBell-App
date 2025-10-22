@@ -11,6 +11,7 @@
 
 import { useEffect } from 'react';
 import VideoPlayer from '../ui/VideoPlayer';
+import MirrorModeSection from './MirrorModeSection';
 import styles from './WordDetailModal.module.scss';
 
 const WordDetailModal = ({ isOpen, onClose, word }) => {
@@ -79,13 +80,7 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
           </div>
 
           {/* 거울 모드로 연습하기 섹션 */}
-          <div className={styles.mirrorModeSection}>
-            <button className={styles.mirrorModeToggle}>
-              <span>거울 모드로 연습하기</span>
-              <span className={styles.toggleIcon}>▼</span>
-            </button>
-            {/* TODO: 거울 모드 섹션 구현 예정 */}
-          </div>
+          <MirrorModeSection word={word} />
 
           {/* 영상 제공 버튼 */}
           <button className={styles.videoSubmissionButton}>
