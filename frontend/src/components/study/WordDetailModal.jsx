@@ -10,6 +10,7 @@
  */
 
 import { useEffect } from 'react';
+import VideoPlayer from '../ui/VideoPlayer';
 import styles from './WordDetailModal.module.scss';
 
 const WordDetailModal = ({ isOpen, onClose, word }) => {
@@ -58,13 +59,12 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
         <div className={styles.modalContent}>
           {/* 수어 영상 영역 */}
           <div className={styles.videoSection}>
-            <div className={styles.videoPlayer}>
-              {/* TODO: 실제 영상 플레이어 구현 필요 */}
-              <div className={styles.videoPlaceholder}>
-                <span>수어 영상</span>
-                <p>{word.word}</p>
-              </div>
-            </div>
+            <VideoPlayer
+              videoUrl={word.videoUrl}
+              title={word.word}
+              width={400}
+              height={300}
+            />
           </div>
 
           {/* 수어 동작 설명 */}

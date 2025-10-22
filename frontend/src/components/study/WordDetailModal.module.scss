@@ -84,38 +84,6 @@
     .video-section {
       display: flex;
       justify-content: center;
-
-      .video-player {
-        width: 400px;
-        height: 300px;
-        border-radius: 12px;
-        overflow: hidden;
-        background-color: var(--text-color);
-
-        .video-placeholder {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          color: var(--white-color);
-          text-align: center;
-          background-color: var(--text-color);
-
-          span {
-            font-size: 18px;
-            font-weight: 600;
-            margin-bottom: 8px;
-          }
-
-          p {
-            font-size: 16px;
-            margin: 0;
-            opacity: 0.8;
-          }
-        }
-      }
     }
 
     // 수어 동작 설명
@@ -247,12 +215,7 @@
     left: 50%; // 모바일에서는 사이드바가 전체 화면이므로 정중앙
 
     .modal-content {
-      .video-section {
-        .video-player {
-          width: 100%;
-          height: 250px;
-        }
-      }
+      gap: 16px;
     }
   }
 }

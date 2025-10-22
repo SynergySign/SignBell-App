@@ -55,8 +55,8 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
       words.push({
         id: `word-${wordIndex}`,
         word: word,
-        description: `${word}에 대한 수어 설명입니다.`,
-        videoUrl: `https://example.com/videos/${word}.mp4`,
+        description: `${word}에 대한 수어 설명입니다. 양손을 사용하여 표현하며, 자연스러운 동작으로 의미를 전달합니다.`,
+        videoUrl: '', // TODO: 실제 영상 URL 연동 필요
         category: wordCategory
       });
     }
