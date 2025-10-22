@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebcam from '../../hooks/useWebcam';
 import styles from './QuizWaitingRoom.module.scss';
+import websocketService from '../../services/websocket/websocketService.js';
 
 const QuizWaitingRoom = () => {
   const { roomId } = useParams();
@@ -17,6 +18,8 @@ const QuizWaitingRoom = () => {
   const [isHost, setIsHost] = useState(false); // 방장 여부
   const [isReady, setIsReady] = useState(false); // 준비 상태
   const [showExitModal, setShowExitModal] = useState(false);
+  const [myUserId, setMyUserId] = useState(null);
+  const [allReady, setAllReady] = useState(false);
 
   // 웹캠 관리
   const {
@@ -29,64 +32,227 @@ const QuizWaitingRoom = () => {
     toggleWebcam
   } = useWebcam();
 
-  // 임시 참가자 데이터 (실제로는 WebSocket에서 받음)
-  const [participants, setParticipants] = useState([
-    { 
-      id: 1, 
-      nickname: '사용자1', 
-      score: 1250, 
-      isMe: true, 
-      isHost: isHost, 
-      isReady: isReady,
-      webcamStatus: isWebcamOn ? 'on' : webcamError ? 'denied' : 'off'
-    },
-    { 
-      id: 2, 
-      nickname: '사용자2', 
-      score: 980, 
-      isMe: false, 
-      isHost: !isHost, 
-      isReady: true,
-      webcamStatus: 'on'
-    },
-    { 
-      id: 3, 
-      nickname: '사용자3', 
-      score: 1100, 
-      isMe: false, 
-      isHost: false, 
-      isReady: false,
-      webcamStatus: 'off'
-    },
-    { 
-      id: 4, 
-      nickname: '사용자4', 
-      score: 850, 
-      isMe: false, 
-      isHost: false, 
-      isReady: true,
-      webcamStatus: 'denied'
-    },
-  ]);
+  // 방 정보
+  const [roomInfo, setRoomInfo] = useState({
+    gameRoomId: null,
+    gameTitle: '',
+    hostId: null,
+    maxParticipants: 4,
+    currentParticipants: 0,
+    status: 'WAITING'
+  });
 
-  // 내 정보 실시간 업데이트
+  // 참가자 데이터
+  const [participants, setParticipants] = useState([]);
+
   useEffect(() => {
-    setParticipants(prev => prev.map((participant, index) => 
-      participant.isMe 
-        ? { 
-            ...participant, 
-            isHost: isHost,
-            isReady: isReady,
-            webcamStatus: isWebcamOn ? 'on' : webcamError ? 'denied' : 'off'
+    const initWebSocket = async () => {
+      try {
+        // 👇 핸들러를 연결 전에 미리 등록!
+        websocketService.on('room:join', handleRoomJoin);
+        websocketService.on('participant', handleParticipantEvent);
+        websocketService.on('error', handleError);
+
+        // 연결
+        await websocketService.connect();
+        console.log('✅ WebSocket 연결 성공!');
+
+        // 구독 안정화를 위해 약간 대기 후 join
+        setTimeout(() => {
+          websocketService.joinRoom(Number(roomId));
+          console.log(`🚪 방 ${roomId}에 입장 시도`);
+        }, 300);
+
+      } catch (error) {
+        console.error('❌ WebSocket 연결 실패:', error);
+        alert('연결 실패: ' + error.message);
+      }
+    };
+
+    initWebSocket();
+
+    return () => {
+      websocketService.off('room:join', handleRoomJoin);
+      websocketService.off('participant', handleParticipantEvent);
+      websocketService.off('error', handleError);
+    };
+  }, [roomId]);
+
+  // 핸들러 함수들
+  const handleRoomJoin = (data) => {
+    console.log('📥 방 입장 응답:', data);
+
+    if (data.success) {
+      const roomData = data.data;
+
+      // TODO: 실제 로그인한 사용자 ID 가져오기
+      // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
+      const myId = roomData.participants[roomData.participants.length - 1].userId;
+      setMyUserId(myId); // state에 저장
+
+      // 참가자 목록 업데이트
+      const formattedParticipants = roomData.participants.map(p => ({
+        id: p.userId,
+        userId: p.userId,
+        nickname: p.nickname,
+        profileImageUrl: p.profileImageUrl,
+        score: 0, // TODO: 실제 점수는 나중에
+        isMe: p.userId === myId, // 나인지 확인
+        isHost: p.host,
+        isReady: p.ready,
+        webcamStatus: 'off'
+      }));
+
+      setParticipants(formattedParticipants);
+
+      // 나의 방장 여부 업데이트
+      const me = formattedParticipants.find(p => p.isMe);
+      if (me) {
+        setIsHost(me.isHost);
+        setIsReady(me.isReady);
+      }
+
+      // 방 정보 업데이트
+      setRoomInfo({
+        gameRoomId: roomData.gameRoomId,
+        gameTitle: roomData.gameTitle,
+        hostId: roomData.hostId,
+        maxParticipants: roomData.maxParticipants,
+        currentParticipants: roomData.currentParticipants,
+        status: roomData.status
+      });
+
+      console.log('✅ State 업데이트 완료');
+    }
+  };
+
+  const handleParticipantEvent = (data) => {
+    console.log('📥 참가자 이벤트:', data);
+
+    if (!data.success) return;
+
+    const eventData = data.data;
+
+    switch (eventData.eventType) {
+      case 'PARTICIPANT_JOINED': {
+        const newUser = eventData.participant;
+        console.log('🚪 새 참가자 입장:', newUser);
+
+        setParticipants(prev => {
+          // ✅ 중복 방지: 이미 존재하는 userId면 무시
+          if (prev.some(p => p.userId === newUser.userId)) {
+            console.log('⚠️ 이미 존재하는 참가자, 추가하지 않음:', newUser.userId);
+            return prev;
           }
-        : index === 1 // 두 번째 참가자를 반대 방장 상태로
+
+          return [
+            ...prev,
+            {
+              id: newUser.userId,
+              userId: newUser.userId,
+              nickname: newUser.nickname,
+              profileImageUrl: newUser.profileImageUrl,
+              score: 0,
+              isMe: newUser.userId === myUserId,
+              isHost: newUser.host,
+              isReady: newUser.ready,
+              webcamStatus: 'off'
+            }
+          ];
+        });
+
+        setRoomInfo(prev => ({
+          ...prev,
+          currentParticipants: eventData.currentParticipants
+        }));
+        break;
+      }
+
+      case 'PARTICIPANT_LEFT':
+        console.log('👋 참가자 퇴장:', eventData.participant);
+        if (eventData.roomClosed) {
+          alert('방장이 나가서 방이 종료되었습니다.');
+          websocketService.disconnect();
+          navigate('/main');
+          return;
+        }
+        setParticipants(prev =>
+          prev.filter(p => p.userId !== eventData.participant.userId)
+        );
+        setRoomInfo(prev => ({
+          ...prev,
+          currentParticipants: eventData.currentParticipants
+        }));
+        break;
+
+      case 'PARTICIPANT_READY_UPDATED':
+        {
+          console.log('✅ 준비 상태 변경:', eventData);
+
+          const updatedReady =
+            eventData.isReady !== undefined
+              ? eventData.isReady
+              : eventData.ready !== undefined
+                ? eventData.ready
+                : false;
+
+          // 개별 참가자 업데이트
+          setParticipants(prev =>
+            prev.map(p =>
+              p.userId === eventData.userId
+                ? { ...p, isReady: updatedReady }
+                : p
+            )
+          );
+
+          // 나의 준비 상태 업데이트
+          if (eventData.userId === myUserId) {
+            setIsReady(updatedReady);
+          }
+          break;
+        }
+
+      default:
+        console.log('알 수 없는 이벤트:', eventData.eventType);
+    }
+  };
+
+  const handleError = (data) => {
+    console.error('📥 에러:', data);
+    alert(data.detail || '오류가 발생했습니다.');
+  };
+
+  // 웹캠 상태 변경 시 내 정보 업데이트
+  useEffect(() => {
+    setParticipants(prev => prev.map(p =>
+      p.isMe
         ? {
-            ...participant,
-            isHost: !isHost
-          }
-        : participant
+          ...p,
+          webcamStatus: isWebcamOn ? 'on' : webcamError ? 'denied' : 'off'
+        }
+        : p
     ));
-  }, [isReady, isWebcamOn, webcamError, isHost]);
+  }, [isWebcamOn, webcamError]);
+
+  // 참가자 준비 상태 변경 시 allReady 계산
+  useEffect(() => {
+    const nonHostParticipants = participants.filter(p => !p.isHost);
+    const allNonHostReady = nonHostParticipants.length > 0 &&
+      nonHostParticipants.every(p => p.isReady);
+
+    console.log('🔍 준비 상태 체크:', {
+      nonHostCount: nonHostParticipants.length,
+      allReady: allNonHostReady,
+      participants: participants.map(p => ({
+        nickname: p.nickname,
+        isHost: p.isHost,
+        isReady: p.isReady
+      }))
+    });
+
+    setAllReady(allNonHostReady);
+  }, [participants]);
+
 
   // 웹캠 권한 요청
   const handleWebcamRequest = async () => {
@@ -97,10 +263,24 @@ const QuizWaitingRoom = () => {
     }
   };
 
-  // 준비 상태 토글
+  // 준비 상태 토글 (안정적 버전)
   const handleReadyToggle = () => {
-    setIsReady(!isReady);
-    // TODO: WebSocket으로 준비 상태 전송
+    setIsReady((prevReady) => {
+      const toggledReady = !prevReady; // 현재 상태를 기반으로 반전 계산
+
+      // 1️⃣ 즉시 UI 낙관적 업데이트
+      setParticipants((prevParticipants) =>
+        prevParticipants.map((p) =>
+          p.userId === myUserId ? { ...p, isReady: toggledReady } : p
+        )
+      );
+
+      // 2️⃣ WebSocket 전송 (서버 싱크)
+      websocketService.setReady(Number(roomId), toggledReady);
+      console.log(`✅ 준비 상태 전송됨: ${toggledReady}`);
+
+      return toggledReady; // state 반영
+    });
   };
 
   // 게임 시작 (방장만)
@@ -144,8 +324,8 @@ const QuizWaitingRoom = () => {
       {/* 방 정보 섹션 */}
       <div className={styles.roomInfoSection}>
         <div className={styles.roomInfo}>
-          <span className={styles.roomNumber}>방 번호: #{roomId}</span>
-          <h2 className={styles.roomTitle}>방 제목</h2>
+          <span className={styles.roomNumber}>방 번호: #{roomInfo.gameRoomId || roomId}</span>
+          <h2 className={styles.roomTitle}>{roomInfo.gameTitle || '방 제목'}</h2>
         </div>
         <button className={styles.exitButton} onClick={handleExit}>
           나가기
@@ -156,14 +336,14 @@ const QuizWaitingRoom = () => {
       <main className={styles.waitingContent}>
         {/* 웹캠 제어 버튼 (상단) */}
         <div className={styles.webcamControlSection}>
-          <button 
+          <button
             className={styles.webcamControlButton}
             onClick={isWebcamOn ? stopWebcam : handleWebcamRequest}
           >
             {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
           </button>
           <div className={styles.webcamStatus}>
-            <div 
+            <div
               className={styles.webcamStatusDot}
               style={{ backgroundColor: getWebcamStatusColor(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off') }}
             ></div>
@@ -175,16 +355,27 @@ const QuizWaitingRoom = () => {
 
         {/* 준비/시작 버튼 */}
         <div className={styles.actionButtonContainer}>
-          <button 
-            className={`${styles.actionButton} ${
-              isHost ? styles.startButton : (isReady ? styles.readyActive : styles.readyInactive)
-            } ${!isWebcamOn ? styles.disabled : ''}`}
-            onClick={isWebcamOn ? (isHost ? handleStartGame : handleReadyToggle) : undefined}
-            disabled={!isWebcamOn}
+          <button
+            className={`${styles.actionButton} ${isHost
+              ? styles.startButton
+              : (isReady ? styles.readyActive : styles.readyInactive)
+              } ${!isWebcamOn || (isHost && !allReady) ? styles.disabled : ''}`}
+            onClick={
+              isWebcamOn
+                ? (isHost
+                  ? (allReady ? handleStartGame : undefined)
+                  : handleReadyToggle)
+                : undefined
+            }
+            disabled={!isWebcamOn || (isHost && !allReady)}
           >
-            {isHost ? 'START' : (isReady ? 'READY' : 'NOT READY')}
+            {isHost
+              ? allReady
+                ? 'START'
+                : 'WAITING...'
+              : (isReady ? 'READY' : 'NOT READY')}
           </button>
-          
+
           {/* 웹캠 필수 툴팁 */}
           {!isWebcamOn && (
             <div className={styles.webcamRequiredTooltip}>
@@ -198,7 +389,7 @@ const QuizWaitingRoom = () => {
           {participants.map((participant) => (
             <div key={participant.id} className={styles.participantCard}>
               {/* 캠 상태 점 */}
-              <div 
+              <div
                 className={styles.camStatusDot}
                 style={{ backgroundColor: getWebcamStatusColor(participant.webcamStatus) }}
                 title={getWebcamStatusText(participant.webcamStatus)}
@@ -211,7 +402,7 @@ const QuizWaitingRoom = () => {
 
               {/* 웹캠 영역 */}
               <div className={styles.webcamArea}>
-                {participant.isMe && isWebcamOn ? (
+                {participant.userId === myUserId && isWebcamOn ? (
                   <video
                     ref={videoRef}
                     autoPlay
@@ -229,18 +420,23 @@ const QuizWaitingRoom = () => {
               {/* 참가자 정보 */}
               <div className={styles.participantInfo}>
                 <span className={styles.nickname}>
-                  {participant.nickname}{participant.isMe ? ' (나)' : ''}
+                  {participant.nickname}{participant.userId === myUserId ? ' (나)' : ''}
                 </span>
                 <span className={styles.score}>{participant.score}점</span>
               </div>
 
-              {/* READY 표시 */}
-              {participant.isReady && !participant.isHost && (
-                <div className={styles.readyBadge}>READY</div>
+              {/* READY 상태 표시 (방장 제외, 모두 표시) */}
+              {!participant.isHost && (
+                <div
+                  className={`${styles.readyBadge} ${participant.isReady ? styles.ready : styles.notReady
+                    }`}
+                >
+                  {participant.isReady ? 'READY' : 'NOT READY'}
+                </div>
               )}
 
               {/* 내 READY 상태 표시 (방장이 아닌 경우) */}
-              {participant.isMe && !participant.isHost && (
+              {participant.userId === myUserId && !participant.isHost && (
                 <div className={`${styles.myReadyStatus} ${participant.isReady ? styles.ready : styles.notReady}`}>
                   {participant.isReady ? 'READY' : 'NOT READY'}
                 </div>
@@ -258,19 +454,19 @@ const QuizWaitingRoom = () => {
 
         {/* 테스트 버튼들 */}
         <div className={styles.testButtons}>
-          <button 
+          <button
             className={styles.testButton}
             onClick={() => setIsHost(!isHost)}
           >
             {isHost ? '참여자로 전환' : '방장으로 전환'}
           </button>
-          <button 
+          <button
             className={styles.testButton}
             onClick={handleReadyToggle}
           >
             준비 상태 토글
           </button>
-          <button 
+          <button
             className={styles.testButton}
             onClick={() => navigate(`/quiz/game/${roomId}`)}
           >
