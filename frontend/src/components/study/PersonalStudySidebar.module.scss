@@ -154,45 +154,7 @@
       }
     }
 
-    // 단어 카드 (실시간 방 카드와 동일한 디자인)
-    .word-card {
-      background-color: var(--white-color);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-      transition: all 0.2s;
 
-      &:hover {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-        transform: translateY(-1px);
-      }
-
-      &:active {
-        transform: scale(0.98);
-      }
-
-      .word-text {
-        color: var(--text-color);
-        font-size: 15px;
-        font-weight: 600;
-        flex: 1;
-        letter-spacing: -0.3px;
-      }
-
-      .category {
-        color: var(--text-color);
-        font-size: 13px;
-        font-weight: 500;
-        min-width: 50px;
-        text-align: right;
-        letter-spacing: -0.2px;
-      }
-    }
 
     // 끝 메시지
     .end-message {

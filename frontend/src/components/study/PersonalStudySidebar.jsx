@@ -11,6 +11,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import WordSearchInput from './WordSearchInput';
+import WordCard from './WordCard';
 import styles from './PersonalStudySidebar.module.scss';
 
 const PersonalStudySidebar = ({ isOpen, onClose }) => {
@@ -114,6 +115,11 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
     setSearchKeyword(value);
   };
 
+  const handleWordClick = (word) => {
+    console.log('단어 클릭:', word.word);
+    // TODO: 단어 상세 모달 열기
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -177,15 +183,13 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
               {wordList.map((word, index) => {
                 const isLast = index === wordList.length - 1;
                 return (
-                  <div
+                  <WordCard
                     key={word.id}
-                    ref={isLast ? lastWordElementRef : null}
-                    className={styles.wordCard}
-                    onClick={() => console.log('단어 클릭:', word.word)}
-                  >
-                    <span className={styles.wordText}>{word.word}</span>
-                    <span className={styles.category}>{word.category}</span>
-                  </div>
+                    word={word}
+                    onClick={handleWordClick}
+                    isLast={isLast}
+                    lastElementRef={lastWordElementRef}
+                  />
                 );
               })}
               
