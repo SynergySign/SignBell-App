@@ -10,6 +10,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import SkeletonLoader from '../ui/SkeletonLoader';
+import WordSearchInput from './WordSearchInput';
 import styles from './PersonalStudySidebar.module.scss';
 
 const PersonalStudySidebar = ({ isOpen, onClose }) => {
@@ -109,10 +110,8 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
     loadWords(1, '', true);
   };
 
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
+  const handleSearchChange = (value) => {
+    setSearchKeyword(value);
   };
 
   if (!isOpen) return null;
@@ -155,31 +154,12 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
 
 
         {/* 검색 영역 */}
-        <div className={styles.searchArea}>
-          <div className={styles.searchInputWrapper}>
-            <input
-              type="text"
-              className={styles.searchInput}
-              placeholder="학습할 단어를 검색하세요"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              onKeyPress={handleKeyPress}
-            />
-            {searchKeyword && (
-              <button 
-                className={styles.clearButton}
-                onClick={handleReset}
-                aria-label="검색어 지우기"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          
-          <button className={styles.searchButton} onClick={handleSearch}>
-            검색
-          </button>
-        </div>
+        <WordSearchInput
+          searchKeyword={searchKeyword}
+          onSearchChange={handleSearchChange}
+          onSearch={handleSearch}
+          onReset={handleReset}
+        />
 
         {/* 단어 목록 영역 */}
         <div className={styles.wordList}>
