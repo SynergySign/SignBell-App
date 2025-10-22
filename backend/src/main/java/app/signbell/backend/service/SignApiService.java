@@ -9,9 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,10 +56,11 @@ public class SignApiService {
             int pageNo = 1;
             int numOfRows = 500;
             boolean hasMoreData = true;
+            String collectionDb = "일반생활수어";
 
             while (hasMoreData) {
-                String url = String.format("%s?serviceKey=%s&pageNo=%d&numOfRows=%d",
-                        apiRequestUrl, apiServiceKey, pageNo, numOfRows);
+                String url = String.format("%s?serviceKey=%s&pageNo=%d&numOfRows=%d&collectionDb=%s",
+                        apiRequestUrl, apiServiceKey, pageNo, numOfRows,collectionDb);
                 try {
                     log.info("📡 API 호출 중... (페이지: {})", pageNo);
                     ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
@@ -76,9 +74,13 @@ public class SignApiService {
 
                     List<SignApi> rawDataToSave = new ArrayList<>();
                     for (var item : items) {
+                        // 요구사항: 기존 url 필드는 무시하고, API의 subDescription을 항상 DB의 url 컬럼으로 사용합니다.
+                        String urlValue = "";
+                        try { String v = item.getSubDescription(); if (v != null) urlValue = v; } catch (Exception ignored) { /* 안전하게 무시 */ }
+
                         SignApi rawData = SignApi.builder()
                                 .title(item.getTitle())
-                                .url(item.getUrl())
+                                .url(urlValue)
                                 .signDescription(item.getSignDescription())
                                 .categoryType(item.getCategoryType())
                                 .build();
