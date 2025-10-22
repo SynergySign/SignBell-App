@@ -1,0 +1,242 @@
+/**
+ * @개요 개인 학습 사이드바 컴포넌트입니다. 단어 검색, 필터링, 목록 표시 기능을 제공합니다.
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-01-21
+ * @최종수정일 2025-01-21
+ * @매개변수 {boolean} props.isOpen - 사이드바 열림/닫힘 상태입니다.
+ * @매개변수 {function} props.onClose - 사이드바 닫기 함수입니다.
+ * @반환값 {JSX.Element} 개인 학습 사이드바 컴포넌트를 반환합니다.
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import SkeletonLoader from '../ui/SkeletonLoader';
+import styles from './PersonalStudySidebar.module.scss';
+
+const PersonalStudySidebar = ({ isOpen, onClose }) => {
+  const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'quiz'
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [wordList, setWordList] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const observerRef = useRef();
+
+  // 더미 데이터 생성 함수
+  const generateDummyWords = (page, keyword = '') => {
+    const words = [];
+    const categories = ['인사', '감정', '일상', '숫자', '가족', '음식', '동물', '색깔'];
+    
+    for (let i = 0; i < 20; i++) {
+      const wordIndex = (page - 1) * 20 + i + 1;
+      const word = keyword ? `${keyword}${wordIndex}` : `단어${wordIndex}`;
+      
+      words.push({
+        id: `word-${wordIndex}`,
+        word: word,
+        description: `${word}에 대한 수어 설명입니다.`,
+        videoUrl: `https://example.com/videos/${word}.mp4`,
+        category: categories[Math.floor(Math.random() * categories.length)]
+      });
+    }
+    
+    return words;
+  };
+
+  // 단어 목록 로딩 시뮬레이션
+  const loadWords = useCallback(async (page = 1, keyword = '', isNewSearch = false) => {
+    if (isNewSearch) {
+      setIsLoading(true);
+      setWordList([]);
+      setCurrentPage(1);
+    } else {
+      setIsLoadingMore(true);
+    }
+
+    // API 호출 시뮬레이션
+    await new Promise(resolve => setTimeout(resolve, 800));
+    
+    const newWords = generateDummyWords(page, keyword);
+    
+    if (isNewSearch) {
+      setWordList(newWords);
+      setIsLoading(false);
+    } else {
+      setWordList(prev => [...prev, ...newWords]);
+      setIsLoadingMore(false);
+    }
+    
+    // 5페이지까지만 있다고 가정
+    setHasNextPage(page < 5);
+  }, []);
+
+  // 초기 로딩
+  useEffect(() => {
+    if (isOpen) {
+      loadWords(1, '', true);
+    }
+  }, [isOpen, loadWords]);
+
+  // 무한 스크롤을 위한 Intersection Observer
+  const lastWordElementRef = useCallback(node => {
+    if (isLoadingMore) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasNextPage) {
+        const nextPage = currentPage + 1;
+        setCurrentPage(nextPage);
+        loadWords(nextPage, searchKeyword, false);
+      }
+    });
+    
+    if (node) observerRef.current.observe(node);
+  }, [isLoadingMore, hasNextPage, currentPage, searchKeyword, loadWords]);
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    // TODO: 탭 전환 시 실시간 퀴즈 사이드바로 전환 필요
+  };
+
+  const handleSearch = () => {
+    if (searchKeyword.trim()) {
+      loadWords(1, searchKeyword.trim(), true);
+    }
+  };
+
+  const handleReset = () => {
+    setSearchKeyword('');
+    loadWords(1, '', true);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* 오버레이 */}
+      <div className={styles.sidebarOverlay} onClick={onClose}></div>
+      
+      {/* 사이드바 */}
+      <div className={`${styles.personalStudySidebar} ${isOpen ? styles.open : ''}`}>
+        {/* 헤더 영역 */}
+        <div className={styles.sidebarHeader}>
+          <h2 className={styles.sidebarTitle}>개인 학습</h2>
+          <button 
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="사이드바 닫기"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* 탭 영역 */}
+        <div className={styles.sidebarTabs}>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'personal' ? styles.active : ''}`}
+            onClick={() => handleTabChange('personal')}
+          >
+            개인 학습
+          </button>
+          <button
+            className={`${styles.tabButton} ${activeTab === 'quiz' ? styles.active : ''}`}
+            onClick={() => handleTabChange('quiz')}
+          >
+            실시간 퀴즈
+          </button>
+        </div>
+
+
+
+        {/* 검색 영역 */}
+        <div className={styles.searchArea}>
+          <div className={styles.searchInputWrapper}>
+            <input
+              type="text"
+              className={styles.searchInput}
+              placeholder="학습할 단어를 검색하세요"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              onKeyPress={handleKeyPress}
+            />
+            {searchKeyword && (
+              <button 
+                className={styles.clearButton}
+                onClick={handleReset}
+                aria-label="검색어 지우기"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          
+          <button className={styles.searchButton} onClick={handleSearch}>
+            검색
+          </button>
+        </div>
+
+        {/* 단어 목록 영역 */}
+        <div className={styles.wordList}>
+          {isLoading ? (
+            // 초기 로딩 중 스켈레톤 표시
+            <div className={styles.skeletonWrapper}>
+              {[...Array(8)].map((_, index) => (
+                <div key={index} className={styles.skeletonCard}>
+                  <SkeletonLoader variant="rectangle" width={350} height={60} />
+                </div>
+              ))}
+            </div>
+          ) : wordList.length > 0 ? (
+            <>
+              {wordList.map((word, index) => {
+                const isLast = index === wordList.length - 1;
+                return (
+                  <div
+                    key={word.id}
+                    ref={isLast ? lastWordElementRef : null}
+                    className={styles.wordCard}
+                    onClick={() => console.log('단어 클릭:', word.word)}
+                  >
+                    <span className={styles.wordText}>{word.word}</span>
+                    <span className={styles.category}>{word.category}</span>
+                  </div>
+                );
+              })}
+              
+              {/* 추가 로딩 중 스켈레톤 */}
+              {isLoadingMore && (
+                <div className={styles.skeletonWrapper}>
+                  {[...Array(3)].map((_, index) => (
+                    <div key={`loading-${index}`} className={styles.skeletonCard}>
+                      <SkeletonLoader variant="rectangle" width={350} height={60} />
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              {/* 더 이상 로드할 데이터가 없을 때 */}
+              {!hasNextPage && !isLoadingMore && (
+                <div className={styles.endMessage}>
+                  <p>모든 단어를 불러왔습니다</p>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={styles.emptyState}>
+              <p>검색 결과가 없습니다</p>
+              <p className={styles.emptySubtext}>다른 키워드로 검색해보세요!</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default PersonalStudySidebar;
