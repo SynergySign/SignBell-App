@@ -15,7 +15,7 @@ import WordCard from './WordCard';
 import WordDetailModal from './WordDetailModal';
 import styles from './PersonalStudySidebar.module.scss';
 
-const PersonalStudySidebar = ({ isOpen, onClose }) => {
+const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
   const [activeTab, setActiveTab] = useState('personal'); // 'personal' | 'quiz'
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -31,8 +31,8 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
 
   // 카테고리 목록
   const categories = [
-    '전체', '개념', '경제생활', '교육', '기타', '나라명 및 지명', 
-    '동식물', '문화', '사회생활', '삶', '식생활', '의생활', 
+    '전체', '개념', '경제생활', '교육', '기타', '나라명 및 지명',
+    '동식물', '문화', '사회생활', '삶', '식생활', '의생활',
     '인간', '자연', '정치와 행정', '종교', '주생활'
   ];
 
@@ -40,18 +40,18 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   const generateDummyWords = (page, keyword = '', category = '전체') => {
     const words = [];
     const wordCategories = [
-      '개념', '경제생활', '교육', '기타', '나라명 및 지명', 
-      '동식물', '문화', '사회생활', '삶', '식생활', '의생활', 
+      '개념', '경제생활', '교육', '기타', '나라명 및 지명',
+      '동식물', '문화', '사회생활', '삶', '식생활', '의생활',
       '인간', '자연', '정치와 행정', '종교', '주생활'
     ];
-    
+
     for (let i = 0; i < 20; i++) {
       const wordIndex = (page - 1) * 20 + i + 1;
       const word = keyword ? `${keyword}${wordIndex}` : `단어${wordIndex}`;
-      const wordCategory = category === '전체' 
+      const wordCategory = category === '전체'
         ? wordCategories[Math.floor(Math.random() * wordCategories.length)]
         : category;
-      
+
       words.push({
         id: `word-${wordIndex}`,
         word: word,
@@ -60,7 +60,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
         category: wordCategory
       });
     }
-    
+
     return words;
   };
 
@@ -76,9 +76,9 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
 
     // API 호출 시뮬레이션
     await new Promise(resolve => setTimeout(resolve, 800));
-    
+
     const newWords = generateDummyWords(page, keyword, category);
-    
+
     if (isNewSearch) {
       setWordList(newWords);
       setIsLoading(false);
@@ -86,7 +86,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
       setWordList(prev => [...prev, ...newWords]);
       setIsLoadingMore(false);
     }
-    
+
     // 5페이지까지만 있다고 가정
     setHasNextPage(page < 5);
   }, []);
@@ -94,6 +94,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   // 초기 로딩 - 카테고리 목록 표시
   useEffect(() => {
     if (isOpen) {
+      setActiveTab('personal'); // 개인 학습 사이드바가 열릴 때 개인 학습 탭 활성화
       setShowCategoryList(true);
       setWordList([]);
     }
@@ -103,7 +104,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   const lastWordElementRef = useCallback(node => {
     if (isLoadingMore) return;
     if (observerRef.current) observerRef.current.disconnect();
-    
+
     observerRef.current = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting && hasNextPage) {
         const nextPage = currentPage + 1;
@@ -113,13 +114,16 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
         loadWords(nextPage, searchKeyword, categoryForLoad, false);
       }
     });
-    
+
     if (node) observerRef.current.observe(node);
   }, [isLoadingMore, hasNextPage, currentPage, searchKeyword, selectedCategory, loadWords]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    // TODO: 탭 전환 시 실시간 퀴즈 사이드바로 전환 필요
+    // 메인페이지의 사이드바 상태 변경
+    if (onTabChange) {
+      onTabChange(tab);
+    }
   };
 
   const handleSearch = () => {
@@ -169,13 +173,13 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
     <>
       {/* 오버레이 */}
       <div className={styles.sidebarOverlay} onClick={onClose}></div>
-      
+
       {/* 사이드바 */}
       <div className={`${styles.personalStudySidebar} ${isOpen ? styles.open : ''}`}>
         {/* 헤더 영역 */}
         <div className={styles.sidebarHeader}>
           <h2 className={styles.sidebarTitle}>개인 학습</h2>
-          <button 
+          <button
             className={styles.closeButton}
             onClick={onClose}
             aria-label="사이드바 닫기"
@@ -266,7 +270,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
                       />
                     );
                   })}
-                  
+
                   {/* 추가 로딩 중 스켈레톤 */}
                   {isLoadingMore && (
                     <div className={styles.skeletonWrapper}>
@@ -277,7 +281,7 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
                       ))}
                     </div>
                   )}
-                  
+
                   {/* 더 이상 로드할 데이터가 없을 때 */}
                   {!hasNextPage && !isLoadingMore && (
                     <div className={styles.endMessage}>

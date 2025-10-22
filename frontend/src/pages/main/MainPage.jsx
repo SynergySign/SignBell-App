@@ -62,6 +62,7 @@ const MainPage = () => {
         <PersonalStudySidebar
           isOpen={activeSidebar === 'personal'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
 
@@ -70,6 +71,7 @@ const MainPage = () => {
         <RealTimeQuizSidebar
           isOpen={activeSidebar === 'quiz'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
     </div>
