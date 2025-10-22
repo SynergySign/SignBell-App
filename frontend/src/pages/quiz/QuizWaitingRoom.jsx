@@ -15,8 +15,6 @@ import websocketService from '../../services/websocket/websocketService.js';
 const QuizWaitingRoom = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const [isHost, setIsHost] = useState(false); // 방장 여부
-  const [isReady, setIsReady] = useState(false); // 준비 상태
   const [showExitModal, setShowExitModal] = useState(false);
   const [myUserId, setMyUserId] = useState(null);
   const [allReady, setAllReady] = useState(false);
@@ -104,13 +102,6 @@ const QuizWaitingRoom = () => {
       }));
 
       setParticipants(formattedParticipants);
-
-      // 나의 방장 여부 업데이트
-      const me = formattedParticipants.find(p => p.isMe);
-      if (me) {
-        setIsHost(me.isHost);
-        setIsReady(me.isReady);
-      }
 
       // 방 정보 업데이트
       setRoomInfo({
@@ -204,11 +195,6 @@ const QuizWaitingRoom = () => {
                 : p
             )
           );
-
-          // 나의 준비 상태 업데이트
-          if (eventData.userId === myUserId) {
-            setIsReady(updatedReady);
-          }
           break;
         }
 
@@ -263,24 +249,25 @@ const QuizWaitingRoom = () => {
     }
   };
 
-  // 준비 상태 토글 (안정적 버전)
+  // 내 정보 가져오기
+  const me = participants.find(p => p.userId === myUserId);
+  const isHost = me?.isHost || false;
+  const isReady = me?.isReady || false;
+
+  // 준비 상태 토글
   const handleReadyToggle = () => {
-    setIsReady((prevReady) => {
-      const toggledReady = !prevReady; // 현재 상태를 기반으로 반전 계산
+    const toggledReady = !isReady;
 
-      // 1️⃣ 즉시 UI 낙관적 업데이트
-      setParticipants((prevParticipants) =>
-        prevParticipants.map((p) =>
-          p.userId === myUserId ? { ...p, isReady: toggledReady } : p
-        )
-      );
+    // 낙관적 업데이트
+    setParticipants((prevParticipants) =>
+      prevParticipants.map((p) =>
+        p.userId === myUserId ? { ...p, isReady: toggledReady } : p
+      )
+    );
 
-      // 2️⃣ WebSocket 전송 (서버 싱크)
-      websocketService.setReady(Number(roomId), toggledReady);
-      console.log(`✅ 준비 상태 전송됨: ${toggledReady}`);
-
-      return toggledReady; // state 반영
-    });
+    // WebSocket 전송
+    websocketService.setReady(Number(roomId), toggledReady);
+    console.log(`✅ 준비 상태 전송됨: ${toggledReady}`);
   };
 
   // 게임 시작 (방장만)
@@ -456,7 +443,13 @@ const QuizWaitingRoom = () => {
         <div className={styles.testButtons}>
           <button
             className={styles.testButton}
-            onClick={() => setIsHost(!isHost)}
+            onClick={() => {
+              setParticipants(prev => prev.map(p =>
+                p.userId === myUserId
+                  ? { ...p, isHost: !p.isHost }
+                  : p
+              ));
+            }}
           >
             {isHost ? '참여자로 전환' : '방장으로 전환'}
           </button>
