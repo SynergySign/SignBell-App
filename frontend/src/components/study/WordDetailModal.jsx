@@ -10,11 +10,22 @@
  */
 
 import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import VideoPlayer from '../ui/VideoPlayer';
 import MirrorModeSection from './MirrorModeSection';
 import styles from './WordDetailModal.module.scss';
 
 const WordDetailModal = ({ isOpen, onClose, word }) => {
+  const navigate = useNavigate();
+
+  // 영상 제공 페이지로 이동
+  const handleVideoSubmission = () => {
+    if (word) {
+      navigate(`/study/data/${word.id}`);
+      onClose(); // 모달 닫기
+    }
+  };
+
   // ESC 키로 모달 닫기
   useEffect(() => {
     const handleEscKey = (e) => {
@@ -83,7 +94,10 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
           <MirrorModeSection word={word} />
 
           {/* 영상 제공 버튼 */}
-          <button className={styles.videoSubmissionButton}>
+          <button 
+            className={styles.videoSubmissionButton}
+            onClick={handleVideoSubmission}
+          >
             영상 제공하고 보상받으러 가기
           </button>
         </div>

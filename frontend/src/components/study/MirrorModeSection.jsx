@@ -8,10 +8,12 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useWebcam from '../../hooks/useWebcam';
 import styles from './MirrorModeSection.module.scss';
 
 const MirrorModeSection = ({ word }) => {
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
   
   const {
@@ -38,6 +40,11 @@ const MirrorModeSection = ({ word }) => {
     } else {
       await startWebcam();
     }
+  };
+
+  // 영상 제공 페이지로 이동
+  const handleGoToDataPage = () => {
+    navigate(`/study/data/${word.id}`);
   };
 
 
@@ -109,6 +116,19 @@ const MirrorModeSection = ({ word }) => {
               <li>웹캠을 켜고 화면에 나타나는 자신의 모습을 확인하세요</li>
               <li>참고 영상을 보며 동일한 수어 동작을 따라해보세요</li>
             </ul>
+          </div>
+
+          {/* 영상 제공 버튼 */}
+          <div className={styles.dataSubmissionSection}>
+            <button 
+              className={styles.dataSubmissionButton}
+              onClick={handleGoToDataPage}
+            >
+              영상 제공하고 포인트 받기 🎁
+            </button>
+            <p className={styles.dataSubmissionHint}>
+              연습한 수어 영상을 제공하면 10포인트를 받을 수 있어요!
+            </p>
           </div>
         </div>
       )}
