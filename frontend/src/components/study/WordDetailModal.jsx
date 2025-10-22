@@ -58,7 +58,7 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
         {/* 모달 헤더 */}
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>{word.word}</h2>
-          <button 
+          <button
             className={styles.closeButton}
             onClick={onClose}
             aria-label="모달 닫기"
@@ -94,11 +94,11 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
           <MirrorModeSection word={word} />
 
           {/* 영상 제공 버튼 */}
-          <button 
+          <button
             className={styles.videoSubmissionButton}
             onClick={handleVideoSubmission}
           >
-            영상 제공하고 보상받으러 가기
+            영상 제공하고 포인트 받기 🎁
           </button>
         </div>
       </div>

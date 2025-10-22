@@ -119,20 +119,21 @@
 
     // 영상 제공 버튼
     .video-submission-button {
-      background-color: var(--accent-color);
+      background: linear-gradient(135deg, var(--accent-color) 0%, #ffb74d 100%);
       color: var(--white-color);
       border: none;
-      border-radius: 8px;
-      padding: 16px;
+      border-radius: 12px;
+      padding: 12px 24px;
       font-size: 16px;
-      font-weight: bold;
+      font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
       letter-spacing: -0.2px;
+      box-shadow: 0 2px 8px rgba(255, 204, 128, 0.3);
 
       &:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(255, 204, 128, 0.4);
+        box-shadow: 0 4px 12px rgba(255, 204, 128, 0.4);
       }
 
       &:active {
@@ -182,8 +183,87 @@
     top: 45%;
     left: 50%; // 모바일에서는 사이드바가 전체 화면이므로 정중앙
 
+    .modal-header {
+      margin-bottom: 20px;
+
+      .modal-title {
+        font-size: 20px;
+      }
+
+      .close-button {
+        width: 28px;
+        height: 28px;
+        font-size: 20px;
+      }
+    }
+
     .modal-content {
       gap: 16px;
+
+      .description-section {
+        .description-title {
+          font-size: 16px;
+        }
+
+        .description-text {
+          font-size: 13px;
+        }
+
+        .word-info {
+          .category {
+            font-size: 12px;
+          }
+        }
+      }
+
+      .video-submission-button {
+        padding: 12px;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .word-detail-modal {
+    width: 95%;
+    padding: 20px;
+
+    .modal-header {
+      .modal-title {
+        font-size: 18px;
+      }
+
+      .close-button {
+        width: 24px;
+        height: 24px;
+        font-size: 18px;
+      }
+    }
+
+    .modal-content {
+      gap: 12px;
+
+      .description-section {
+        .description-title {
+          font-size: 15px;
+        }
+
+        .description-text {
+          font-size: 12px;
+        }
+
+        .word-info {
+          .category {
+            font-size: 11px;
+          }
+        }
+      }
+
+      .video-submission-button {
+        padding: 10px;
+        font-size: 13px;
+      }
     }
   }
 }

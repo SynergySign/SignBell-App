@@ -305,6 +305,7 @@
               font-size: 64px;
               margin-bottom: 16px;
               opacity: 0.7;
+              animation: pulse 2s infinite;
             }
 
             .waiting-text {
@@ -314,6 +315,43 @@
               margin: 0;
               letter-spacing: -0.2px;
               opacity: 0.7;
+            }
+          }
+
+          // 에러 표시
+          .error-display {
+            text-align: center;
+
+            .error-icon {
+              font-size: 64px;
+              margin-bottom: 16px;
+              animation: pulse 2s infinite;
+            }
+
+            .error-text {
+              color: var(--error-color);
+              font-size: 18px;
+              font-weight: 600;
+              margin: 0;
+              letter-spacing: -0.2px;
+            }
+          }
+
+          // 준비 완료 표시
+          .ready-display {
+            text-align: center;
+
+            .ready-icon {
+              font-size: 64px;
+              margin-bottom: 16px;
+            }
+
+            .ready-text {
+              color: var(--success-color);
+              font-size: 18px;
+              font-weight: 600;
+              margin: 0;
+              letter-spacing: -0.2px;
             }
           }
         }
@@ -491,8 +529,168 @@
                 font-size: 16px;
               }
             }
+
+            .error-display {
+              .error-icon {
+                font-size: 48px;
+              }
+
+              .error-text {
+                font-size: 16px;
+              }
+            }
+
+            .ready-display {
+              .ready-icon {
+                font-size: 48px;
+              }
+
+              .ready-text {
+                font-size: 16px;
+              }
+            }
           }
         }
+      }
+    }
+
+    .navigation-buttons {
+      position: static;
+      transform: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 20px;
+
+      .previous-button,
+      .next-button {
+        width: 100%;
+        min-width: auto;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .study-data-page {
+    padding: 16px 12px;
+
+    .page-header {
+      .page-title {
+        font-size: 20px;
+      }
+    }
+
+    .info-tooltip {
+      font-size: 12px;
+      padding: 6px 12px;
+    }
+
+    .word-info-section {
+      padding: 16px;
+      gap: 12px;
+
+      .word-title {
+        font-size: 24px;
+      }
+
+      .word-description {
+        font-size: 14px;
+      }
+    }
+
+    .step-two-content {
+      .content-container {
+        gap: 16px;
+
+        .webcam-section {
+          .main-video-card {
+            padding: 16px;
+
+            .main-webcam {
+              height: 200px;
+            }
+
+            .player-info {
+              .player-name {
+                font-size: 14px;
+              }
+            }
+          }
+        }
+
+        .guide-section {
+          .question-section {
+            .question-text {
+              font-size: 20px;
+            }
+          }
+
+          .status-section {
+            min-height: 120px;
+            padding: 16px;
+
+            .countdown-display {
+              .countdown-number {
+                font-size: 48px;
+              }
+
+              .countdown-text {
+                font-size: 14px;
+              }
+            }
+
+            .recording-display {
+              .recording-icon {
+                font-size: 40px;
+              }
+
+              .recording-text {
+                font-size: 14px;
+              }
+            }
+
+            .waiting-display {
+              .waiting-icon {
+                font-size: 40px;
+              }
+
+              .waiting-text {
+                font-size: 14px;
+              }
+            }
+
+            .error-display {
+              .error-icon {
+                font-size: 40px;
+              }
+
+              .error-text {
+                font-size: 14px;
+              }
+            }
+
+            .ready-display {
+              .ready-icon {
+                font-size: 40px;
+              }
+
+              .ready-text {
+                font-size: 14px;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .navigation-buttons {
+      padding: 16px;
+      gap: 8px;
+
+      .previous-button,
+      .next-button {
+        font-size: 14px;
+        padding: 10px 20px;
       }
     }
 

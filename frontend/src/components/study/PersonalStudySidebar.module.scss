@@ -319,5 +319,133 @@
 @media (max-width: 768px) {
   .personal-study-sidebar {
     width: 100%;
+
+    .sidebar-header {
+      padding: 16px 20px;
+
+      .sidebar-title {
+        font-size: 18px;
+      }
+
+      .close-button {
+        font-size: 20px;
+        width: 24px;
+        height: 24px;
+      }
+    }
+
+    .sidebar-tabs {
+      padding: 8px 12px;
+
+      .tab-button {
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+    }
+
+    .category-list {
+      padding: 12px;
+
+      .category-header {
+        margin-bottom: 12px;
+
+        h3 {
+          font-size: 15px;
+        }
+      }
+
+      .category-grid {
+        gap: 6px;
+
+        .category-card {
+          padding: 12px 8px;
+          min-height: 50px;
+
+          .category-name {
+            font-size: 12px;
+          }
+        }
+      }
+    }
+
+    .word-list {
+      padding: 0 12px 12px 12px;
+
+      .back-button {
+        margin-bottom: 12px;
+
+        button {
+          font-size: 12px;
+        }
+
+        .current-category {
+          font-size: 13px;
+        }
+      }
+
+      .empty-state {
+        padding: 40px 16px;
+
+        p {
+          font-size: 14px;
+        }
+
+        .empty-subtext {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .personal-study-sidebar {
+    .sidebar-header {
+      padding: 12px 16px;
+
+      .sidebar-title {
+        font-size: 16px;
+      }
+    }
+
+    .sidebar-tabs {
+      padding: 6px 8px;
+
+      .tab-button {
+        padding: 8px 10px;
+        font-size: 12px;
+      }
+    }
+
+    .category-list {
+      padding: 8px;
+
+      .category-grid {
+        .category-card {
+          padding: 10px 6px;
+          min-height: 45px;
+
+          .category-name {
+            font-size: 11px;
+          }
+        }
+      }
+    }
+
+    .word-list {
+      padding: 0 8px 8px 8px;
+
+      .empty-state {
+        padding: 30px 12px;
+
+        p {
+          font-size: 13px;
+        }
+
+        .empty-subtext {
+          font-size: 11px;
+        }
+      }
+    }
   }
 }
