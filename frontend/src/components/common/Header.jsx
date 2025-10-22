@@ -10,10 +10,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
 import styles from './Header.module.scss';
+import {useAuthStore} from "../../store/auth/authStore.js";
 
 const Header = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout } = useAuthStore();
 
   const handleLogoClick = () => {
     // 메인 페이지에서는 새로고침, 다른 페이지에서는 메인으로 이동
@@ -29,9 +31,17 @@ const Header = () => {
     console.log('마이페이지로 이동');
   };
 
-  const handleLogoutClick = () => {
+  /*const handleLogoutClick = () => {
     // TODO: 로그아웃 API 연동 필요
     console.log('로그아웃');
+    navigate('/');
+  };*/
+
+  const handleLogoutClick = async () => {
+    console.log('로그아웃 시도');
+    // zustand store의 logout 액션 호출 (서버 로그아웃 + 클라이언트 상태 초기화)
+    await logout();
+    // 로그아웃 후 랜딩 페이지로 이동 (Header가 메인 페이지 외에도 표시된다고 가정하고 '/'로 이동)
     navigate('/');
   };
 

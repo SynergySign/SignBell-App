@@ -12,12 +12,12 @@ import AgreementToggle from '../../components/ui/AgreementToggle';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
-import { useAuthStore } from '../../store/auth/authStore';
 import styles from './TermsPage.module.scss';
+import { useAuthStore } from '../../store/auth/authStore';
 
 const TermsPage = () => {
   const navigate = useNavigate();
-  const { user, refreshMeSilent } = useAuthStore();
+  const { user, refreshMeSilent, logout } = useAuthStore();
   const [agreements, setAgreements] = useState({
     required: false,
     optional: false,
@@ -104,9 +104,18 @@ const TermsPage = () => {
     }
   };
 
-  const handleLogout = () => {
+  /*const handleLogout = () => {
     // TODO: 로그아웃 확인 모달 표시
     console.log('로그아웃');
+    navigate('/');
+  };*/
+
+  const handleLogout = async () => {
+    // TODO: 로그아웃 확인 모달 표시 (현재는 모달 없이 바로 로그아웃 처리)
+    console.log('로그아웃 시도');
+    // zustand store의 logout 액션 호출 (서버 로그아웃 + 클라이언트 상태 초기화)
+    await logout();
+    // 로그아웃 후 랜딩 페이지로 이동
     navigate('/');
   };
 
