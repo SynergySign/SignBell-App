@@ -22,6 +22,7 @@ const StudyDataPage = () => {
   const [countdown, setCountdown] = useState(null); // 카운트다운 상태
   const [recordingCountdown, setRecordingCountdown] = useState(null); // 녹화 중 카운트다운
   const [isRecording, setIsRecording] = useState(false);
+  const [isRecordingCompleted, setIsRecordingCompleted] = useState(false); // 녹화 완료 상태
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
   const countdownRef = useRef(null);
   const recordingRef = useRef(null);
@@ -86,13 +87,13 @@ const StudyDataPage = () => {
 
   // 웹캠이 연결되면 자동으로 카운트다운 시작
   useEffect(() => {
-    if (currentStep === 2 && isWebcamOn && countdown === null && !isRecording) {
+    if (currentStep === 2 && isWebcamOn && countdown === null && !isRecording && !isRecordingCompleted) {
       // 웹캠이 연결된 후 1초 뒤 카운트다운 시작
       setTimeout(() => {
         startCountdown();
       }, 1000);
     }
-  }, [currentStep, isWebcamOn, countdown, isRecording]);
+  }, [currentStep, isWebcamOn, countdown, isRecording, isRecordingCompleted]);
 
   // 카운트다운 시작
   const startCountdown = () => {
@@ -135,14 +136,15 @@ const StudyDataPage = () => {
   // 녹화 종료
   const stopRecording = () => {
     setIsRecording(false);
-    setRecordingCountdown(null);
+    setRecordingCountdown(0); // 0초로 고정
+    setIsRecordingCompleted(true); // 녹화 완료 상태로 설정
     clearTimeout(recordingRef.current);
     clearInterval(recordingCountdownRef.current);
     setShowSubmissionModal(true);
   };
 
   // 재촬영
-  const handleRetake = () => {
+  const handleRetake = async () => {
     // 모든 타이머 정리
     if (countdownRef.current) {
       clearInterval(countdownRef.current);
@@ -162,11 +164,12 @@ const StudyDataPage = () => {
     setCountdown(null);
     setRecordingCountdown(null);
     setIsRecording(false);
+    setIsRecordingCompleted(false);
     
-    // 1초 후 다시 카운트다운 시작
-    setTimeout(() => {
-      startCountdown();
-    }, 1000);
+    // 웹캠 재시작 (권한 재확인)
+    stopWebcam();
+    await new Promise(resolve => setTimeout(resolve, 500)); // 웹캠 정리 대기
+    await startWebcam();
   };
 
   // 제출 (메인으로 이동)
@@ -429,6 +432,11 @@ const StudyDataPage = () => {
                   <div className={styles.errorDisplay}>
                     <div className={styles.errorIcon}>⚠️</div>
                     <p className={styles.errorText}>웹캠 권한을 허용해주세요</p>
+                  </div>
+                ) : isRecordingCompleted ? (
+                  <div className={styles.completedDisplay}>
+                    <div className={styles.completedIcon}>✅</div>
+                    <p className={styles.completedText}>녹화가 완료되었습니다</p>
                   </div>
                 ) : countdown !== null ? (
                   <div className={styles.countdownDisplay}>

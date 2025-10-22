@@ -354,6 +354,25 @@
               letter-spacing: -0.2px;
             }
           }
+
+          // 녹화 완료 표시
+          .completed-display {
+            text-align: center;
+
+            .completed-icon {
+              font-size: 64px;
+              margin-bottom: 16px;
+              color: var(--success-color);
+            }
+
+            .completed-text {
+              color: var(--success-color);
+              font-size: 18px;
+              font-weight: 600;
+              margin: 0;
+              letter-spacing: -0.2px;
+            }
+          }
         }
       }
     }
@@ -549,6 +568,16 @@
                 font-size: 16px;
               }
             }
+
+            .completed-display {
+              .completed-icon {
+                font-size: 48px;
+              }
+
+              .completed-text {
+                font-size: 16px;
+              }
+            }
           }
         }
       }
@@ -675,6 +704,16 @@
               }
 
               .ready-text {
+                font-size: 14px;
+              }
+            }
+
+            .completed-display {
+              .completed-icon {
+                font-size: 40px;
+              }
+
+              .completed-text {
                 font-size: 14px;
               }
             }
