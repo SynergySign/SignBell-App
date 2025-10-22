@@ -108,7 +108,9 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
       if (entries[0].isIntersecting && hasNextPage) {
         const nextPage = currentPage + 1;
         setCurrentPage(nextPage);
-        loadWords(nextPage, searchKeyword, selectedCategory, false);
+        // 검색 중이면 전체 카테고리에서, 아니면 선택된 카테고리에서
+        const categoryForLoad = searchKeyword.trim() ? '전체' : selectedCategory;
+        loadWords(nextPage, searchKeyword, categoryForLoad, false);
       }
     });
     
@@ -123,7 +125,8 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   const handleSearch = () => {
     if (searchKeyword.trim()) {
       setShowCategoryList(false);
-      loadWords(1, searchKeyword.trim(), selectedCategory, true);
+      setSelectedCategory('전체'); // 검색 시 무조건 전체 카테고리에서 검색
+      loadWords(1, searchKeyword.trim(), '전체', true);
     }
   };
 
@@ -235,7 +238,9 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
                 <button onClick={handleBackToCategories}>
                   ← 카테고리로 돌아가기
                 </button>
-                <span className={styles.currentCategory}>{selectedCategory}</span>
+                <span className={styles.currentCategory}>
+                  {searchKeyword.trim() ? `"${searchKeyword}" 검색 결과` : selectedCategory}
+                </span>
               </div>
 
               {isLoading ? (
