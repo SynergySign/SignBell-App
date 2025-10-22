@@ -12,6 +12,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import WordSearchInput from './WordSearchInput';
 import WordCard from './WordCard';
+import WordDetailModal from './WordDetailModal';
 import styles from './PersonalStudySidebar.module.scss';
 
 const PersonalStudySidebar = ({ isOpen, onClose }) => {
@@ -22,6 +23,8 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   const [wordList, setWordList] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(true);
+  const [selectedWord, setSelectedWord] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const observerRef = useRef();
 
   // 더미 데이터 생성 함수
@@ -116,8 +119,13 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
   };
 
   const handleWordClick = (word) => {
-    console.log('단어 클릭:', word.word);
-    // TODO: 단어 상세 모달 열기
+    setSelectedWord(word);
+    setIsModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setIsModalOpen(false);
+    setSelectedWord(null);
   };
 
   if (!isOpen) return null;
@@ -219,6 +227,13 @@ const PersonalStudySidebar = ({ isOpen, onClose }) => {
           )}
         </div>
       </div>
+
+      {/* 단어 상세 모달 */}
+      <WordDetailModal
+        isOpen={isModalOpen}
+        onClose={handleModalClose}
+        word={selectedWord}
+      />
     </>
   );
 };
