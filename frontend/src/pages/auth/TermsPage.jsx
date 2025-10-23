@@ -58,11 +58,20 @@ const TermsPage = () => {
   };
 
   const handleAllAgree = () => {
-    const allChecked = agreements.required && agreements.optional;
-    setAgreements({
-      required: !allChecked,
-      optional: !allChecked,
-    });
+    if (fromMyPage) {
+      // 마이페이지에서 온 경우: 필수 약관은 항상 true, 선택 약관만 토글
+      setAgreements(prev => ({
+        required: true, // 필수 약관은 항상 true
+        optional: !prev.optional,
+      }));
+    } else {
+      // 최초 가입 시: 모든 약관 토글
+      const allChecked = agreements.required && agreements.optional;
+      setAgreements({
+        required: !allChecked,
+        optional: !allChecked,
+      });
+    }
   };
 
   const openTermsModal = (type) => {
@@ -140,6 +149,7 @@ const TermsPage = () => {
                 checked={agreements.required}
                 onChange={() => handleToggle('required')}
                 label="(필수) 서비스 필수 동의 약관"
+                disabled={fromMyPage} // 마이페이지에서 온 경우 비활성화
               />
               <button
                 className={styles.viewTermsButton}
