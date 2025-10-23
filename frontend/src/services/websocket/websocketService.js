@@ -437,6 +437,48 @@ class WebSocketService {
   returnToRoom(roomId) {
     this.sendMessage(`/app/room/${roomId}/quiz/return`);
   }
+
+  // ==================== WebRTC 시그널링 메서드 ====================
+
+  /**
+   * WebRTC 시그널링 토픽 구독
+   * @param {number} roomId - 방 ID
+   */
+  subscribeToWebRTCSignaling(roomId) {
+    if (!this.client?.connected) {
+      throw new Error('WebSocket이 연결되어 있지 않습니다.');
+    }
+
+    // WebRTC 시그널링 메시지 구독
+    this.subscribe(`/topic/room/${roomId}/webrtc`, (message) => {
+      console.log('📥 WebRTC 시그널링:', message);
+      this.handleMessage('webrtc:signal', message);
+    });
+
+    // 개인 WebRTC 메시지 구독
+    this.subscribe('/user/queue/webrtc', (message) => {
+      console.log('📥 WebRTC 개인 메시지:', message);
+      this.handleMessage('webrtc:signal', message);
+    });
+  }
+
+  /**
+   * WebRTC 시그널링 메시지 전송
+   * @param {number} roomId - 방 ID
+   * @param {Object} signalData - 시그널링 데이터 (type, offer, answer, candidate 등)
+   */
+  sendWebRTCSignal(roomId, signalData) {
+    this.sendMessage(`/app/room/${roomId}/webrtc`, signalData);
+  }
+
+  /**
+   * WebRTC 시그널링 구독 해제
+   * @param {number} roomId - 방 ID
+   */
+  unsubscribeFromWebRTCSignaling(roomId) {
+    this.unsubscribe(`/topic/room/${roomId}/webrtc`);
+    this.unsubscribe('/user/queue/webrtc');
+  }
 }
 
 // 싱글톤 인스턴스 생성 및 export

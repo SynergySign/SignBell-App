@@ -2,11 +2,11 @@
  * @개요 퀴즈 대기방 페이지 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-20
+ * @최종수정일 2025-10-23
  * @반환값 {JSX.Element} 퀴즈 대기방 페이지 컴포넌트
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebcam from '../../hooks/useWebcam';
 import styles from './QuizWaitingRoom.module.scss';
@@ -43,19 +43,31 @@ const QuizWaitingRoom = () => {
   // 참가자 데이터
   const [participants, setParticipants] = useState([]);
 
+  // ============================================
+  // Janus WebRTC 관리
+  // ============================================
+  const remoteVideosRef = useRef({}); // { userId: videoElement }
+  const [remoteStreams, setRemoteStreams] = useState({}); // { userId: stream }
+  const janusRef = useRef(null);
+  const pluginHandleRef = useRef(null);
+  const remoteFeedsRef = useRef({}); // { feedId: pluginHandle }
+  const userIdToFeedIdRef = useRef({}); // { userId: feedId } 매핑
+  const [isJanusConnected, setIsJanusConnected] = useState(false);
+
+  // Janus 서버 URL
+  const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
+
+  // WebSocket 연결
   useEffect(() => {
     const initWebSocket = async () => {
       try {
-        // 👇 핸들러를 연결 전에 미리 등록!
         websocketService.on('room:join', handleRoomJoin);
         websocketService.on('participant', handleParticipantEvent);
         websocketService.on('error', handleError);
 
-        // 연결
         await websocketService.connect();
         console.log('✅ WebSocket 연결 성공!');
 
-        // 구독 안정화를 위해 약간 대기 후 join
         setTimeout(() => {
           websocketService.joinRoom(Number(roomId));
           console.log(`🚪 방 ${roomId}에 입장 시도`);
@@ -75,6 +87,256 @@ const QuizWaitingRoom = () => {
       websocketService.off('error', handleError);
     };
   }, [roomId]);
+
+  // Janus WebRTC 연결 (방 입장 후 + 웹캠 켜진 후)
+  useEffect(() => {
+    // 방에 입장하지 않았으면 Janus 연결 안 함
+    if (!myUserId || participants.length === 0) {
+      console.log('⏳ 방 입장 대기 중... Janus 연결 보류');
+      return;
+    }
+
+    // 웹캠이 켜지지 않았으면 Janus 연결 안 함
+    if (!isWebcamOn || !stream) {
+      console.log('⏳ 웹캠 대기 중... Janus 연결 보류');
+      return;
+    }
+
+    // Janus가 로드되지 않았으면 연결 안 함
+    if (!window.Janus) {
+      console.error('❌ Janus 라이브러리가 로드되지 않았습니다.');
+      return;
+    }
+
+    const Janus = window.Janus;
+
+    console.log('🎥 Janus 연결 시작:', { roomId, myUserId });
+
+    // Janus 초기화
+    Janus.init({
+      debug: 'all',
+      callback: function () {
+        console.log('✅ Janus 초기화 완료');
+
+        // Janus 세션 생성
+        janusRef.current = new Janus({
+          server: JANUS_SERVER,
+          success: function () {
+            console.log('✅ Janus 서버 연결 성공');
+
+            // VideoRoom 플러그인 attach
+            janusRef.current.attach({
+              plugin: 'janus.plugin.videoroom',
+              opaqueId: `user-${myUserId}`,
+              success: function (pluginHandle) {
+                console.log('✅ VideoRoom 플러그인 연결 성공');
+                pluginHandleRef.current = pluginHandle;
+
+                // 방 참여 (publisher로)
+                const register = {
+                  request: 'join',
+                  room: parseInt(roomId),
+                  ptype: 'publisher',
+                  display: String(myUserId),
+                };
+
+                pluginHandle.send({ message: register });
+              },
+              error: function (error) {
+                console.error('❌ 플러그인 연결 실패:', error);
+              },
+              onmessage: function (msg, jsep) {
+                console.log('📨 Janus 메시지 수신:', msg);
+                const event = msg['videoroom'];
+
+                if (event === 'joined') {
+                  const myFeedId = msg['id'];
+                  console.log('✅ Janus 방 참여 성공, My Feed ID:', myFeedId);
+                  setIsJanusConnected(true);
+
+                  // 내 스트림 publish
+                  publishOwnFeed();
+
+                  // 기존 참가자 구독
+                  if (msg['publishers']) {
+                    msg['publishers'].forEach((publisher) => {
+                      console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id);
+                      const userId = parseInt(publisher.display);
+                      userIdToFeedIdRef.current[userId] = publisher.id;
+                      subscribeToFeed(publisher.id, userId);
+                    });
+                  }
+                } else if (event === 'event') {
+                  // 새 참가자 입장
+                  if (msg['publishers']) {
+                    msg['publishers'].forEach((publisher) => {
+                      console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id);
+                      const userId = parseInt(publisher.display);
+                      userIdToFeedIdRef.current[userId] = publisher.id;
+                      subscribeToFeed(publisher.id, userId);
+                    });
+                  }
+                  // 참가자 퇴장
+                  if (msg['leaving']) {
+                    const leavingFeedId = msg['leaving'];
+                    console.log('👋 Janus 참가자 퇴장, Feed ID:', leavingFeedId);
+
+                    // feedId로 userId 찾기
+                    let leavingUserId = null;
+                    for (const [userId, feedId] of Object.entries(userIdToFeedIdRef.current)) {
+                      if (feedId === leavingFeedId) {
+                        leavingUserId = parseInt(userId);
+                        break;
+                      }
+                    }
+
+                    if (remoteFeedsRef.current[leavingFeedId]) {
+                      remoteFeedsRef.current[leavingFeedId].detach();
+                      delete remoteFeedsRef.current[leavingFeedId];
+                    }
+
+                    if (leavingUserId) {
+                      delete userIdToFeedIdRef.current[leavingUserId];
+
+                      setRemoteStreams((prev) => {
+                        const newStreams = { ...prev };
+                        delete newStreams[leavingUserId];
+                        return newStreams;
+                      });
+                    }
+                  }
+                }
+
+                // JSEP 처리
+                if (jsep) {
+                  pluginHandleRef.current.handleRemoteJsep({ jsep: jsep });
+                }
+              },
+              onlocalstream: function (localStream) {
+                console.log('✅ 로컬 스트림 수신 (Janus echo)');
+                // useWebcam의 videoRef가 이미 스트림을 표시하고 있으므로 무시
+              },
+              onremotestream: function () {
+                // Publisher는 sendonly이므로 원격 스트림 없음
+              },
+            });
+          },
+          error: function (error) {
+            console.error('❌ Janus 서버 연결 실패:', error);
+          },
+          destroyed: function () {
+            console.log('🔌 Janus 세션 종료');
+          },
+        });
+      },
+    });
+
+    // 내 스트림 publish
+    function publishOwnFeed() {
+      console.log('📤 내 스트림 publish 시작');
+
+      pluginHandleRef.current.createOffer({
+        stream: stream, // useWebcam의 스트림 사용
+        media: {
+          audioRecv: false,
+          videoRecv: false,
+          audioSend: true,
+          videoSend: true,
+        },
+        success: function (jsep) {
+          console.log('✅ Offer 생성 성공');
+          const publish = {
+            request: 'configure',
+            audio: true,
+            video: true,
+          };
+          pluginHandleRef.current.send({ message: publish, jsep: jsep });
+        },
+        error: function (error) {
+          console.error('❌ Offer 생성 실패:', error);
+        },
+      });
+    }
+
+    // 다른 참가자 구독
+    function subscribeToFeed(feedId, userId) {
+      let remoteFeed = null;
+
+      console.log('📺 참가자 구독 시작:', { feedId, userId });
+
+      janusRef.current.attach({
+        plugin: 'janus.plugin.videoroom',
+        opaqueId: `subscriber-${myUserId}-${feedId}`,
+        success: function (pluginHandle) {
+          remoteFeed = pluginHandle;
+
+          const subscribe = {
+            request: 'join',
+            room: parseInt(roomId),
+            ptype: 'subscriber',
+            feed: feedId,
+          };
+
+          remoteFeed.send({ message: subscribe });
+        },
+        error: function (error) {
+          console.error('❌ 구독 실패:', error);
+        },
+        onmessage: function (msg, jsep) {
+          const event = msg['videoroom'];
+          console.log('📨 Subscriber 메시지:', event, msg);
+
+          if (jsep) {
+            remoteFeed.createAnswer({
+              jsep: jsep,
+              media: { audioSend: false, videoSend: false },
+              success: function (answerJsep) {
+                const body = { request: 'start', room: parseInt(roomId) };
+                remoteFeed.send({ message: body, jsep: answerJsep });
+              },
+              error: function (error) {
+                console.error('❌ Answer 생성 실패:', error);
+              },
+            });
+          }
+        },
+        onremotestream: function (remoteStream) {
+          console.log('✅ 원격 스트림 수신:', { feedId, userId });
+
+          remoteFeedsRef.current[feedId] = remoteFeed;
+
+          setRemoteStreams((prev) => ({
+            ...prev,
+            [userId]: remoteStream,
+          }));
+        },
+      });
+    }
+
+    return () => {
+      // 정리
+      console.log('🧹 Janus 연결 정리');
+      if (janusRef.current) {
+        janusRef.current.destroy();
+        janusRef.current = null;
+      }
+      pluginHandleRef.current = null;
+      remoteFeedsRef.current = {};
+      userIdToFeedIdRef.current = {};
+      setIsJanusConnected(false);
+    };
+  }, [myUserId, participants.length, roomId, isWebcamOn, stream]);
+
+  // 원격 스트림을 video 엘리먼트에 연결
+  useEffect(() => {
+    Object.entries(remoteStreams).forEach(([userId, remoteStream]) => {
+      const videoElement = remoteVideosRef.current[userId];
+      if (videoElement && videoElement.srcObject !== remoteStream) {
+        videoElement.srcObject = remoteStream;
+        console.log('📺 비디오 엘리먼트에 스트림 연결, User ID:', userId);
+      }
+    });
+  }, [remoteStreams]);
 
   // 핸들러 함수들
   const handleRoomJoin = (data) => {
@@ -397,6 +659,13 @@ const QuizWaitingRoom = () => {
                     muted
                     className={styles.webcamVideo}
                   />
+                ) : remoteStreams[participant.userId] ? (
+                  <video
+                    ref={el => remoteVideosRef.current[participant.userId] = el}
+                    autoPlay
+                    playsInline
+                    className={styles.webcamVideo}
+                  />
                 ) : (
                   <div className={styles.webcamPlaceholder}>
                     <span>웹캠</span>
@@ -441,6 +710,11 @@ const QuizWaitingRoom = () => {
 
         {/* 테스트 버튼들 */}
         <div className={styles.testButtons}>
+          <div className={styles.janusStatus}>
+            <span>Janus: {isJanusConnected ? '✅ 연결됨' : '❌ 연결 안됨'}</span>
+            <span>원격 스트림: {Object.keys(remoteStreams).length}개</span>
+            <span>웹캠: {isWebcamOn ? '✅ ON' : '❌ OFF'}</span>
+          </div>
           <button
             className={styles.testButton}
             onClick={() => {
