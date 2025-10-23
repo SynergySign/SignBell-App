@@ -63,6 +63,7 @@ const QuizWaitingRoom = () => {
       try {
         websocketService.on('room:join', handleRoomJoin);
         websocketService.on('participant', handleParticipantEvent);
+        websocketService.on('quiz:start', handleGameStart);
         websocketService.on('error', handleError);
 
         await websocketService.connect();
@@ -84,6 +85,7 @@ const QuizWaitingRoom = () => {
     return () => {
       websocketService.off('room:join', handleRoomJoin);
       websocketService.off('participant', handleParticipantEvent);
+      websocketService.off('quiz:start', handleGameStart);
       websocketService.off('error', handleError);
     };
   }, [roomId]);
@@ -470,6 +472,27 @@ const QuizWaitingRoom = () => {
     alert(data.detail || '오류가 발생했습니다.');
   };
 
+  const handleGameStart = (data) => {
+    console.log('📥 게임 시작 응답:', data);
+
+    if (data.success) {
+      const gameData = data.data;
+      console.log('✅ 게임 시작 - 게임 페이지로 이동', gameData);
+      
+      // 게임 페이지로 이동하면서 필요한 정보 전달
+      navigate(`/quiz/game/${roomId}`, { 
+        state: { 
+          totalQuestions: gameData.totalQuestions || 8,
+          firstQuestion: gameData.questionNumber || 1,
+          firstWord: gameData.wordTitle
+        } 
+      });
+    } else {
+      console.error('❌ 게임 시작 실패:', data.message);
+      alert(data.message || '게임 시작에 실패했습니다.');
+    }
+  };
+
   // 웹캠 상태 변경 시 내 정보 업데이트
   useEffect(() => {
     setParticipants(prev => prev.map(p =>
@@ -534,8 +557,13 @@ const QuizWaitingRoom = () => {
 
   // 게임 시작 (방장만)
   const handleStartGame = () => {
-    // TODO: WebSocket으로 게임 시작 전송
-    navigate(`/quiz/game/${roomId}`);
+    try {
+      console.log('🎮 게임 시작 요청 전송 - roomId:', roomId);
+      websocketService.startGame(Number(roomId));
+    } catch (error) {
+      console.error('❌ 게임 시작 요청 실패:', error);
+      alert('게임 시작 요청에 실패했습니다: ' + error.message);
+    }
   };
 
   // 방 나가기

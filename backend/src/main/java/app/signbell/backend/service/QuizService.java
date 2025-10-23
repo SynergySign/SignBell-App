@@ -93,7 +93,7 @@ public class QuizService {
                 .build();
 
         messagingTemplate.convertAndSend(
-                "/topic/room/" + roomId + "/quiz",
+                "/topic/room/" + roomId + "/quiz/start",
                 ApiResponse.success("게임이 시작되었습니다", response)
         );
 

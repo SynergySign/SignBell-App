@@ -171,6 +171,16 @@ class WebSocketService {
       console.log('📥 참가자 이벤트:', message);
       this.handleMessage('participant', message);
     });
+
+    // 게임 시작 알림 구독 (대기실에서도 받아야 함)
+    this.subscribe(`/topic/room/${roomId}/quiz`, (message) => {
+      console.log(' 퀴즈 이벤트:', message);
+      
+      // 게임 시작 메시지 처리
+      if (message.data?.questionNumber === 1) {
+        this.handleMessage('quiz:start', message);
+      }
+    });
   }
 
   /**
