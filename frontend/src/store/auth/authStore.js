@@ -71,14 +71,14 @@ export const useAuthStore = create(
        * - 실패/미인증 시 user=null, isAuthenticated=false
        */
       fetchMe: async () => {
-        // console.log('fetchMe called');
+        console.log('fetchMe called');
         set({ loading: true, error: null });
         try {
           const res = await AuthService.me();
-          // console.log('fetchMe response:', res);
+          console.log('fetchMe response:', res);
           if (res?.data?.success) {
             const userData = res.data.data;
-            // console.log('Setting user data:', userData);
+            console.log('Setting user data:', userData);
             set({ user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true });
           } else {
             // console.log('No success in response');
@@ -138,9 +138,13 @@ export const useAuthStore = create(
         // console.log('partialize called with state:', state);
         const userToPersist = state.user
           ? {
-            // 닉네임 (UX 표시용)
+            // 사용자 ID
+            userId: state.user.userId,
+            // 닉네임
             nickname: state.user.nickname,
-            // 토탈 스코어 (UX 표시용)
+            // 프로필 이미지 URL
+            profileImage: state.user.profileImageUrl,
+            // 토탈 스코어
             totalScore: state.user.totalScore,
             // 필수 동의 여부 (앱 플로우 제어용)
             requiredAgree: state.user.requiredAgree, // 🔑 필수 포함

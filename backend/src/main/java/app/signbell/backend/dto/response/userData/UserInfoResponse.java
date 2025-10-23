@@ -16,6 +16,7 @@ public class UserInfoResponse {
     private String email;
     private Boolean requiredAgree;
     private Boolean optionalAgree;
+    private Long totalScore;
 
     /**
      * User 객체를 기반으로 UserInfoResponse 객체를 생성합니다.
@@ -36,6 +37,7 @@ public class UserInfoResponse {
                 .email(user.getEmail())
                 .requiredAgree(user.getRequiredAgree())
                 .optionalAgree(user.getOptionalAgree())
+                .totalScore(user.getTotalScore())
                 .build();
     }
 }
