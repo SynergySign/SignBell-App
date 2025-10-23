@@ -50,6 +50,13 @@ const NicknameEditor = () => {
     alert('닉네임이 수정되었습니다.');
   };
 
+  const handleKeyPress = (e) => {
+    // Enter 키로 제출
+    if (e.key === 'Enter' && !isSubmitDisabled) {
+      handleSubmit();
+    }
+  };
+
   // 원본과 다르고, 에러가 없고, 비어있지 않을 때만 수정 버튼 활성화
   const isModified = nickname.trim() !== originalNickname;
   const isSubmitDisabled = !isModified || error !== '' || nickname.trim() === '';
@@ -65,18 +72,21 @@ const NicknameEditor = () => {
           type="text"
           value={nickname}
           onChange={handleNicknameChange}
+          onKeyPress={handleKeyPress}
           className={`${styles.input} ${error ? styles.inputError : ''}`}
           placeholder="닉네임을 입력하세요"
           maxLength={10}
           aria-label="닉네임 입력"
           aria-invalid={error !== ''}
           aria-describedby={error ? 'nickname-error' : undefined}
+          autoComplete="nickname"
         />
         <button
           onClick={handleSubmit}
           disabled={isSubmitDisabled}
           className={styles.submitButton}
           aria-label="닉네임 수정"
+          title="닉네임 수정"
         >
           수정
         </button>

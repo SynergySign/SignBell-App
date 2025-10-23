@@ -24,15 +24,16 @@ const TermsSection = ({ termsStatus, onViewTerms, onEditTerms }) => {
           className={styles.termsButton}
           onClick={() => onViewTerms('required')}
           aria-label="서비스 필수 동의 약관 보기"
+          title="서비스 필수 동의 약관 보기"
         >
           <div className={styles.termsInfo}>
             <span className={styles.termsLabel}>서비스 필수 동의 약관</span>
-            <div className={styles.termsStatus}>
-              <FontAwesomeIcon icon={faCheck} className={styles.checkIcon} />
+            <div className={styles.termsStatus} aria-label="동의 상태: 동의함">
+              <FontAwesomeIcon icon={faCheck} className={styles.checkIcon} aria-hidden="true" />
               <span className={styles.statusText}>동의함</span>
             </div>
           </div>
-          <FontAwesomeIcon icon={faChevronRight} className={styles.chevronIcon} />
+          <FontAwesomeIcon icon={faChevronRight} className={styles.chevronIcon} aria-hidden="true" />
         </button>
 
         {/* 선택 약관 */}
@@ -40,13 +41,17 @@ const TermsSection = ({ termsStatus, onViewTerms, onEditTerms }) => {
           className={styles.termsButton}
           onClick={() => onViewTerms('optional')}
           aria-label="서비스 선택 동의 약관 보기"
+          title="서비스 선택 동의 약관 보기"
         >
           <div className={styles.termsInfo}>
             <span className={styles.termsLabel}>서비스 선택 동의 약관</span>
-            <div className={styles.termsStatus}>
+            <div 
+              className={styles.termsStatus} 
+              aria-label={`동의 상태: ${termsStatus.optional ? '동의함' : '동의 안 함'}`}
+            >
               {termsStatus.optional ? (
                 <>
-                  <FontAwesomeIcon icon={faCheck} className={styles.checkIcon} />
+                  <FontAwesomeIcon icon={faCheck} className={styles.checkIcon} aria-hidden="true" />
                   <span className={styles.statusText}>동의함</span>
                 </>
               ) : (
@@ -54,7 +59,7 @@ const TermsSection = ({ termsStatus, onViewTerms, onEditTerms }) => {
               )}
             </div>
           </div>
-          <FontAwesomeIcon icon={faChevronRight} className={styles.chevronIcon} />
+          <FontAwesomeIcon icon={faChevronRight} className={styles.chevronIcon} aria-hidden="true" />
         </button>
       </div>
 
@@ -63,6 +68,7 @@ const TermsSection = ({ termsStatus, onViewTerms, onEditTerms }) => {
         className={styles.editTermsButton}
         onClick={onEditTerms}
         aria-label="약관 동의 수정"
+        title="약관 동의 수정"
       >
         약관 동의 수정
       </button>

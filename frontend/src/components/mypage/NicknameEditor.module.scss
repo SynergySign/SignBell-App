@@ -131,8 +131,17 @@
 
 // 반응형 디자인
 @media (max-width: 768px) {
+  .nicknameEditor {
+    margin-bottom: 24px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+
   .inputWrapper {
     flex-direction: column;
+    min-height: auto;
   }
 
   .input {
@@ -143,5 +152,21 @@
   .submitButton {
     width: 100%;
     padding: 12px 24px;
+  }
+
+  .errorMessage {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .input {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .submitButton {
+    padding: 10px 20px;
+    font-size: 13px;
   }
 }

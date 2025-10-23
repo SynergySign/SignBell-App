@@ -96,9 +96,18 @@
 
 // 반응형 디자인
 @media (max-width: 768px) {
+  .profileImageEditor {
+    margin-bottom: 24px;
+  }
+
   .imageContainer {
     width: 100px;
     height: 100px;
+  }
+
+  .profileImage,
+  .imagePlaceholder {
+    border-width: 3px;
   }
 
   .imagePlaceholder {
@@ -109,5 +118,23 @@
     width: 32px;
     height: 32px;
     font-size: 14px;
+    border-width: 2px;
+  }
+}
+
+@media (max-width: 480px) {
+  .imageContainer {
+    width: 90px;
+    height: 90px;
+  }
+
+  .imagePlaceholder {
+    font-size: 36px;
+  }
+
+  .cameraButton {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
   }
 }

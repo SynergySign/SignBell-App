@@ -86,11 +86,37 @@
   }
 
   .container {
-    padding: 24px;
+    padding: 24px 20px;
+    border-radius: 8px;
   }
 
   .pageTitle {
     font-size: 20px;
     margin-bottom: 24px;
+  }
+
+  .termsContent {
+    font-size: 13px;
+    line-height: 1.7;
+
+    h2 {
+      font-size: 15px;
+      margin: 16px 0 10px 0;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .mainContent {
+    padding: 16px 12px;
+  }
+
+  .container {
+    padding: 20px 16px;
+  }
+
+  .pageTitle {
+    font-size: 18px;
+    margin-bottom: 20px;
   }
 }

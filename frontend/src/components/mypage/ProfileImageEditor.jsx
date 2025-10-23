@@ -29,6 +29,10 @@ const ProfileImageEditor = () => {
     const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
     if (!validTypes.includes(file.type)) {
       alert('JPG, PNG, GIF 형식의 이미지만 업로드 가능합니다.');
+      // 파일 input 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
@@ -36,6 +40,10 @@ const ProfileImageEditor = () => {
     const maxSize = 5 * 1024 * 1024;
     if (file.size > maxSize) {
       alert('이미지 크기는 5MB 이하여야 합니다.');
+      // 파일 input 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       return;
     }
 
@@ -49,6 +57,10 @@ const ProfileImageEditor = () => {
     };
     reader.onerror = () => {
       alert('이미지를 불러오는데 실패했습니다.');
+      // 파일 input 초기화
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -77,8 +89,9 @@ const ProfileImageEditor = () => {
           className={styles.cameraButton}
           onClick={handleImageClick}
           aria-label="프로필 이미지 변경"
+          title="프로필 이미지 변경"
         >
-          <FontAwesomeIcon icon={faCamera} />
+          <FontAwesomeIcon icon={faCamera} aria-hidden="true" />
         </button>
       </div>
 
@@ -89,6 +102,7 @@ const ProfileImageEditor = () => {
         onChange={handleFileChange}
         className={styles.fileInput}
         aria-label="이미지 파일 선택"
+        tabIndex={-1}
       />
     </div>
   );
