@@ -199,7 +199,7 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
 
   // --- ⬇️ 수정된 부분 1: 'ref'를 사용하여 루프 상태 관리 ---
   const canvasRef = useRef(null);
-  const recordingLoopRef = useRef(null); // requestAnimationFrame의 ID
+  const recordingRef = useRef(null); // requestAnimationFrame의 ID
   const isRecordingRef = useRef(false); // 실제 녹화 상태 (state 대신 ref 사용)
 
   // UI 표시는 state로 계속 관리
@@ -257,59 +257,59 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
   }, [signDetail, isCamOn, wsGetStatus]);
 
   // --- ⬇️ 수정된 부분 2: 'captureAndSendFrame' 함수 수정 ---
-  const captureAndSendFrame = useCallback(() => {
-    // state(isRecording) 대신 ref(isRecordingRef)를 확인
-    if (!isRecordingRef.current) {
-      console.log('[Capture Loop] Loop stopping (isRecordingRef is false).');
-      return; // 루프 중단
-    }
+  // 녹화 루프: requestAnimationFrame을 사용하되 실제 전송은 throttle하여 초당 25fps로 제한
+  const lastSentRef = useRef(0);
+  // 디버그 카운터: 전송된 프레임 수를 센다
+  const debugFrameCountRef = useRef(0);
+  const FPS = 25;
+  const INTERVAL = 1000 / FPS; // 40ms
 
-    if (!canvasRef.current || !videoRef.current) {
-      console.error('[Capture Loop] Ref check failed.');
-      isRecordingRef.current = false; // 루프 중단
-      setIsRecordingUI(false); // UI 업데이트
-      return;
+  const captureAndSendFrame = useCallback((timestamp) => {
+    // 루프가 활성화되어 있지 않다면 종료
+    if (!isRecordingRef.current) return;
+
+    // 다음 프레임 예약 (루프 유지)
+    recordingRef.current = requestAnimationFrame(captureAndSendFrame);
+
+    if (!canvasRef.current || !videoRef.current) return;
+
+    const now = typeof timestamp === 'number' ? timestamp : performance.now();
+    if (now - (lastSentRef.current || 0) < INTERVAL) {
+      return; // 아직 간격이 되지 않음
     }
+    lastSentRef.current = now;
 
     const canvas = canvasRef.current;
-    const video = videoRef.current;
     const ctx = canvas.getContext('2d');
-
     try {
-      const vw = video.videoWidth;
-      const vh = video.videoHeight;
-
-      if (vw === 0 || vh === 0) {
-        console.warn(`[Capture Loop] Video dimensions are 0. Retrying...`);
-        // 비디오가 준비 안 됨. 다음 프레임에서 재시도
-        recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
-        return;
-      }
-
+      // 비디오의 실제 해상도로 캔버스 크기 맞춤
+      const vw = videoRef.current.videoWidth || canvas.width || 640;
+      const vh = videoRef.current.videoHeight || canvas.height || 480;
       if (canvas.width !== vw || canvas.height !== vh) {
         canvas.width = vw;
         canvas.height = vh;
       }
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
+      // JPEG로 변환하여 전송
       canvas.toBlob((blob) => {
-        if (blob && blob.size > 0) {
-          // 이 로그가 보여야 합니다!
-          console.log(`[Capture] toBlob Succeeded. Sending frame size: ${blob.size}`);
-          wsSendFrame(blob);
-        }
-
-        // ref를 다시 확인하여 루프 지속
-        if (isRecordingRef.current) {
-          recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
+        if (blob) {
+          // 디버그: 전송 인덱스와 타임스탬프, 크기를 로그로 남김
+          try {
+            debugFrameCountRef.current += 1;
+            // 시간은 정수 ms로 표시
+            const tms = Math.round(now);
+            console.debug(`[frame-send] #${debugFrameCountRef.current} t=${tms}ms size=${blob.size} bytes`);
+            wsSendFrame(blob);
+          } catch (e) {
+            console.error('wsSendFrame failed:', e);
+          }
         }
       }, 'image/jpeg', 0.8);
     } catch (e) {
       console.error('captureAndSendFrame error:', e);
-      isRecordingRef.current = false; // 오류 시 루프 중단
-      setIsRecordingUI(false); // UI 업데이트
     }
-  }, [videoRef]); // 의존성 배열에서 'isRecording' 제거 (중요!)
+  }, [videoRef]);
   // --- ⬆️ 수정 완료 ⬆️ ---
 
   // --- ⬇️ 수정된 부분 3: 버튼 핸들러 수정 ---
@@ -318,32 +318,34 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
       alert('웹소켓이 연결되지 않았습니다. 웹캠을 껐다 켜보세요.');
       return;
     }
-    isRecordingRef.current = true; // Ref를 true로 설정
-    setIsRecordingUI(true); // UI State를 true로 설정
+    // 녹화 시작: lastSent 초기화 후 루프 시작
+    lastSentRef.current = 0;
+    isRecordingRef.current = true;
+    setIsRecordingUI(true);
     setServerFeedback('녹화 시작...');
-
-    // 이전에 실행 중인 루프가 있다면 취소 (안전장치)
-    if (recordingLoopRef.current) {
-      cancelAnimationFrame(recordingLoopRef.current);
-    }
-    // 루프 시작
-    recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
+    recordingRef.current = requestAnimationFrame(captureAndSendFrame);
   };
 
   const handleStopAndSave = () => {
-    isRecordingRef.current = false; // Ref를 false로 설정 (루프가 스스로 멈춤)
-    setIsRecordingUI(false); // UI State를 false로 설정
-    recordingLoopRef.current = null; // 루프 ID 정리
-
+    isRecordingRef.current = false;
+    setIsRecordingUI(false);
+    if (recordingRef.current) {
+      cancelAnimationFrame(recordingRef.current);
+      recordingRef.current = null;
+    }
+    lastSentRef.current = 0;
     setServerFeedback('학습 저장 요청 중...');
     wsSendSaveLearning();
   };
 
   const handleStopAndQuiz = () => {
-    isRecordingRef.current = false; // Ref를 false로 설정 (루프가 스스로 멈춤)
-    setIsRecordingUI(false); // UI State를 false로 설정
-    recordingLoopRef.current = null; // 루프 ID 정리
-
+    isRecordingRef.current = false;
+    setIsRecordingUI(false);
+    if (recordingRef.current) {
+      cancelAnimationFrame(recordingRef.current);
+      recordingRef.current = null;
+    }
+    lastSentRef.current = 0;
     setServerFeedback('퀴즈 제출 요청 중...');
     wsSendFlush();
   };
