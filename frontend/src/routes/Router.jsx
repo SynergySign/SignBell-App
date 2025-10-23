@@ -63,7 +63,6 @@ const Router = () => {
               <GameRoom />
             </MainLayout>
           } />
-      <Routes>
         {/* MainLayout을 사용하는 라우트들 */}
         <Route path="/" element={
           <MainLayout>

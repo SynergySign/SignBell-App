@@ -19,19 +19,13 @@ const TermsPage = () => {
   const navigate = useNavigate();
   const { user, refreshMeSilent, logout } = useAuthStore();
   const [agreements, setAgreements] = useState({
-  const location = useLocation();
-
-  // 마이페이지에서 전달받은 약관 동의 상태
-  const fromMyPage = location.state?.fromMyPage || false;
-  const initialTermsStatus = location.state?.termsStatus || {
+    // 마이페이지에서 전달받은 약관 동의 상태
     required: false,
     optional: false,
-  };
-
-  const [agreements, setAgreements] = useState({
-    required: initialTermsStatus.required,
-    optional: initialTermsStatus.optional,
   });
+  const location = useLocation();
+  const fromMyPage = location.state?.fromMyPage || false;
+
 
   // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
   useEffect(() => {
