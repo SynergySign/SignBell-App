@@ -16,15 +16,20 @@ const NicknameEditor = () => {
   const [error, setError] = useState('');
 
   const validateNickname = (value) => {
-    if (value.trim().length < 2) {
+    const trimmedValue = value.trim();
+    
+    if (trimmedValue.length === 0) {
+      return '닉네임을 입력해주세요.';
+    }
+    if (trimmedValue.length < 2) {
       return '닉네임은 2자 이상이어야 합니다.';
     }
-    if (value.trim().length > 10) {
+    if (trimmedValue.length > 10) {
       return '닉네임은 10자 이하여야 합니다.';
     }
     // 특수문자 필터링 (한글, 영문, 숫자만 허용)
     const regex = /^[가-힣a-zA-Z0-9]+$/;
-    if (!regex.test(value.trim())) {
+    if (!regex.test(trimmedValue)) {
       return '닉네임은 한글, 영문, 숫자만 사용 가능합니다.';
     }
     return '';
@@ -34,8 +39,13 @@ const NicknameEditor = () => {
     const value = e.target.value;
     setNickname(value);
     
-    const validationError = validateNickname(value);
-    setError(validationError);
+    // 입력 중에는 에러 메시지를 표시하지 않음 (빈 값 제외)
+    if (value.trim().length > 0) {
+      const validationError = validateNickname(value);
+      setError(validationError);
+    } else {
+      setError('');
+    }
   };
 
   const handleSubmit = () => {
