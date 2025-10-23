@@ -39,6 +39,26 @@
   text-align: center;
 }
 
+.termsContent {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  word-break: keep-all;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 20px 0 12px 0;
+    color: var(--text-color);
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--text-color);
+  }
+}
+
 // 애니메이션
 @keyframes fadeIn {
   from {

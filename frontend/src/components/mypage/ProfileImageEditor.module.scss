@@ -1,0 +1,109 @@
+/**
+ * @개요 프로필 이미지 수정 컴포넌트 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-23
+ * @최종수정일 2025-10-23
+ */
+
+.profileImageEditor {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 32px;
+  animation: scaleIn 0.5s ease-out 0.2s both;
+}
+
+.imageContainer {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+
+.profileImage {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 4px solid var(--secondary-color);
+  background-color: var(--background-color);
+}
+
+.imagePlaceholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: var(--background-color);
+  border: 4px solid var(--secondary-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--secondary-color);
+  font-size: 48px;
+}
+
+.cameraButton {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  border: 3px solid var(--white-color);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  color: var(--white-color);
+  font-size: 16px;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &:focus {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+  }
+}
+
+.fileInput {
+  display: none;
+}
+
+// 애니메이션
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .imageContainer {
+    width: 100px;
+    height: 100px;
+  }
+
+  .imagePlaceholder {
+    font-size: 40px;
+  }
+
+  .cameraButton {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+}

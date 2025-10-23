@@ -1,0 +1,91 @@
+/**
+ * @개요 닉네임 수정 컴포넌트
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-23
+ * @최종수정일 2025-10-23
+ * @반환값 {JSX.Element} 닉네임 수정 컴포넌트
+ */
+
+import { useState } from 'react';
+import styles from './NicknameEditor.module.scss';
+
+const NicknameEditor = () => {
+  // TODO: 사용자 프로필 API 연동 필요
+  const [nickname, setNickname] = useState('사용자');
+  const [error, setError] = useState('');
+  const [isModified, setIsModified] = useState(false);
+
+  const validateNickname = (value) => {
+    if (value.length < 2) {
+      return '닉네임은 2자 이상이어야 합니다.';
+    }
+    if (value.length > 10) {
+      return '닉네임은 10자 이하여야 합니다.';
+    }
+    // 특수문자 필터링 (한글, 영문, 숫자만 허용)
+    const regex = /^[가-힣a-zA-Z0-9]+$/;
+    if (!regex.test(value)) {
+      return '닉네임은 한글, 영문, 숫자만 사용 가능합니다.';
+    }
+    return '';
+  };
+
+  const handleNicknameChange = (e) => {
+    const value = e.target.value;
+    setNickname(value);
+    setIsModified(true);
+    
+    const validationError = validateNickname(value);
+    setError(validationError);
+  };
+
+  const handleSubmit = () => {
+    const validationError = validateNickname(nickname);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    // TODO: 닉네임 수정 API 연동 필요
+    console.log('닉네임 수정:', nickname);
+    alert('닉네임이 수정되었습니다.');
+    setIsModified(false);
+  };
+
+  const isSubmitDisabled = !isModified || error !== '' || nickname.trim() === '';
+
+  return (
+    <div className={styles.nicknameEditor}>
+      <label htmlFor="nickname" className={styles.label}>
+        닉네임
+      </label>
+      <input
+        id="nickname"
+        type="text"
+        value={nickname}
+        onChange={handleNicknameChange}
+        className={`${styles.input} ${error ? styles.inputError : ''}`}
+        placeholder="닉네임을 입력하세요"
+        maxLength={10}
+        aria-label="닉네임 입력"
+        aria-invalid={error !== ''}
+        aria-describedby={error ? 'nickname-error' : undefined}
+      />
+      {error && (
+        <p id="nickname-error" className={styles.errorMessage} role="alert">
+          {error}
+        </p>
+      )}
+      <button
+        onClick={handleSubmit}
+        disabled={isSubmitDisabled}
+        className={styles.submitButton}
+        aria-label="닉네임 수정"
+      >
+        수정
+      </button>
+    </div>
+  );
+};
+
+export default NicknameEditor;

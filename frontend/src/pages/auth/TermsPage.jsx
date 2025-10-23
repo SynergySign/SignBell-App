@@ -6,8 +6,8 @@
  * @반환값 {JSX.Element} 약관 동의 페이지 컴포넌트
  */
 
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import AgreementToggle from '../../components/ui/AgreementToggle';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -16,10 +16,29 @@ import styles from './TermsPage.module.scss';
 
 const TermsPage = () => {
   const navigate = useNavigate();
-  const [agreements, setAgreements] = useState({
+  const location = useLocation();
+  
+  // 마이페이지에서 전달받은 약관 동의 상태
+  const fromMyPage = location.state?.fromMyPage || false;
+  const initialTermsStatus = location.state?.termsStatus || {
     required: false,
     optional: false,
+  };
+
+  const [agreements, setAgreements] = useState({
+    required: initialTermsStatus.required,
+    optional: initialTermsStatus.optional,
   });
+
+  // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
+  useEffect(() => {
+    if (fromMyPage) {
+      setAgreements(prev => ({
+        ...prev,
+        required: true, // 필수 약관은 항상 true
+      }));
+    }
+  }, [fromMyPage]);
   const [modalState, setModalState] = useState({
     isOpen: false,
     title: '',
@@ -27,6 +46,11 @@ const TermsPage = () => {
   });
 
   const handleToggle = (key) => {
+    // 마이페이지에서 온 경우 필수 약관은 수정 불가
+    if (fromMyPage && key === 'required') {
+      return;
+    }
+    
     setAgreements(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -66,15 +90,28 @@ const TermsPage = () => {
   };
 
   const handleSubmit = () => {
-    // TODO: API 연동이 필요합니다.
-    console.log('약관 동의 제출', agreements);
-    navigate('/popup-close');
+    if (fromMyPage) {
+      // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
+      // TODO: 약관 동의 상태 업데이트 API 연동 필요
+      console.log('약관 동의 수정', agreements);
+      navigate('/mypage');
+    } else {
+      // 최초 가입 시: 팝업 닫기 페이지로 이동
+      // TODO: API 연동이 필요합니다.
+      console.log('약관 동의 제출', agreements);
+      navigate('/popup-close');
+    }
   };
 
   const handleLogout = () => {
     // TODO: 로그아웃 확인 모달 표시
     console.log('로그아웃');
     navigate('/');
+  };
+
+  const handleCancel = () => {
+    // 마이페이지로 돌아가기
+    navigate('/mypage');
   };
 
   const isSubmitEnabled = agreements.required;
@@ -132,14 +169,23 @@ const TermsPage = () => {
               onClick={handleSubmit}
               disabled={!isSubmitEnabled}
             >
-              제출
+              {fromMyPage ? '저장' : '제출'}
             </Button>
-            <Button
-              onClick={handleLogout}
-              variant="secondary"
-            >
-              로그아웃
-            </Button>
+            {fromMyPage ? (
+              <Button
+                onClick={handleCancel}
+                variant="secondary"
+              >
+                취소
+              </Button>
+            ) : (
+              <Button
+                onClick={handleLogout}
+                variant="secondary"
+              >
+                로그아웃
+              </Button>
+            )}
           </div>
         </div>
       </div>
