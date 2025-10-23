@@ -20,6 +20,8 @@ export default defineConfig({
   // 개발 서버 설정을 추가합니다.
   server: {
     https: true,
+    host: 'localhost',
+    port: 5173,
     proxy: {
       // '/api'로 시작하는 모든 요청을 target 주소로 전달(프록시)합니다.
       '/api': {
@@ -48,6 +50,7 @@ export default defineConfig({
         ws: true,
         secure: false, // 개발 환경에서 자체 서명된 인증서 허용 (필요 시)
         // WebSocket은 경로 그대로 전달되므로 rewrite는 필요 없습니다.
+        // rewrite: (path) => path.replace(/^\/api/, ''),
       }
     }
   }

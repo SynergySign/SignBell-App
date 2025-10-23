@@ -81,4 +81,27 @@ public class UserProfileService {
         // JPA 변경감지로 flush, 명시적 save는 선택 사항
         return UserProfileResponse.from(user);
     }
+
+    /**
+     * 약관 동의를 처리합니다.
+     * - requiredAgree를 true로 설정
+     * - optionalAgree는 요청값에 따라 설정
+     *
+     * @param userId 사용자 ID
+     * @param optionalAgree 선택 약관 동의 여부
+     * @return 수정된 사용자 프로필 응답 DTO
+     */
+    @Transactional
+    public UserProfileResponse updateTermsAgreement(Long userId, Boolean optionalAgree) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 필수 약관 동의를 true로 설정
+        user.updateRequiredAgreement();
+        
+        // 선택 약관 동의 설정 (null이면 기존 값 유지)
+        user.updateOptionalAgreement(optionalAgree);
+
+        return UserProfileResponse.from(user);
+    }
 }

@@ -13,22 +13,19 @@ import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
 import styles from './TermsPage.module.scss';
+import { useAuthStore } from '../../store/auth/authStore';
 
 const TermsPage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  
-  // 마이페이지에서 전달받은 약관 동의 상태
-  const fromMyPage = location.state?.fromMyPage || false;
-  const initialTermsStatus = location.state?.termsStatus || {
+  const { user, refreshMeSilent, logout } = useAuthStore();
+  const [agreements, setAgreements] = useState({
+    // 마이페이지에서 전달받은 약관 동의 상태
     required: false,
     optional: false,
-  };
-
-  const [agreements, setAgreements] = useState({
-    required: initialTermsStatus.required,
-    optional: initialTermsStatus.optional,
   });
+  const location = useLocation();
+  const fromMyPage = location.state?.fromMyPage || false;
+
 
   // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
   useEffect(() => {
@@ -44,13 +41,14 @@ const TermsPage = () => {
     title: '',
     content: '',
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleToggle = (key) => {
     // 마이페이지에서 온 경우 필수 약관은 수정 불가
     if (fromMyPage && key === 'required') {
       return;
     }
-    
+
     setAgreements(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -98,7 +96,52 @@ const TermsPage = () => {
     });
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (!user?.userId) {
+      console.error('User ID not found');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch(`/api/my-page/users/${user.userId}/terms-agreement`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          optionalAgree: agreements.optional, // 선택 동의만 전달
+        }),
+      });
+
+      if (response.ok) {
+        console.log('약관 동의 성공');
+        // 사용자 정보 갱신
+        await refreshMeSilent();
+        if (fromMyPage) {
+          // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
+          // TODO: 약관 동의 상태 업데이트 API 연동 필요
+          console.log('약관 동의 수정', agreements);
+          navigate('/mypage');
+        } else {
+          // 최초 가입 시: 팝업 닫기 페이지로 이동
+          // TODO: API 연동이 필요합니다.
+          console.log('약관 동의 제출', agreements);
+          navigate('/popup-close');
+        }
+      } else {
+        console.error('약관 동의 실패:', response.status);
+        alert('약관 동의 처리 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('약관 동의 API 호출 실패:', error);
+      alert('약관 동의 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  /*const handleSubmit = () => {
     if (fromMyPage) {
       // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
       // TODO: 약관 동의 상태 업데이트 API 연동 필요
@@ -110,12 +153,21 @@ const TermsPage = () => {
       console.log('약관 동의 제출', agreements);
       navigate('/popup-close');
     }
-  };
+  };*/
 
-  const handleLogout = () => {
+  /*const handleLogout = () => {
     // TODO: 로그아웃 확인 모달 표시
     console.log('로그아웃');
     navigate('/');
+  };*/
+
+  const handleLogout = async () => {
+    // TODO: 로그아웃 확인 모달 표시 (현재는 모달 없이 바로 로그아웃 처리)
+    console.log('로그아웃 시도');
+    // zustand store의 logout 액션 호출 (서버 로그아웃 + 클라이언트 상태 초기화)
+    await logout();
+    // 로그아웃 후 랜딩 페이지로 이동
+    navigate('/popup-close?status=logout');
   };
 
   const handleCancel = () => {
@@ -177,9 +229,16 @@ const TermsPage = () => {
           <div className={styles.buttonGroup}>
             <Button
               onClick={handleSubmit}
-              disabled={!isSubmitEnabled}
+              disabled={!isSubmitEnabled || isSubmitting}
             >
-              {fromMyPage ? '저장' : '제출'}
+              {/* isSubmitting이 true이면 '처리 중...'을 표시 */}
+              {isSubmitting
+                ? '처리 중...'
+                : (
+                  // isSubmitting이 false일 때 fromMyPage에 따라 '저장' 또는 '제출'을 표시
+                  fromMyPage ? '저장' : '제출'
+                )
+              }
             </Button>
             {fromMyPage ? (
               <Button

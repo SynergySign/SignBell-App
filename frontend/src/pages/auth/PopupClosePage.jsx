@@ -7,16 +7,26 @@ const PopupClosePage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const errorMessage = searchParams.get('error');
+  const statusMessage = searchParams.get('status');
 
   // 팝업 창의 상태(성공 또는 실패)를 확인하고 부모 창을 처리하는 로직
   useEffect(() => {
     if (!errorMessage) { // 에러가 없을때 = 로그인 성공
-        console.log("팝업 로그인 성공")
+      console.log("팝업 로그인 성공")
       if (window.opener) {
-        // 부모 창을 메인 페이지로 이동시키고
-        window.opener.location.href = "https://localhost:5173/main";
-        // 현재 팝업 닫기
-        window.close();
+        if (statusMessage === 'logout') {
+          console.log("로그아웃 후 팝업 닫기: 부모 창 이동/새로고침 없음");
+          // 로그아웃 시: 부모 창을 건드리지 않고 팝업만 닫음
+          window.close();
+
+        } else {
+          // 약관 제출/정상 로그인 성공 시 (기존의 성공 로직 유지)
+          console.log("로그인 성공 후 부모 창 메인 페이지로 이동 명령");
+          // 부모 창을 메인 페이지로 이동시키고
+          window.opener.location.href = "https://localhost:5173/main";
+          // 현재 팝업 닫기
+          window.close();
+        }
       } else {
         // 팝업이 아닐 경우 그냥 현재창에서 이동
         navigate('/');
