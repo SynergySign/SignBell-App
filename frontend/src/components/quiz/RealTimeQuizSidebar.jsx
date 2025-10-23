@@ -8,7 +8,7 @@
  * @반환값 {JSX.Element} 실시간 퀴즈 사이드바 컴포넌트
  */
 
-import {useState, useEffect, useRef, useCallback} from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import RoomCard from './RoomCard';
 import CreateRoomModal from './CreateRoomModal';
@@ -16,7 +16,7 @@ import RoomSearchModal from './RoomSearchModal';
 import AlertModal from '../ui/AlertModal';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import styles from './RealTimeQuizSidebar.module.scss';
-import {RoomService} from '../../services/api/roomService.js';
+import { RoomService } from '../../services/api/roomService.js';
 
 const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
   const navigate = useNavigate();
@@ -297,6 +297,15 @@ const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
     setCreateRoomError(null);
 
     try {
+      // ========== 세션 체크: 이미 다른 탭에서 게임 중인지 확인 ==========
+      const sessionStatus = await RoomService.checkWsSession();
+
+      if (sessionStatus.active) {
+        setCreateRoomLoading(false);
+        setCreateRoomError('이미 다른 탭에서 게임에 참여 중입니다. 기존 탭을 종료해주세요.');
+        return false;
+      }
+
       // API 호출
       const result = await RoomService.createRoom(roomTitle);
 
