@@ -45,12 +45,21 @@ apiClient.interceptors.response.use(
     const isRefreshCall = originalRequest?.url?.includes('/auth/refresh');
     if (isRefreshCall) {
       clear();
+      localStorage.removeItem('auth');
       return Promise.reject(error);
     }
 
     // 같은 요청을 무한히 재시도하지 않도록 안전장치
     if (originalRequest._retry) {
       clear();
+      localStorage.removeItem('auth');
+
+      // 프레시 실패 또는 무한 재시도 감지 시, 최종적으로 로그인 페이지로 강제 이동
+      if (window.location.pathname !== '/') {
+        // replace를 사용하여 뒤로 가기 기록에 현재 페이지를 남기지 않습니다.
+        window.location.replace('/');
+      }
+
       return Promise.reject(error);
     }
 
@@ -89,6 +98,7 @@ apiClient.interceptors.response.use(
     } catch (refreshErr) {
       // 리프레시도 실패한 경우 → 로그인 상태 초기화 후 실패 반환
       clear();
+      localStorage.removeItem('auth');
       return Promise.reject(refreshErr);
     } finally {
       // 갱신 끝났음을 알림
