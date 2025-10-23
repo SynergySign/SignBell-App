@@ -1,0 +1,130 @@
+/**
+ * @개요 마이페이지 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-23
+ * @최종수정일 2025-10-23
+ */
+
+.myPage {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.mainContent {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 20px;
+}
+
+.container {
+  width: 100%;
+  max-width: 600px;
+  background-color: var(--white-color);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  animation: scaleIn 0.5s ease-out 0.2s both;
+}
+
+.pageTitle {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--text-color);
+  margin: 0 0 32px 0;
+  text-align: center;
+}
+
+.termsContent {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text-color);
+  white-space: pre-wrap;
+  word-break: keep-all;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 20px 0 12px 0;
+    color: var(--text-color);
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--text-color);
+  }
+}
+
+.successMessage {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-color);
+  text-align: center;
+  padding: 20px;
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .mainContent {
+    padding: 20px 16px;
+  }
+
+  .container {
+    padding: 24px 20px;
+    border-radius: 8px;
+  }
+
+  .pageTitle {
+    font-size: 20px;
+    margin-bottom: 24px;
+  }
+
+  .termsContent {
+    font-size: 13px;
+    line-height: 1.7;
+
+    h2 {
+      font-size: 15px;
+      margin: 16px 0 10px 0;
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .mainContent {
+    padding: 16px 12px;
+  }
+
+  .container {
+    padding: 20px 16px;
+  }
+
+  .pageTitle {
+    font-size: 18px;
+    margin-bottom: 20px;
+  }
+}

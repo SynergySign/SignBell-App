@@ -1,0 +1,172 @@
+/**
+ * @개요 닉네임 수정 컴포넌트 스타일
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-10-23
+ * @최종수정일 2025-10-23
+ */
+
+.nicknameEditor {
+  margin-bottom: 32px;
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+.label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 8px;
+}
+
+.inputWrapper {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-height: 44px; // 버튼 높이와 동일하게 설정하여 카드 크기 고정
+}
+
+.input {
+  flex: 1;
+  background-color: var(--background-color);
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 16px;
+  color: var(--text-color);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: #9e9e9e;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 3px rgba(144, 202, 249, 0.1);
+  }
+
+  &:hover:not(:focus) {
+    border-color: #bdbdbd;
+  }
+}
+
+.inputError {
+  border-color: #f44336;
+
+  &:focus {
+    border-color: #f44336;
+    box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.1);
+  }
+}
+
+.errorMessage {
+  margin: 8px 0 0 0;
+  font-size: 13px;
+  color: #f44336;
+  animation: fadeIn 0.3s ease-out;
+  min-height: 18px; // 에러 메시지 공간 확보하여 카드 크기 고정
+}
+
+.submitButton {
+  background-color: var(--secondary-color);
+  color: var(--white-color);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(144, 202, 249, 0.2);
+  white-space: nowrap;
+  height: 44px; // 입력 필드와 동일한 높이
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(144, 202, 249, 0.3);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:focus {
+    outline: none; // 기본 outline 제거
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    background-color: #e0e0e0;
+    color: #9e9e9e;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+}
+
+// 애니메이션
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .nicknameEditor {
+    margin-bottom: 24px;
+  }
+
+  .label {
+    font-size: 13px;
+  }
+
+  .inputWrapper {
+    flex-direction: column;
+    min-height: auto;
+  }
+
+  .input {
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+
+  .submitButton {
+    width: 100%;
+    padding: 12px 24px;
+  }
+
+  .errorMessage {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .input {
+    font-size: 14px;
+    padding: 10px 12px;
+  }
+
+  .submitButton {
+    padding: 10px 20px;
+    font-size: 13px;
+  }
+}

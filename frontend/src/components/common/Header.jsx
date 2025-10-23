@@ -8,7 +8,7 @@
 
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faRightFromBracket } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faRightFromBracket, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import styles from './Header.module.scss';
 
 const Header = () => {
@@ -19,14 +19,19 @@ const Header = () => {
     // 메인 페이지에서는 새로고침, 다른 페이지에서는 메인으로 이동
     if (location.pathname === '/main') {
       window.location.reload();
+    } else if (location.pathname === '/mypage') {
+      navigate('/main');
     } else {
       navigate('/');
     }
   };
 
   const handleMyPageClick = () => {
-    // TODO: 마이페이지 구현 후 연결
-    console.log('마이페이지로 이동');
+    navigate('/mypage');
+  };
+
+  const handleBackClick = () => {
+    navigate('/main');
   };
 
   const handleLogoutClick = () => {
@@ -37,6 +42,8 @@ const Header = () => {
 
   // 메인 페이지에서만 마이페이지와 로그아웃 버튼 표시
   const showMainPageButtons = location.pathname === '/main';
+  // 마이페이지에서는 뒤로가기 버튼 표시
+  const showBackButton = location.pathname === '/mypage';
 
   return (
     <header className={styles.header}>
@@ -64,6 +71,16 @@ const Header = () => {
                 <span>로그아웃</span>
               </button>
             </>
+          )}
+          {showBackButton && (
+            <button
+              className={`${styles.headerButton} ${styles.backButton}`}
+              onClick={handleBackClick}
+              aria-label="뒤로가기"
+            >
+              <FontAwesomeIcon icon={faArrowLeft} />
+              <span>뒤로가기</span>
+            </button>
           )}
         </div>
       </div>

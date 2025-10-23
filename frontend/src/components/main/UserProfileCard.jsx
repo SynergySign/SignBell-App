@@ -7,11 +7,14 @@
  */
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPenToSquare, faCoins, faUser } from '@fortawesome/free-solid-svg-icons';
 import styles from './UserProfileCard.module.scss';
 
 const UserProfileCard = () => {
+  const navigate = useNavigate();
+  
   // TODO: 사용자 프로필 API 연동 필요
   const userProfile = {
     nickname: '사용자',
@@ -22,8 +25,7 @@ const UserProfileCard = () => {
   const [imageError, setImageError] = useState(false);
 
   const handleEditClick = () => {
-    // TODO: 마이페이지 구현 후 연결
-    console.log('닉네임 수정 클릭');
+    navigate('/mypage');
   };
 
   const handleImageError = () => {
