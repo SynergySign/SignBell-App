@@ -46,7 +46,14 @@ apiClient.interceptors.response.use(
     if (isRefreshCall) {
       clear();
       localStorage.removeItem('auth');
-      return Promise.reject(error);
+      // 프레시 실패 시, 최종적으로 로그인 페이지로 강제 이동
+      if (window.location.pathname !== '/') {
+        window.location.replace('/'); // 로그인 페이지로 리다이렉션
+      }
+
+      // 리다이렉션 발생 시, 호출한 컴포넌트로 에러가 전달되는 것을 막아 화면 잔상 방지
+      return new Promise(() => {}); // 절대 resolve/reject 되지 않는 Promise 반환
+      // return Promise.reject(error);
     }
 
     // 같은 요청을 무한히 재시도하지 않도록 안전장치
@@ -60,7 +67,9 @@ apiClient.interceptors.response.use(
         window.location.replace('/');
       }
 
-      return Promise.reject(error);
+      // 🔑 리다이렉션 발생 시, 호출한 컴포넌트로 에러가 전달되는 것을 막아 화면 잔상 방지
+      return new Promise(() => {}); // 절대 resolve/reject 되지 않는 Promise 반환
+      // return Promise.reject(error);
     }
 
     try {
