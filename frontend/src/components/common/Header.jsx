@@ -10,6 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faRightFromBracket, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import styles from './Header.module.scss';
+import logo from '../../assets/img/1.png';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ const Header = () => {
     <header className={styles.header}>
       <div className={styles.headerContainer}>
         <div className={styles.logo} onClick={handleLogoClick}>
-          SignBell
+          <img src={logo} alt="SignBell Logo" className={styles.logoImage} />
         </div>
         <div className={styles.headerActions}>
           {showMainPageButtons && (

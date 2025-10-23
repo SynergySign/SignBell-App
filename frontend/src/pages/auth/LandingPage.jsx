@@ -11,6 +11,7 @@ import SocialLoginButton from '../../components/auth/SocialLoginButton';
 import styles from './LandingPage.module.scss';
 import React, {useEffect, useRef, useState} from 'react';
 import { useAuthStore } from '../../store/auth/authStore.js';
+import logo from '../../assets/img/1.png';
 
 const LandingPage = () => {
 
@@ -77,10 +78,25 @@ const LandingPage = () => {
     <div className={styles.landingPage}>
       <div className={styles.landingContent}>
         <div className={styles.serviceIntro}>
-          <h1 className={styles.serviceTitle}>SignBell</h1>
-          <p className={styles.serviceDescription}>
-            수어로 소통하는 새로운 방법
-          </p>
+          <div className={styles.logoSection}>
+            <img src={logo} alt="SignBell Logo" className={styles.mainLogo} />
+          </div>
+          
+          <div className={styles.featureCards}>
+            <div className={styles.featureCard}>
+              <h3 className={styles.cardTitle}>개인 수어 학습</h3>
+              <p className={styles.cardDescription}>
+                카테고리별로 단어를 체계적으로 학습하세요
+              </p>
+            </div>
+            
+            <div className={styles.featureCard}>
+              <h3 className={styles.cardTitle}>실시간 퀴즈</h3>
+              <p className={styles.cardDescription}>
+                친구들과 함께 실시간으로 수어 퀴즈에 도전해보세요
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className={styles.loginBox}>
