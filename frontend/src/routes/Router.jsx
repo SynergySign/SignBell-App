@@ -2,7 +2,7 @@
  * @개요 애플리케이션 라우팅 설정
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-17
- * @최종수정일 2025-10-17
+ * @최종수정일 2025-10-23
  * @반환값 {JSX.Element} 라우터 컴포넌트
  */
 
@@ -12,6 +12,7 @@ import MainLayout from '../layout/MainLayout';
 import LandingPage from '../pages/auth/LandingPage';
 import TermsPage from '../pages/auth/TermsPage';
 import MainPage from '../pages/main/MainPage';
+import MyPage from '../pages/mypage/MyPage';
 import GameRoom from '../pages/GameRoom';
 import QuizWaitingRoom from '../pages/quiz/QuizWaitingRoom';
 import QuizGamePage from '../pages/quiz/QuizGamePage';
@@ -62,6 +63,33 @@ const Router = () => {
               <GameRoom />
             </MainLayout>
           } />
+      <Routes>
+        {/* MainLayout을 사용하는 라우트들 */}
+        <Route path="/" element={
+          <MainLayout>
+            <LandingPage />
+          </MainLayout>
+        } />
+        <Route path="/terms" element={
+          <MainLayout>
+            <TermsPage />
+          </MainLayout>
+        } />
+        <Route path="/main" element={
+          <MainLayout>
+            <MainPage />
+          </MainLayout>
+        } />
+        <Route path="/mypage" element={
+          <MainLayout>
+            <MyPage />
+          </MainLayout>
+        } />
+        <Route path="/gameroom" element={
+          <MainLayout>
+            <GameRoom />
+          </MainLayout>
+        } />
 
           {/* 👇️ 2. [개인 학습] 카테고리/목록 페이지 라우트 추가 */}
           <Route path="/personal-study" element={

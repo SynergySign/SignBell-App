@@ -2,7 +2,7 @@
  * @file AgreementToggle 스타일 파일
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-17
- * @최종수정일 2025-10-17
+ * @최종수정일 2025-10-23
  */
 
 .agreementToggle {
@@ -63,6 +63,25 @@
           border-radius: 50%;
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+      }
+    }
+  }
+
+  // 비활성화 상태
+  &.disabled {
+    opacity: 0.6;
+    
+    .toggleLabel {
+      cursor: not-allowed;
+    }
+
+    .toggleText {
+      color: #9e9e9e;
+    }
+
+    .toggleSwitch {
+      .toggleSlider {
+        cursor: not-allowed;
       }
     }
   }
