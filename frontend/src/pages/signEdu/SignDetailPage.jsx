@@ -305,11 +305,11 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
             console.error('wsSendFrame failed:', e);
           }
         }
-      }, 'image/jpeg', 0.8);
+      }, 'image/jpeg', 0.95);
     } catch (e) {
       console.error('captureAndSendFrame error:', e);
     }
-  }, [videoRef]);
+  }, [videoRef, INTERVAL]);
   // --- ⬆️ 수정 완료 ⬆️ ---
 
   // --- ⬇️ 수정된 부분 3: 버튼 핸들러 수정 ---
