@@ -11,20 +11,20 @@ import styles from './NicknameEditor.module.scss';
 
 const NicknameEditor = () => {
   // TODO: 사용자 프로필 API 연동 필요
+  const [originalNickname] = useState('사용자'); // 원본 닉네임 저장
   const [nickname, setNickname] = useState('사용자');
   const [error, setError] = useState('');
-  const [isModified, setIsModified] = useState(false);
 
   const validateNickname = (value) => {
-    if (value.length < 2) {
+    if (value.trim().length < 2) {
       return '닉네임은 2자 이상이어야 합니다.';
     }
-    if (value.length > 10) {
+    if (value.trim().length > 10) {
       return '닉네임은 10자 이하여야 합니다.';
     }
     // 특수문자 필터링 (한글, 영문, 숫자만 허용)
     const regex = /^[가-힣a-zA-Z0-9]+$/;
-    if (!regex.test(value)) {
+    if (!regex.test(value.trim())) {
       return '닉네임은 한글, 영문, 숫자만 사용 가능합니다.';
     }
     return '';
@@ -33,7 +33,6 @@ const NicknameEditor = () => {
   const handleNicknameChange = (e) => {
     const value = e.target.value;
     setNickname(value);
-    setIsModified(true);
     
     const validationError = validateNickname(value);
     setError(validationError);
@@ -47,11 +46,12 @@ const NicknameEditor = () => {
     }
 
     // TODO: 닉네임 수정 API 연동 필요
-    console.log('닉네임 수정:', nickname);
+    console.log('닉네임 수정:', nickname.trim());
     alert('닉네임이 수정되었습니다.');
-    setIsModified(false);
   };
 
+  // 원본과 다르고, 에러가 없고, 비어있지 않을 때만 수정 버튼 활성화
+  const isModified = nickname.trim() !== originalNickname;
   const isSubmitDisabled = !isModified || error !== '' || nickname.trim() === '';
 
   return (
