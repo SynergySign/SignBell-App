@@ -10,7 +10,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faRightFromBracket, faArrowLeft } from '@fortawesome/free-solid-svg-icons';
 import styles from './Header.module.scss';
-import logo from '../../assets/img/1.png';
+import logo from '../../assets/img/3.png';
 
 const Header = () => {
   const navigate = useNavigate();
