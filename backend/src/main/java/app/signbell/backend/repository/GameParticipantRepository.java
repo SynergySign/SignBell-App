@@ -38,6 +38,15 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
     boolean existsByParticipantAndGameRoom_StatusIn(User participant, GameRoomStatus... statuses);
 
     /**
+     * 특정 사용자가 특정 게임방에 참여 중인지 확인합니다.
+     *
+     * @param participant 게임방에 참여 여부를 확인할 사용자
+     * @param gameRoom 사용자가 참여 여부를 확인할 게임방
+     * @return 사용자가 해당 게임방에 참여 중이면 true, 그렇지 않으면 false
+     */
+    boolean existsByParticipantAndGameRoom(User participant, GameRoom gameRoom);
+
+    /**
      * 특정 게임방의 모든 참가자 조회 (User 정보 함께 fetch)
      * N+1 문제 방지를 위해 participant를 즉시 로딩합니다.
      *

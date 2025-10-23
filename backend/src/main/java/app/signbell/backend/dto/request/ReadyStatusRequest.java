@@ -1,5 +1,6 @@
 package app.signbell.backend.dto.request;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,5 +18,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ReadyStatusRequest {
+
+    @JsonProperty("isReady")
     private boolean isReady;
 }

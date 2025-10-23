@@ -16,18 +16,15 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.time.LocalDateTime;
 
 /**
- * GameRoomJoinController 클래스는 WebSocket을 통한 게임 방 입장 요청을 처리하는 컨트롤러입니다.
+ * GameRoomJoinController는 사용자가 특정 게임 방에 입장하거나 관련 이벤트를 처리하는
+ * WebSocket 메시지 핸들러를 제공합니다.
  *
- * 주요 역할:
- * 1. 클라이언트로부터 방 입장 요청을 수신합니다.
- * 2. JWT 기반 사용자 인증을 통해 요청자를 식별합니다.
- * 3. GameRoomJoinService를 호출하여 비즈니스 로직을 처리합니다.
- * 4. 입장한 사용자 개인에게 방 전체 정보를 전송합니다.
- * 5. 방에 있는 모든 참가자에게 새 참가자 입장 알림을 브로드캐스트합니다.
- * 6. 에러 발생 시 해당 사용자에게만 에러 메시지를 전송합니다.
+ * 이 컨트롤러는 사용자의 요청을 처리하고, 사용자 혹은 방의 모든 참가자에게
+ * 관련 메시지를 전송하는 기능을 수행합니다.
  *
  * STOMP 프로토콜을 사용하며, 다음과 같은 메시지 경로를 처리합니다:
  * - 수신: /app/room/{gameRoomId}/join
@@ -47,27 +44,25 @@ public class GameRoomJoinController {
     private final SimpMessagingTemplate messagingTemplate;
 
     /**
-     * 게임 방 입장 요청을 처리하는 메서드.
+     * 사용자가 특정 게임 방에 입장하는 요청을 처리하는 메서드.
      *
-     * 클라이언트가 /app/room/{gameRoomId}/join 경로로 메시지를 전송하면
-     * 이 메서드가 호출되어 방 입장 로직을 처리합니다.
+     * 이 메서드는 WebSocket 메시지 처리 메커니즘을 통해 호출됩니다.
+     * 사용자 인증 정보를 활용하여 사용자 ID를 추출하고 해당 사용자를 게임 방에 입장 처리합니다.
+     * 성공적으로 입장 시 사용자의 개인 메시지 큐를 통해 방 정보를 전송하며,
+     * 방 전체 참가자에게는 새로운 참가자가 입장했음을 알리는 브로드캐스트를 발송합니다.
      *
-     * 처리 흐름:
-     * 1. JWT 토큰에서 사용자 ID를 추출합니다.
-     * 2. GameRoomJoinService를 호출하여 방 입장을 처리합니다.
-     * 3. 입장 성공 시 입장자 개인에게 방 전체 정보를 전송합니다.
-     * 4. 방에 있는 모든 참가자에게 새 참가자 입장 알림을 브로드캐스트합니다.
-     * 5. 에러 발생 시 해당 사용자에게만 에러 메시지를 전송합니다.
+     * 만약 처리 중 오류가 발생할 경우, 해당 사용자에게만 에러 메시지를 전송합니다.
      *
-     * @param gameRoomId 입장하려는 게임 방의 ID (STOMP 목적지 경로에서 추출)
-     * @param subject JWT 토큰에서 추출한 사용자 ID (Principal)
+     * @param gameRoomId 사용자가 참여할 게임 방의 ID
+     * @param principal WebSocket 연결을 통해 인증된 사용자의 인증 정보
      */
     @MessageMapping("/room/{gameRoomId}/join")
     public void joinRoom(
             @DestinationVariable Long gameRoomId,
-            @AuthenticationPrincipal String subject
+            Principal principal
     ) {
         try {
+            String subject = principal.getName();
             Long userId = Long.valueOf(subject);
             // 입장 요청 수신 로그
             log.info("방 입장 요청 수신 - userId: {}, gameRoomId: {}", userId, gameRoomId);
@@ -108,15 +103,15 @@ public class GameRoomJoinController {
         } catch (BusinessException e) {
             log.warn("방 입장 중 비즈니스 예외 발생 - errorCode: {}, message: {}",
                     e.getErrorCode().getCode(), e.getMessage());
-            sendError(subject, e.getErrorCode());
+            sendError(principal.getName(), e.getErrorCode());
 
         } catch (NumberFormatException e) {
-            log.error("사용자 ID 파싱 실패 - subject: {}", subject);
-            sendError(subject, ErrorCode.INVALID_INPUT);
+            log.error("사용자 ID 파싱 실패 - subject: {}", principal.getName());
+            sendError(principal.getName(), ErrorCode.INVALID_INPUT);
 
         } catch (Exception e) {
             log.error("방 입장 처리 중 예상치 못한 오류 발생", e);
-            sendError(subject, ErrorCode.INTERNAL_SERVER_ERROR);
+            sendError(principal.getName(), ErrorCode.INTERNAL_SERVER_ERROR);
         }
     }
 

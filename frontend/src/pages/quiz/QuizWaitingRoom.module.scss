@@ -395,13 +395,23 @@
     // 테스트 버튼들
     .test-buttons {
       display: flex;
+      flex-direction: column;
       gap: 12px;
       margin-top: 20px;
       padding: 20px;
       background-color: rgba(0, 0, 0, 0.05);
       border-radius: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
+      align-items: center;
+
+      .janus-status {
+        display: flex;
+        gap: 20px;
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 10px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
 
       .test-button {
         background-color: #666666;
