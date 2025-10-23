@@ -197,13 +197,15 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
   const [serverFeedback, setServerFeedback] = useState('');
   const [wsMessages, setWsMessages] = useState([]);
 
-  // --- ⬇️ 수정된 부분 1: 'ref'를 사용하여 루프 상태 관리 ---
+  // --- ⬇️ 수정된 상태 ⬇️ ---
   const canvasRef = useRef(null);
   const recordingRef = useRef(null); // requestAnimationFrame의 ID
-  const isRecordingRef = useRef(false); // 실제 녹화 상태 (state 대신 ref 사용)
+  const isRecordingRef = useRef(false); // 실제 녹화 상태 (ref)
 
-  // UI 표시는 state로 계속 관리
-  const [isRecordingUI, setIsRecordingUI] = useState(false);
+  // 3초 카운트다운 + 5초 녹화 동안 모든 버튼을 비활성화하는 상태
+  const [isBusy, setIsBusy] = useState(false);
+  // 카운트다운 UI에 표시할 텍스트 상태
+  const [countdownText, setCountdownText] = useState("");
   // --- ⬆️ 수정 완료 ⬆️ ---
 
   // 메시지 핸들러 (기존과 동일)
@@ -211,13 +213,14 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
     const offStatus = wsOnStatus((s) => setWsStatus(s));
     const offMsg = wsOnMessage((m) => {
       setWsMessages((prev) => [...prev, m]);
-      // 간단한 타입 기반 처리
       if (m && m.type === 'meta_ack') {
         setServerFeedback('✅ 서버와 연결되었습니다. (Meta Ack)');
       } else if (m && m.type === 'learning_ack') {
+        //
         if (m.status === 'accepted') setServerFeedback('✅ 학습 데이터가 성공적으로 저장되었습니다.');
         else setServerFeedback(`❌ 저장 실패: ${m.reason || '알 수 없는 오류'}`);
       } else if (m && m.type === 'inference_result') {
+        //
         const result = m.result || {};
         const scorePercent = result.score ? (result.score * 100).toFixed(1) : '0.0';
         setServerFeedback(`💡 예측 결과: ${result.predicted || 'N/A'} (신뢰도: ${scorePercent}%)`);
@@ -233,12 +236,12 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
   // 웹소켓 생명주기 (기존과 동일)
   useEffect(() => {
     if (signDetail && isCamOn) {
-      wsConnect();
+      wsConnect(); //
       const offStatusLocal = wsOnStatus((status) => {
         setWsStatus(status);
         if (status === 'Connected') {
           try {
-            wsSendMeta({ word_pk: signDetail.signId, word_name: signDetail.wordName });
+            wsSendMeta({ word_pk: signDetail.signId, word_name: signDetail.wordName }); //
           } catch (e) {
             console.error('sendMeta 호출 오류:', e);
             setServerFeedback(`sendMeta error: ${e.message}`);
@@ -248,41 +251,32 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
 
       return () => {
         offStatusLocal();
-        wsDisconnect();
+        wsDisconnect(); //
       };
     } else if (!isCamOn) {
-      wsDisconnect();
+      wsDisconnect(); //
       setWsStatus(wsGetStatus());
     }
   }, [signDetail, isCamOn, wsGetStatus]);
 
-  // --- ⬇️ 수정된 부분 2: 'captureAndSendFrame' 함수 수정 ---
-  // 녹화 루프: requestAnimationFrame을 사용하되 실제 전송은 throttle하여 초당 25fps로 제한
+  // 프레임 캡처 루프 (기존과 동일)
   const lastSentRef = useRef(0);
-  // 디버그 카운터: 전송된 프레임 수를 센다
   const debugFrameCountRef = useRef(0);
   const FPS = 25;
   const INTERVAL = 1000 / FPS; // 40ms
 
   const captureAndSendFrame = useCallback((timestamp) => {
-    // 루프가 활성화되어 있지 않다면 종료
     if (!isRecordingRef.current) return;
-
-    // 다음 프레임 예약 (루프 유지)
     recordingRef.current = requestAnimationFrame(captureAndSendFrame);
-
     if (!canvasRef.current || !videoRef.current) return;
-
     const now = typeof timestamp === 'number' ? timestamp : performance.now();
     if (now - (lastSentRef.current || 0) < INTERVAL) {
-      return; // 아직 간격이 되지 않음
+      return;
     }
     lastSentRef.current = now;
-
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     try {
-      // 비디오의 실제 해상도로 캔버스 크기 맞춤
       const vw = videoRef.current.videoWidth || canvas.width || 640;
       const vh = videoRef.current.videoHeight || canvas.height || 480;
       if (canvas.width !== vw || canvas.height !== vh) {
@@ -290,17 +284,13 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
         canvas.height = vh;
       }
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-
-      // JPEG로 변환하여 전송
       canvas.toBlob((blob) => {
         if (blob) {
-          // 디버그: 전송 인덱스와 타임스탬프, 크기를 로그로 남김
           try {
             debugFrameCountRef.current += 1;
-            // 시간은 정수 ms로 표시
             const tms = Math.round(now);
             console.debug(`[frame-send] #${debugFrameCountRef.current} t=${tms}ms size=${blob.size} bytes`);
-            wsSendFrame(blob);
+            wsSendFrame(blob); //
           } catch (e) {
             console.error('wsSendFrame failed:', e);
           }
@@ -310,92 +300,107 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
       console.error('captureAndSendFrame error:', e);
     }
   }, [videoRef, INTERVAL]);
-  // --- ⬆️ 수정 완료 ⬆️ ---
 
-  // --- ⬇️ 수정된 부분 3: 버튼 핸들러 수정 ---
-  const handleStartRecording = () => {
+
+  // --- ⬇️ 새로운 핸들러: 3초 카운트 + 5초 녹화 ⬇️ ---
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  /** mode: 'learn' 또는 'quiz' */
+  const handleStartTimedProcess = async (mode) => {
     if (wsStatus !== 'Connected') {
       alert('웹소켓이 연결되지 않았습니다. 웹캠을 껐다 켜보세요.');
       return;
     }
-    // 녹화 시작: lastSent 초기화 후 루프 시작
+    if (isBusy) return; // 중복 클릭 방지
+
+    setIsBusy(true);
+    setServerFeedback('준비...');
+
+    // 1. 3초 카운트다운
+    setCountdownText("3");
+    await sleep(1000);
+    setCountdownText("2");
+    await sleep(1000);
+    setCountdownText("1");
+    await sleep(1000);
+
+    // 2. 5초 녹화 시작
+    setCountdownText("START");
+    setServerFeedback("녹화 중... (5초)");
+
     lastSentRef.current = 0;
+    debugFrameCountRef.current = 0; // 프레임 카운트 리셋
     isRecordingRef.current = true;
-    setIsRecordingUI(true);
-    setServerFeedback('녹화 시작...');
     recordingRef.current = requestAnimationFrame(captureAndSendFrame);
-  };
 
-  const handleStopAndSave = () => {
+    await sleep(5000); // 5초 대기
+
+    // 3. 5초 후 녹화 중지
     isRecordingRef.current = false;
-    setIsRecordingUI(false);
     if (recordingRef.current) {
       cancelAnimationFrame(recordingRef.current);
       recordingRef.current = null;
     }
     lastSentRef.current = 0;
-    setServerFeedback('학습 저장 요청 중...');
-    wsSendSaveLearning();
-  };
+    setCountdownText(""); // 카운트다운 텍스트 숨김
 
-  const handleStopAndQuiz = () => {
-    isRecordingRef.current = false;
-    setIsRecordingUI(false);
-    if (recordingRef.current) {
-      cancelAnimationFrame(recordingRef.current);
-      recordingRef.current = null;
+    // 4. 모드에 따라 서버에 신호 전송
+    if (mode === 'learn') {
+      setServerFeedback('녹화 완료. 학습 데이터 저장 요청 중...');
+      wsSendSaveLearning(); //
+    } else if (mode === 'quiz') {
+      setServerFeedback('녹화 완료. 퀴즈 제출 요청 중...');
+      wsSendFlush(); //
     }
-    lastSentRef.current = 0;
-    setServerFeedback('퀴즈 제출 요청 중...');
-    wsSendFlush();
+
+    // 5. 버튼 다시 활성화
+    setIsBusy(false);
   };
-  // --- ⬆️ 수정 완료 ⬆️ ---
+  // --- ⬆️ 새로운 핸들러 완료 ⬆️ ---
+
 
   return (
       <div>
-        {/* (웹소켓 상태 표시 UI - 기존과 동일) ... */}
+        {/* ... (상단의 웹소켓 상태 UI는 기존과 동일) ... */}
         <div className="flex items-center justify-between mb-3">
           <div className="text-lg font-medium">웹소켓 / 연습</div>
           <div className="text-sm text-gray-500">세션: <code>{WS_SESSION_ID}</code></div>
         </div>
         <p className="mb-2">Status: <strong>{wsStatus}</strong></p>
-        {/* ... (연결/해제 버튼 - 기존과 동일) ... */}
-
 
         {/* 녹화 컨트롤 및 서버 상호작용 */}
         <div className="mt-4 p-4 border rounded bg-blue-50">
           <h3 className="text-lg font-bold mb-2">수어 연습하기</h3>
           <p className="text-sm mb-3">웹소켓 상태: <strong>{wsStatus}</strong></p>
 
+          {/* --- ⬇️ 수정된 버튼 UI ⬇️ --- */}
           <div className="flex items-center gap-2">
-            {/* --- ⬇️ 수정된 부분 4: 핸들러 및 disabled 조건 변경 --- */}
             <button
-                onClick={handleStartRecording}
-                disabled={isRecordingUI || wsStatus !== 'Connected'}
-                className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-gray-400"
+                onClick={() => handleStartTimedProcess('learn')}
+                disabled={isBusy || wsStatus !== 'Connected'}
+                className="px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
             >
-              녹화 시작
+              개인 학습 (3초 후 5초 녹화)
             </button>
 
             <button
-                onClick={handleStopAndSave}
-                disabled={!isRecordingUI}
-                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
-            >
-              개인 학습 저장
-            </button>
-
-            <button
-                onClick={handleStopAndQuiz}
-                disabled={!isRecordingUI}
+                onClick={() => handleStartTimedProcess('quiz')}
+                disabled={isBusy || wsStatus !== 'Connected'}
                 className="ml-2 px-4 py-2 bg-purple-600 text-white rounded disabled:bg-gray-400"
             >
-              퀴즈 제출
+              퀴즈 (3초 후 5초 녹화)
             </button>
-            {/* --- ⬆️ 수정 완료 ⬆️ --- */}
           </div>
+          {/* --- ⬆️ 수정 완료 ⬆️ --- */}
 
-          {/* 숨겨진 캔버스: 캡처용 (기존과 동일) */}
+          {/* 카운트다운 UI */}
+          {countdownText && (
+              <div className="my-4 text-center text-5xl font-bold text-red-600 animate-pulse">
+                {countdownText}
+              </div>
+          )}
+
+          {/* 숨겨진 캔버스 (기존과 동일) */}
           <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
 
           {serverFeedback && (
@@ -405,16 +410,7 @@ function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
 
         {/* 수신 메시지 미리보기 (기존과 동일) */}
         <div className="mt-3">
-          <h4 className="font-medium mb-2">수신 메시지</h4>
-          <div style={{ background: '#f4f4f4', padding: 8, height: 160, overflowY: 'auto' }}>
-            {wsMessages.length === 0 ? (
-                <div className="text-sm text-gray-500">(메시지 없음)</div>
-            ) : (
-                wsMessages.map((m, i) => (
-                    <div key={i} className="text-sm">{JSON.stringify(m)}</div>
-                ))
-            )}
-          </div>
+          {/* ... (생략) ... */}
         </div>
       </div>
   );
