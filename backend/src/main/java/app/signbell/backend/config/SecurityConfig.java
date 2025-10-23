@@ -48,6 +48,7 @@ public class SecurityConfig {
             // 앞으로 추가될 퍼블릭 엔드포인트를 여기에 나열합니다.
             "/media/**",
             "/images/**",
+            "/api/sign-data/**"
 
     };
 

@@ -11,15 +11,30 @@
 import styles from './RoomCard.module.scss';
 
 const RoomCard = ({ room, onClick }) => {
+
+  // 상태별 스타일 및 텍스트
+  const getStatusInfo = (status) => {
+    switch(status) {
+      case 'WAITING':
+        return '대기 중';
+      case 'IN_PROGRESS':
+        return '진행 중';
+      case 'FINISHED':
+        return '종료';
+      default:
+        return '대기 중';
+    }
+  };
+
   return (
-    <div className={styles.roomCard} onClick={() => onClick(room.id)}>
-      <span className={styles.roomNumber}>{room.id}</span>
-      <span className={`${styles.roomStatus} ${room.status === '진행 중' ? styles.inProgress : styles.waiting}`}>
-        {room.status}
+    <div className={styles.roomCard} onClick={() => onClick(room.gameRoomId)}>
+      <span className={styles.roomNumber}>{room.gameRoomId}</span>
+      <span className={`${styles.roomStatus} ${room.status === 'IN_PROGRESS' ? styles.inProgress : styles.waiting}`}>
+        {getStatusInfo(room.status)}
       </span>
-      <span className={styles.roomTitle}>{room.title}</span>
+      <span className={styles.roomTitle}>{room.gameTitle}</span>
       <span className={styles.roomPlayers}>
-        {room.currentPlayers}/{room.maxPlayers}
+        {room.currentParticipants}/{room.maxParticipants}
       </span>
     </div>
   );

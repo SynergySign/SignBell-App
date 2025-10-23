@@ -10,9 +10,10 @@ import { useState } from 'react';
 import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
-import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
+import PersonalStudySidebar from '../../components/study/PersonalStudySidebar';
 import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
 import styles from './MainPage.module.scss';
+
 
 const MainPage = () => {
   const [activeSidebar, setActiveSidebar] = useState(null);
@@ -26,6 +27,10 @@ const MainPage = () => {
     setActiveSidebar(activeSidebar === 'quiz' ? null : 'quiz');
     console.log('실시간 퀴즈 클릭');
   };
+
+
+
+
 
   return (
     <div className={styles.mainPage}>
@@ -57,6 +62,7 @@ const MainPage = () => {
         <PersonalStudySidebar
           isOpen={activeSidebar === 'personal'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
 
@@ -65,6 +71,7 @@ const MainPage = () => {
         <RealTimeQuizSidebar
           isOpen={activeSidebar === 'quiz'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
     </div>

@@ -94,20 +94,25 @@ public class SignApiResponse {
                 @JsonIgnoreProperties(ignoreUnknown = true)
                 public static class Item {
                     private String title;
-                    private String url;
-                    private String signDescription; // << ✨ 추가된 필드
+                    private String subDescription; // API의 subDescription을 매핑합니다.
+                    private String signDescription; // 추가 필드
                     private String categoryType;
 
                     @JsonCreator
                     public Item(
                             @JsonProperty("title") String title,
-                            @JsonProperty("url") String url,
-                            @JsonProperty("signDescription") String signDescription, // << ✨ 추가
+                            @JsonProperty("subDescription") String subDescription,
+                            @JsonProperty("signDescription") String signDescription,
                             @JsonProperty("categoryType") String categoryType) {
                         this.title = title;
-                        this.url = url;
-                        this.signDescription = signDescription; // << ✨ 추가
+                        this.subDescription = subDescription;
+                        this.signDescription = signDescription;
                         this.categoryType = categoryType;
+                    }
+
+                    // 명시적 getter: Lombok을 보완합니다.
+                    public String getSubDescription() {
+                        return this.subDescription;
                     }
                 }
             }
