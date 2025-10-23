@@ -84,12 +84,26 @@ public class QuizService {
         log.info("게임 시작 - roomId: {}, participants: {}, questions: {}",
                 roomId, allParticipants.size(), selectedWords.size());
 
-        // 7. 첫 번째 문제 정보 전송 (단어 제목만)
+        // 7. 참가자 정보 생성
+        List<app.signbell.backend.dto.response.ParticipantResponse> participantResponses = 
+                allParticipants.stream()
+                        .map(gp -> app.signbell.backend.dto.response.ParticipantResponse.builder()
+                                .userId(gp.getParticipant().getId())
+                                .nickname(gp.getParticipant().getNickname())
+                                .profileImageUrl(gp.getParticipant().getProfileImageUrl())
+                                .isHost(gp.isHost())
+                                .isReady(gp.isReady())
+                                .build())
+                        .collect(java.util.stream.Collectors.toList());
+
+        // 8. 첫 번째 문제 정보 전송 (단어 제목 + 참가자 정보)
         QuizWord firstQuiz = selectedWords.get(0);
         QuizStartResponse response = QuizStartResponse.builder()
                 .questionNumber(1)
                 .totalQuestions(8)
                 .wordTitle(firstQuiz.getSign().getTitle())
+                .participants(participantResponses)
+                .myUserId(userId) // 요청한 사용자 ID (방장)
                 .build();
 
         messagingTemplate.convertAndSend(
@@ -193,7 +207,7 @@ public class QuizService {
 
         // 4. 정답 확인
         Long quizWordId = roomState.getQuizWordId(questionNumber);
-        QuizWord quizWord = quizWordRepository.findById(quizWordId)
+        QuizWord quizWord = quizWordRepository.findByIdWithSign(quizWordId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_FOUND));
 
         // 5. FastAPI 인식 결과 확인
@@ -504,7 +518,7 @@ public class QuizService {
             return;
         }
 
-        QuizWord nextQuiz = quizWordRepository.findById(nextQuizWordId)
+        QuizWord nextQuiz = quizWordRepository.findByIdWithSign(nextQuizWordId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_FOUND));
 
         log.info("다음 문제 이동 - roomId: {}, nextQuestion: {}, wordTitle: {}", 
@@ -599,11 +613,17 @@ public class QuizService {
             if (firstChallenger != null) {
                 roomState.setCurrentChallenger(questionNumber, firstChallenger);
                 
+                // 도전자 정보 조회
+                User challenger = userRepository.findById(firstChallenger)
+                        .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+                
                 messagingTemplate.convertAndSend(
                         "/topic/room/" + roomId + "/quiz",
                         ApiResponse.success("도전 신청이 마감되었습니다. 도전자 차례입니다.", 
                                 NextChallengerResponse.builder()
                                         .userId(firstChallenger)
+                                        .nickname(challenger.getNickname())
+                                        .profileImage(challenger.getProfileImageUrl())
                                         .questionNumber(questionNumber)
                                         .build())
                 );
@@ -622,10 +642,16 @@ public class QuizService {
         if (nextChallenger != null) {
             log.info("다음 도전자 알림 - userId: {}, question: {}", nextChallenger, questionNumber);
 
+            // 도전자 정보 조회
+            User challenger = userRepository.findById(nextChallenger)
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다."));
+
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId + "/quiz",
                     ApiResponse.success("다음 도전자 차례", NextChallengerResponse.builder()
                             .userId(nextChallenger)
+                            .nickname(challenger.getNickname())
+                            .profileImage(challenger.getProfileImageUrl())
                             .questionNumber(questionNumber)
                             .build())
             );

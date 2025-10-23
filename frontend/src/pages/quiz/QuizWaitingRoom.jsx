@@ -8,27 +8,36 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useWebcam from '../../hooks/useWebcam';
+import useWebcamStore from '../../stores/useWebcamStore';
+import { useJanus } from '../../contexts/JanusContext';
+import useUserStore from '../../stores/useUserStore';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
 
 const QuizWaitingRoom = () => {
+  console.log('🚪 QuizWaitingRoom 렌더링');
+  
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [showExitModal, setShowExitModal] = useState(false);
-  const [myUserId, setMyUserId] = useState(null);
   const [allReady, setAllReady] = useState(false);
+  
+  // 게임 페이지로 이동 중인지 추적 (useRef 사용 - cleanup에서 최신 값 참조)
+  const isNavigatingToGameRef = useRef(false);
+  
+  // Zustand store에서 사용자 정보 가져오기 및 설정
+  const { userId: myUserId, setUser } = useUserStore();
 
-  // 웹캠 관리
-  const {
-    stream,
-    isWebcamOn,
-    error: webcamError,
-    videoRef,
-    startWebcam,
-    stopWebcam,
-    toggleWebcam
-  } = useWebcam();
+  // 웹캠 관리 (Zustand store 사용)
+  const stream = useWebcamStore(state => state.stream);
+  const isWebcamOn = useWebcamStore(state => state.isWebcamOn);
+  const webcamError = useWebcamStore(state => state.error);
+  const startWebcam = useWebcamStore(state => state.startWebcam);
+  const stopWebcam = useWebcamStore(state => state.stopWebcam);
+  const toggleWebcam = useWebcamStore(state => state.toggleWebcam);
+  
+  // 로컬 비디오 ref
+  const videoRef = useRef(null);
 
   // 방 정보
   const [roomInfo, setRoomInfo] = useState({
@@ -42,23 +51,32 @@ const QuizWaitingRoom = () => {
 
   // 참가자 데이터
   const [participants, setParticipants] = useState([]);
+  
+  console.log('👥 participants:', participants.length, participants);
 
   // ============================================
-  // Janus WebRTC 관리
+  // Janus WebRTC 관리 (Context 사용)
   // ============================================
+  const {
+    janusRef,
+    pluginHandleRef,
+    remoteFeedsRef,
+    userIdToFeedIdRef,
+    remoteStreams,
+    setRemoteStreams,
+    isJanusConnected,
+    setIsJanusConnected,
+  } = useJanus();
+
   const remoteVideosRef = useRef({}); // { userId: videoElement }
-  const [remoteStreams, setRemoteStreams] = useState({}); // { userId: stream }
-  const janusRef = useRef(null);
-  const pluginHandleRef = useRef(null);
-  const remoteFeedsRef = useRef({}); // { feedId: pluginHandle }
-  const userIdToFeedIdRef = useRef({}); // { userId: feedId } 매핑
-  const [isJanusConnected, setIsJanusConnected] = useState(false);
 
   // Janus 서버 URL
   const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
 
   // WebSocket 연결
   useEffect(() => {
+    let isMounted = true;
+
     const initWebSocket = async () => {
       try {
         websocketService.on('room:join', handleRoomJoin);
@@ -70,8 +88,13 @@ const QuizWaitingRoom = () => {
         console.log('✅ WebSocket 연결 성공!');
 
         setTimeout(() => {
-          websocketService.joinRoom(Number(roomId));
-          console.log(`🚪 방 ${roomId}에 입장 시도`);
+          // 컴포넌트가 마운트되어 있고, 게임 페이지로 이동 중이 아닐 때만 방 입장
+          if (isMounted && !isNavigatingToGameRef.current) {
+            websocketService.joinRoom(Number(roomId));
+            console.log(`🚪 방 ${roomId}에 입장 시도`);
+          } else {
+            console.log('⏭️ 게임 페이지로 이동 중이므로 방 입장 스킵');
+          }
         }, 300);
 
       } catch (error) {
@@ -83,12 +106,20 @@ const QuizWaitingRoom = () => {
     initWebSocket();
 
     return () => {
+      isMounted = false;
       websocketService.off('room:join', handleRoomJoin);
       websocketService.off('participant', handleParticipantEvent);
       websocketService.off('quiz:start', handleGameStart);
       websocketService.off('error', handleError);
     };
   }, [roomId]);
+
+  // 스트림을 videoRef에 연결
+  useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
   // Janus WebRTC 연결 (방 입장 후 + 웹캠 켜진 후)
   useEffect(() => {
@@ -151,6 +182,48 @@ const QuizWaitingRoom = () => {
                 console.log('📨 Janus 메시지 수신:', msg);
                 const event = msg['videoroom'];
 
+                // 방이 없으면 생성
+                if (event === 'event' && msg['error_code'] === 426) {
+                  console.log('⚠️ Janus 방이 없음 - 방 생성 시도');
+
+                  const create = {
+                    request: 'create',
+                    room: parseInt(roomId),
+                    description: `Game Room ${roomId}`,
+                    publishers: 10,
+                    bitrate: 128000,
+                    fir_freq: 10,
+                    audiocodec: 'opus',
+                    videocodec: 'vp8',
+                    audiolevel_event: true,
+                    audio_level_average: 65,
+                    audio_active_packets: 25,
+                    record: false,
+                    permanent: false
+                  };
+
+                  pluginHandleRef.current.send({
+                    message: create,
+                    success: function (result) {
+                      console.log('✅ Janus 방 생성 성공:', result);
+
+                      // 방 생성 후 다시 참여 시도
+                      const register = {
+                        request: 'join',
+                        room: parseInt(roomId),
+                        ptype: 'publisher',
+                        display: String(myUserId),
+                      };
+
+                      pluginHandleRef.current.send({ message: register });
+                    },
+                    error: function (error) {
+                      console.error('❌ Janus 방 생성 실패:', error);
+                    }
+                  });
+                  return;
+                }
+
                 if (event === 'joined') {
                   const myFeedId = msg['id'];
                   console.log('✅ Janus 방 참여 성공, My Feed ID:', myFeedId);
@@ -159,23 +232,35 @@ const QuizWaitingRoom = () => {
                   // 내 스트림 publish
                   publishOwnFeed();
 
-                  // 기존 참가자 구독
+                  // 기존 참가자 구독 (자기 자신 제외)
                   if (msg['publishers']) {
                     msg['publishers'].forEach((publisher) => {
-                      console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id);
                       const userId = parseInt(publisher.display);
-                      userIdToFeedIdRef.current[userId] = publisher.id;
-                      subscribeToFeed(publisher.id, userId);
+                      console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
+                      
+                      // 자기 자신은 구독하지 않음
+                      if (userId !== myUserId) {
+                        userIdToFeedIdRef.current[userId] = publisher.id;
+                        subscribeToFeed(publisher.id, userId);
+                      } else {
+                        console.log('⏭️ 자기 자신은 구독 스킵');
+                      }
                     });
                   }
                 } else if (event === 'event') {
-                  // 새 참가자 입장
+                  // 새 참가자 입장 (자기 자신 제외)
                   if (msg['publishers']) {
                     msg['publishers'].forEach((publisher) => {
-                      console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id);
                       const userId = parseInt(publisher.display);
-                      userIdToFeedIdRef.current[userId] = publisher.id;
-                      subscribeToFeed(publisher.id, userId);
+                      console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
+                      
+                      // 자기 자신은 구독하지 않음
+                      if (userId !== myUserId) {
+                        userIdToFeedIdRef.current[userId] = publisher.id;
+                        subscribeToFeed(publisher.id, userId);
+                      } else {
+                        console.log('⏭️ 자기 자신은 구독 스킵');
+                      }
                     });
                   }
                   // 참가자 퇴장
@@ -316,7 +401,13 @@ const QuizWaitingRoom = () => {
     }
 
     return () => {
-      // 정리
+      // 게임 페이지로 이동하는 경우 Janus 연결 유지
+      if (isNavigatingToGameRef.current) {
+        console.log('🎮 게임 페이지로 이동 - Janus 연결 유지');
+        return;
+      }
+
+      // 그 외의 경우 (방 나가기 등) Janus 연결 정리
       console.log('🧹 Janus 연결 정리');
       if (janusRef.current) {
         janusRef.current.destroy();
@@ -342,15 +433,32 @@ const QuizWaitingRoom = () => {
 
   // 핸들러 함수들
   const handleRoomJoin = (data) => {
-    console.log('📥 방 입장 응답:', data);
+    console.log('📥📥📥 방 입장 응답 RAW:', JSON.stringify(data, null, 2));
 
     if (data.success) {
       const roomData = data.data;
 
-      // TODO: 실제 로그인한 사용자 ID 가져오기
-      // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
-      const myId = roomData.participants[roomData.participants.length - 1].userId;
-      setMyUserId(myId); // state에 저장
+      console.log('roomData.participants:', roomData.participants);
+      console.log('participants 길이:', roomData.participants?.length);
+
+      // Zustand store에서 사용자 ID 가져오기 (없으면 마지막 참가자를 "나"로 설정)
+      let myId = myUserId;
+      if (!myId) {
+        // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
+        myId = roomData.participants[roomData.participants.length - 1].userId;
+        console.log('⚠️ Zustand에 userId 없음, 마지막 참가자를 "나"로 설정:', myId);
+      }
+      
+      // 내 정보를 Zustand store에 저장
+      const myInfo = roomData.participants.find(p => p.userId === myId);
+      if (myInfo) {
+        setUser({
+          userId: myInfo.userId,
+          nickname: myInfo.nickname,
+          profileImage: myInfo.profileImageUrl
+        });
+        console.log('✅ Zustand store에 사용자 정보 저장:', myInfo);
+      }
 
       // 참가자 목록 업데이트
       const formattedParticipants = roomData.participants.map(p => ({
@@ -365,7 +473,9 @@ const QuizWaitingRoom = () => {
         webcamStatus: 'off'
       }));
 
+      console.log('✅ formattedParticipants:', formattedParticipants);
       setParticipants(formattedParticipants);
+      console.log('✅ setParticipants 호출 완료');
 
       // 방 정보 업데이트
       setRoomInfo({
@@ -469,24 +579,59 @@ const QuizWaitingRoom = () => {
 
   const handleError = (data) => {
     console.error('📥 에러:', data);
-    alert(data.detail || '오류가 발생했습니다.');
+
+    // ROOM_ALREADY_STARTED 에러 처리
+    if (data.error === 'ROOM_ALREADY_STARTED' || (data.message && data.message.includes('이미 시작된 방'))) {
+      // 게임 페이지로 이동 중이면 에러 무시
+      if (isNavigatingToGameRef.current) {
+        console.log('⏭️ 게임 페이지로 이동 중이므로 에러 무시');
+        return;
+      }
+
+      console.warn('⚠️ 이미 시작된 방입니다.');
+      alert('이 방은 이미 게임이 시작되었습니다.\n새로운 방을 만들어주세요.');
+      navigate('/main');
+      return;
+    }
+
+    alert(data.message || data.detail || '오류가 발생했습니다.');
   };
 
   const handleGameStart = (data) => {
-    console.log('📥 게임 시작 응답:', data);
+    console.log('📥📥📥 게임 시작 응답 RAW:', JSON.stringify(data, null, 2));
 
     if (data.success) {
       const gameData = data.data;
-      console.log('✅ 게임 시작 - 게임 페이지로 이동', gameData);
-      
-      // 게임 페이지로 이동하면서 필요한 정보 전달
-      navigate(`/quiz/game/${roomId}`, { 
-        state: { 
-          totalQuestions: gameData.totalQuestions || 8,
-          firstQuestion: gameData.questionNumber || 1,
-          firstWord: gameData.wordTitle
-        } 
-      });
+      console.log('✅ 게임 시작 - 게임 페이지로 이동');
+      console.log('gameData:', JSON.stringify(gameData, null, 2));
+      console.log('totalQuestions:', gameData?.totalQuestions);
+      console.log('questionNumber:', gameData?.questionNumber);
+      console.log('wordTitle:', gameData?.wordTitle);
+
+      // 게임 페이지로 이동 중임을 표시 (Janus cleanup 방지)
+      isNavigatingToGameRef.current = true;
+
+      // 백엔드에서 받은 참가자 정보 사용
+      const participantsToPass = gameData?.participants || participants;
+      const myUserIdToPass = gameData?.myUserId || myUserId;
+
+      console.log('🚀🚀🚀 navigate 호출 직전');
+      console.log('백엔드에서 받은 participants:', gameData?.participants);
+      console.log('백엔드에서 받은 myUserId:', gameData?.myUserId);
+      console.log('사용할 participants:', participantsToPass);
+      console.log('사용할 myUserId:', myUserIdToPass);
+
+      const stateToPass = {
+        totalQuestions: gameData?.totalQuestions || 8,
+        firstQuestion: gameData?.questionNumber || 1,
+        firstWord: gameData?.wordTitle || '문제',
+        participants: participantsToPass, // 백엔드에서 받은 참가자 정보
+        myUserId: myUserIdToPass // 백엔드에서 받은 사용자 ID
+      };
+
+      console.log('전달할 state:', JSON.stringify(stateToPass, null, 2));
+
+      navigate(`/quiz/game/${roomId}`, { state: stateToPass });
     } else {
       console.error('❌ 게임 시작 실패:', data.message);
       alert(data.message || '게임 시작에 실패했습니다.');
@@ -558,6 +703,18 @@ const QuizWaitingRoom = () => {
   // 게임 시작 (방장만)
   const handleStartGame = () => {
     try {
+      console.log('🎮🎮🎮 게임 시작 버튼 클릭!');
+      console.log('현재 participants:', participants);
+      console.log('participants 길이:', participants.length);
+      console.log('현재 myUserId:', myUserId);
+      console.log('roomId:', roomId);
+
+      if (participants.length === 0) {
+        console.error('❌ participants가 비어있습니다!');
+        alert('참가자 정보가 없습니다. 페이지를 새로고침해주세요.');
+        return;
+      }
+
       console.log('🎮 게임 시작 요청 전송 - roomId:', roomId);
       websocketService.startGame(Number(roomId));
     } catch (error) {

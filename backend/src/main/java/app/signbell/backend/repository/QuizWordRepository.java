@@ -63,4 +63,13 @@ public interface QuizWordRepository extends JpaRepository<QuizWord, Long> {
      */
     @Query("SELECT COUNT(qw) FROM QuizWord qw")
     long countAllQuizWords();
+
+    /**
+     * ID로 QuizWord 조회 시 Sign을 함께 fetch (LazyInitializationException 방지)
+     * 
+     * @param id QuizWord ID
+     * @return Sign이 로드된 QuizWord (Optional)
+     */
+    @Query("SELECT qw FROM QuizWord qw JOIN FETCH qw.sign WHERE qw.id = :id")
+    java.util.Optional<QuizWord> findByIdWithSign(@Param("id") Long id);
 }

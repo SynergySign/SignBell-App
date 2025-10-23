@@ -75,7 +75,15 @@ class WebSocketService {
           console.error('❌ STOMP 에러:', frame);
           this.isConnecting = false;
 
-          reject(new Error(`WebSocket 연결 실패: ${frame.headers?.message || '알 수 없는 오류'}`));
+          const errorMessage = frame.headers?.message || '알 수 없는 오류';
+
+          // DUPLICATE_SESSION 에러 처리
+          if (errorMessage.includes('DUPLICATE_SESSION')) {
+            console.warn('⚠️ 중복 세션 감지: 다른 탭이나 창에서 이미 접속 중입니다.');
+            reject(new Error('다른 탭이나 창에서 이미 접속 중입니다. 기존 탭을 닫고 다시 시도해주세요.'));
+          } else {
+            reject(new Error(`WebSocket 연결 실패: ${errorMessage}`));
+          }
         },
 
         // 연결 해제 콜백
@@ -146,6 +154,19 @@ class WebSocketService {
         })
       );
 
+      // 도전 신청 개인 메시지
+      subscriptions.push(
+        this.client.subscribe('/user/queue/challenge', (message) => {
+          console.log('📥 도전 신청 개인 메시지:', message);
+          try {
+            const data = JSON.parse(message.body);
+            this.handleMessage('quiz:challenge:personal', data);
+          } catch (error) {
+            console.error('파싱 에러:', error);
+          }
+        })
+      );
+
       // 모든 구독 완료 후 resolve
       console.log('✅ 모든 개인 메시지 구독 완료');
       resolve();
@@ -173,13 +194,9 @@ class WebSocketService {
     });
 
     // 게임 시작 알림 구독 (대기실에서도 받아야 함)
-    this.subscribe(`/topic/room/${roomId}/quiz`, (message) => {
-      console.log(' 퀴즈 이벤트:', message);
-      
-      // 게임 시작 메시지 처리
-      if (message.data?.questionNumber === 1) {
-        this.handleMessage('quiz:start', message);
-      }
+    this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
+      console.log('📥 게임 시작:', message);
+      this.handleMessage('quiz:start', message);
     });
   }
 
@@ -192,11 +209,13 @@ class WebSocketService {
       throw new Error('WebSocket이 연결되어 있지 않습니다.');
     }
 
-    // 게임 시작 알림
-    this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
-      console.log('📥 게임 시작:', message);
-      this.handleMessage('quiz:start', message);
-    });
+    // 게임 시작 알림 (대기실에서 이미 구독했으므로 중복 구독 방지)
+    if (!this.subscriptions.has(`/topic/room/${roomId}/quiz/start`)) {
+      this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
+        console.log('📥 게임 시작:', message);
+        this.handleMessage('quiz:start', message);
+      });
+    }
 
     // 문제 출제
     this.subscribe(`/topic/room/${roomId}/quiz/question`, (message) => {
@@ -204,10 +223,50 @@ class WebSocketService {
       this.handleMessage('quiz:question', message);
     });
 
-    // 도전자 신청 현황
-    this.subscribe(`/topic/room/${roomId}/quiz/challenge`, (message) => {
-      console.log('📥 도전자 신청:', message);
-      this.handleMessage('quiz:challenge', message);
+    // 퀴즈 관련 모든 이벤트 (도전자 신청, 다음 문제, 타임아웃 등)
+    this.subscribe(`/topic/room/${roomId}/quiz`, (message) => {
+      console.log('📥📥📥 퀴즈 이벤트 RAW:', JSON.stringify(message, null, 2));
+      
+      // data에 userId가 있으면 NextChallengerResponse
+      if (message.data && message.data.userId) {
+        console.log('🎯 NextChallengerResponse 감지 - userId:', message.data.userId);
+        this.handleMessage('quiz:challenger', message);
+        return;
+      }
+      
+      // data에 wordTitle이 있으면 NextQuestionResponse
+      if (message.data && message.data.wordTitle) {
+        console.log('🎯 NextQuestionResponse 감지 - wordTitle:', message.data.wordTitle);
+        this.handleMessage('quiz:question', message);
+        return;
+      }
+      
+      // eventType에 따라 다른 핸들러 호출
+      if (message.data && message.data.eventType) {
+        const eventType = message.data.eventType;
+        console.log('🎯 eventType:', eventType);
+        
+        switch (eventType) {
+          case 'CHALLENGER_REGISTERED':
+            console.log('→ quiz:challenge 핸들러 호출');
+            this.handleMessage('quiz:challenge', message);
+            break;
+          case 'CHALLENGE_TIMEOUT':
+            console.log('→ quiz:timeout 핸들러 호출');
+            this.handleMessage('quiz:timeout', message);
+            break;
+          case 'NEXT_QUESTION':
+            console.log('→ quiz:question 핸들러 호출');
+            this.handleMessage('quiz:question', message);
+            break;
+          default:
+            console.log('→ quiz:event 핸들러 호출 (기타)');
+            this.handleMessage('quiz:event', message);
+        }
+      } else {
+        console.log('→ quiz:event 핸들러 호출 (데이터 없음)');
+        this.handleMessage('quiz:event', message);
+      }
     });
 
     // 정답 결과

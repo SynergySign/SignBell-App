@@ -7,10 +7,15 @@
  */
 
 import Router from './routes/Router';
+import { JanusProvider } from './contexts/JanusContext';
 import './styles/global.scss';
 
 function App() {
-  return <Router />;
+  return (
+    <JanusProvider>
+      <Router />
+    </JanusProvider>
+  );
 }
 
 export default App;
