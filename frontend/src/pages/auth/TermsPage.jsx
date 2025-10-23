@@ -116,7 +116,7 @@ const TermsPage = () => {
     // zustand store의 logout 액션 호출 (서버 로그아웃 + 클라이언트 상태 초기화)
     await logout();
     // 로그아웃 후 랜딩 페이지로 이동
-    navigate('/');
+    navigate('/popup-close?status=logout');
   };
 
   const isSubmitEnabled = agreements.required;
