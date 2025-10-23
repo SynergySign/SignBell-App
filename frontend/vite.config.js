@@ -51,7 +51,6 @@ export default defineConfig({
         secure: false, // 개발 환경에서 자체 서명된 인증서 허용 (필요 시)
         // WebSocket은 경로 그대로 전달되므로 rewrite는 필요 없습니다.
         // rewrite: (path) => path.replace(/^\/api/, ''),
-        secure: false,
       }
     }
   }
