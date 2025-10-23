@@ -71,17 +71,17 @@ export const useAuthStore = create(
        * - 실패/미인증 시 user=null, isAuthenticated=false
        */
       fetchMe: async () => {
-        console.log('fetchMe called');
+        // console.log('fetchMe called');
         set({ loading: true, error: null });
         try {
           const res = await AuthService.me();
-          console.log('fetchMe response:', res);
+          // console.log('fetchMe response:', res);
           if (res?.data?.success) {
             const userData = res.data.data;
-            console.log('Setting user data:', userData);
+            // console.log('Setting user data:', userData);
             set({ user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true });
           } else {
-            console.log('No success in response');
+            // console.log('No success in response');
             set({ user: null, isAuthenticated: false, loading: false, hasCheckedAuth: true });
           }
         } catch (error) {
@@ -91,7 +91,7 @@ export const useAuthStore = create(
           // localStorage에서 auth 데이터 제거
           try {
             localStorage.removeItem('auth');
-            console.log('Cleared localStorage auth data');
+            // console.log('Cleared localStorage auth data');
           } catch (e) {
             console.error('Failed to clear localStorage:', e);
           }
@@ -135,7 +135,7 @@ export const useAuthStore = create(
       name: 'auth',
       // 저장할 필드는 user와 isAuthenticated
       partialize: (state) => {
-        console.log('partialize called with state:', state);
+        // console.log('partialize called with state:', state);
         const userToPersist = state.user
           ? {
             // 닉네임 (UX 표시용)
@@ -156,7 +156,7 @@ export const useAuthStore = create(
         getItem: (name) => {
           try {
             const item = localStorage.getItem(name);
-            console.log('localStorage getItem:', name, item);
+            // console.log('localStorage getItem:', name, item);
             return item;
           } catch (error) {
             console.error('localStorage getItem error:', error);
@@ -167,7 +167,7 @@ export const useAuthStore = create(
           try {
             // JSON.stringify로 직렬화하여 [object Object] 문제 해결
             const serializedValue = JSON.stringify(value);
-            console.log('localStorage setItem:', name, serializedValue);
+            // console.log('localStorage setItem:', name, serializedValue);
             localStorage.setItem(name, serializedValue);
           } catch (error) {
             console.error('localStorage setItem error:', error);
@@ -175,7 +175,7 @@ export const useAuthStore = create(
         },
         removeItem: (name) => {
           try {
-            console.log('localStorage removeItem:', name);
+            // console.log('localStorage removeItem:', name);
             localStorage.removeItem(name);
           } catch (error) {
             console.error('localStorage removeItem error:', error);
