@@ -59,31 +59,35 @@ const NicknameEditor = () => {
       <label htmlFor="nickname" className={styles.label}>
         닉네임
       </label>
-      <input
-        id="nickname"
-        type="text"
-        value={nickname}
-        onChange={handleNicknameChange}
-        className={`${styles.input} ${error ? styles.inputError : ''}`}
-        placeholder="닉네임을 입력하세요"
-        maxLength={10}
-        aria-label="닉네임 입력"
-        aria-invalid={error !== ''}
-        aria-describedby={error ? 'nickname-error' : undefined}
-      />
-      {error && (
-        <p id="nickname-error" className={styles.errorMessage} role="alert">
-          {error}
-        </p>
-      )}
-      <button
-        onClick={handleSubmit}
-        disabled={isSubmitDisabled}
-        className={styles.submitButton}
-        aria-label="닉네임 수정"
-      >
-        수정
-      </button>
+      <div className={styles.inputWrapper}>
+        <input
+          id="nickname"
+          type="text"
+          value={nickname}
+          onChange={handleNicknameChange}
+          className={`${styles.input} ${error ? styles.inputError : ''}`}
+          placeholder="닉네임을 입력하세요"
+          maxLength={10}
+          aria-label="닉네임 입력"
+          aria-invalid={error !== ''}
+          aria-describedby={error ? 'nickname-error' : undefined}
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={isSubmitDisabled}
+          className={styles.submitButton}
+          aria-label="닉네임 수정"
+        >
+          수정
+        </button>
+      </div>
+      <div className={styles.errorMessage}>
+        {error && (
+          <span id="nickname-error" role="alert">
+            {error}
+          </span>
+        )}
+      </div>
     </div>
   );
 };
