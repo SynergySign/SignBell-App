@@ -1,0 +1,269 @@
+/**
+ * @개요 단어 상세 모달 컴포넌트 스타일 정의
+ * @작성자 신동준 (sdj3959)
+ * @작성일 2025-01-21
+ * @최종수정일 2025-01-21
+ */
+
+// 모달 오버레이
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1001;
+  animation: fadeIn 0.3s ease-out;
+}
+
+// 모달 컨테이너
+.word-detail-modal {
+  position: fixed;
+  top: 45%;
+  left: calc(50% - 200px); // 사이드바 너비(400px)의 절반을 빼서 중앙 정렬
+  width: 600px;
+  max-width: 90vw;
+  max-height: 90vh;
+  background-color: var(--white-color);
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  padding: 32px;
+  overflow-y: auto;
+  z-index: 1002;
+  transform: translate(-50%, -50%);
+  animation: scaleIn 0.3s ease-out forwards;
+
+  // 모달 헤더
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+
+    .modal-title {
+      color: var(--text-color);
+      font-size: 24px;
+      font-weight: bold;
+      margin: 0;
+      letter-spacing: -0.3px;
+    }
+
+    .close-button {
+      background: none;
+      border: none;
+      color: var(--text-color);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: all 0.2s;
+
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+
+      &:active {
+        transform: scale(0.9);
+      }
+    }
+  }
+
+  // 모달 콘텐츠
+  .modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+
+    // 수어 영상 영역
+    .video-section {
+      display: flex;
+      justify-content: center;
+    }
+
+    // 수어 동작 설명
+    .description-section {
+      .description-title {
+        color: var(--text-color);
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 12px 0;
+        letter-spacing: -0.2px;
+      }
+
+      .description-text {
+        color: var(--text-color);
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0 0 16px 0;
+        letter-spacing: -0.1px;
+      }
+
+      .word-info {
+        .category {
+          color: var(--text-color);
+          font-size: 13px;
+          font-weight: 500;
+          opacity: 0.8;
+          letter-spacing: -0.1px;
+        }
+      }
+    }
+
+
+
+    // 영상 제공 버튼
+    .video-submission-button {
+      background: linear-gradient(135deg, var(--accent-color) 0%, #ffb74d 100%);
+      color: var(--white-color);
+      border: none;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: -0.2px;
+      box-shadow: 0 2px 8px rgba(255, 204, 128, 0.3);
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 204, 128, 0.4);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+  }
+}
+
+// 애니메이션
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+}
+
+// 반응형 디자인
+@media (max-width: 768px) {
+  .word-detail-modal {
+    width: 90%;
+    padding: 24px;
+    top: 45%;
+    left: 50%; // 모바일에서는 사이드바가 전체 화면이므로 정중앙
+
+    .modal-header {
+      margin-bottom: 20px;
+
+      .modal-title {
+        font-size: 20px;
+      }
+
+      .close-button {
+        width: 28px;
+        height: 28px;
+        font-size: 20px;
+      }
+    }
+
+    .modal-content {
+      gap: 16px;
+
+      .description-section {
+        .description-title {
+          font-size: 16px;
+        }
+
+        .description-text {
+          font-size: 13px;
+        }
+
+        .word-info {
+          .category {
+            font-size: 12px;
+          }
+        }
+      }
+
+      .video-submission-button {
+        padding: 12px;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+@media (max-width: 480px) {
+  .word-detail-modal {
+    width: 95%;
+    padding: 20px;
+
+    .modal-header {
+      .modal-title {
+        font-size: 18px;
+      }
+
+      .close-button {
+        width: 24px;
+        height: 24px;
+        font-size: 18px;
+      }
+    }
+
+    .modal-content {
+      gap: 12px;
+
+      .description-section {
+        .description-title {
+          font-size: 15px;
+        }
+
+        .description-text {
+          font-size: 12px;
+        }
+
+        .word-info {
+          .category {
+            font-size: 11px;
+          }
+        }
+      }
+
+      .video-submission-button {
+        padding: 10px;
+        font-size: 13px;
+      }
+    }
+  }
+}

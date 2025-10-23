@@ -10,27 +10,13 @@ import { useState } from 'react';
 import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
-import PersonalStudySidebar from '../../components/main/PersonalStudySidebar';
+import PersonalStudySidebar from '../../components/study/PersonalStudySidebar';
 import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
 import styles from './MainPage.module.scss';
-import { useNavigate } from 'react-router-dom';
 
 
 const MainPage = () => {
   const [activeSidebar, setActiveSidebar] = useState(null);
-  // =============개인 학습페이지용 임시 코드==================
-  const navigate = useNavigate();
-  // 개인 학습 임시 라우트 함수
-
-  const handlePersonalStudyRoute = () => {
-    // navigate 함수에 이동할 경로(path)를 문자열로 전달합니다.
-    navigate('/personal-study');
-    console.log('개인 학습 페이지로 이동');
-  }
-// =============개인 학습페이지용 임시 코드==================
-
-
-
 
   const handlePersonalStudyClick = () => {
     setActiveSidebar(activeSidebar === 'personal' ? null : 'personal');
@@ -53,8 +39,7 @@ const MainPage = () => {
           <FeatureButton
             title="개인 학습"
             icon={faBook}
-            // 임시 라우트함수 추가
-            onClick={handlePersonalStudyRoute}
+            onClick={handlePersonalStudyClick}
             delay={0.3}
             active={activeSidebar === 'personal'}
           />
@@ -77,6 +62,7 @@ const MainPage = () => {
         <PersonalStudySidebar
           isOpen={activeSidebar === 'personal'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
 
@@ -85,6 +71,7 @@ const MainPage = () => {
         <RealTimeQuizSidebar
           isOpen={activeSidebar === 'quiz'}
           onClose={() => setActiveSidebar(null)}
+          onTabChange={setActiveSidebar}
         />
       )}
     </div>
