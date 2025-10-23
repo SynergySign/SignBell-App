@@ -10,9 +10,40 @@
   display: flex;
   flex-direction: column;
   animation: fadeIn 0.5s ease-in-out;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 29px,
+        rgba(150, 150, 150, 0.06) 29px,
+        rgba(150, 150, 150, 0.06) 30px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 29px,
+        rgba(150, 150, 150, 0.048) 29px,
+        rgba(150, 150, 150, 0.048) 30px
+      );
+    background-size: 30px 30px;
+    animation: notebookGrid 10s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
 }
 
 .mainContent {
+  position: relative;
+  z-index: 1;
   flex: 1;
   display: flex;
   justify-content: center;
@@ -84,6 +115,15 @@
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+@keyframes notebookGrid {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: -300px -300px, -300px -300px;
   }
 }
 
