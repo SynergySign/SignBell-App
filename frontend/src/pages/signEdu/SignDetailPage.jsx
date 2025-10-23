@@ -1,6 +1,6 @@
 // SignDetailPage.jsx
 // 단일 수어 단어의 상세 정보(제목, 설명, 동영상)를 보여줍니다.
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getSignDetail } from '../../services/signedu/signEdu.js';
 import useSignEduWebcam from '../../services/signedu/signEduWebcam.js';
@@ -8,6 +8,9 @@ import {
   connect as wsConnect,
   disconnect as wsDisconnect,
   sendMeta as wsSendMeta,
+  sendFrame as wsSendFrame,
+  sendSaveLearning as wsSendSaveLearning,
+  sendFlush as wsSendFlush,
   onStatus as wsOnStatus,
   onMessage as wsOnMessage,
   getStatus as wsGetStatus,
@@ -175,76 +178,243 @@ const SignDetailPage = () => {
         </div>
       </div>
 
-      {/* 웹소켓 연결 UI (SignDetailPage에 추가) */}
+      {/* 웹소켓 / 녹화 제어 UI */}
       <div className="mt-6 p-4 border rounded bg-white">
-        <WebSocketSection />
+        <WebSocketControl
+          signDetail={signDetail}
+          videoRef={videoRef}
+          isCamOn={isCamOn}
+          wsGetStatus={wsGetStatus}
+        />
       </div>
     </div>
   );
 };
 
-// 별도 컴포넌트로 분리: SignDetailPage 내에서만 사용되는 간단한 웹소켓 UI
-function WebSocketSection() {
-  const [wsStatus, setWsStatus] = React.useState(wsGetStatus());
-  const [wsMessages, setWsMessages] = React.useState([]);
+// 웹소켓 및 녹화 제어를 담당하는 내부 컴포넌트
+function WebSocketControl({ signDetail, videoRef, isCamOn, wsGetStatus }) {
+  const [wsStatus, setWsStatus] = useState(wsGetStatus());
+  const [serverFeedback, setServerFeedback] = useState('');
+  const [wsMessages, setWsMessages] = useState([]);
 
-  React.useEffect(() => {
+  // --- ⬇️ 수정된 부분 1: 'ref'를 사용하여 루프 상태 관리 ---
+  const canvasRef = useRef(null);
+  const recordingLoopRef = useRef(null); // requestAnimationFrame의 ID
+  const isRecordingRef = useRef(false); // 실제 녹화 상태 (state 대신 ref 사용)
+
+  // UI 표시는 state로 계속 관리
+  const [isRecordingUI, setIsRecordingUI] = useState(false);
+  // --- ⬆️ 수정 완료 ⬆️ ---
+
+  // 메시지 핸들러 (기존과 동일)
+  useEffect(() => {
     const offStatus = wsOnStatus((s) => setWsStatus(s));
-    const offMsg = wsOnMessage((m) => setWsMessages((prev) => [...prev, m]));
+    const offMsg = wsOnMessage((m) => {
+      setWsMessages((prev) => [...prev, m]);
+      // 간단한 타입 기반 처리
+      if (m && m.type === 'meta_ack') {
+        setServerFeedback('✅ 서버와 연결되었습니다. (Meta Ack)');
+      } else if (m && m.type === 'learning_ack') {
+        if (m.status === 'accepted') setServerFeedback('✅ 학습 데이터가 성공적으로 저장되었습니다.');
+        else setServerFeedback(`❌ 저장 실패: ${m.reason || '알 수 없는 오류'}`);
+      } else if (m && m.type === 'inference_result') {
+        const result = m.result || {};
+        const scorePercent = result.score ? (result.score * 100).toFixed(1) : '0.0';
+        setServerFeedback(`💡 예측 결과: ${result.predicted || 'N/A'} (신뢰도: ${scorePercent}%)`);
+      }
+    });
+
     return () => {
       offStatus();
       offMsg();
     };
   }, []);
 
+  // 웹소켓 생명주기 (기존과 동일)
+  useEffect(() => {
+    if (signDetail && isCamOn) {
+      wsConnect();
+      const offStatusLocal = wsOnStatus((status) => {
+        setWsStatus(status);
+        if (status === 'Connected') {
+          try {
+            wsSendMeta({ word_pk: signDetail.signId, word_name: signDetail.wordName });
+          } catch (e) {
+            console.error('sendMeta 호출 오류:', e);
+            setServerFeedback(`sendMeta error: ${e.message}`);
+          }
+        }
+      });
+
+      return () => {
+        offStatusLocal();
+        wsDisconnect();
+      };
+    } else if (!isCamOn) {
+      wsDisconnect();
+      setWsStatus(wsGetStatus());
+    }
+  }, [signDetail, isCamOn, wsGetStatus]);
+
+  // --- ⬇️ 수정된 부분 2: 'captureAndSendFrame' 함수 수정 ---
+  const captureAndSendFrame = useCallback(() => {
+    // state(isRecording) 대신 ref(isRecordingRef)를 확인
+    if (!isRecordingRef.current) {
+      console.log('[Capture Loop] Loop stopping (isRecordingRef is false).');
+      return; // 루프 중단
+    }
+
+    if (!canvasRef.current || !videoRef.current) {
+      console.error('[Capture Loop] Ref check failed.');
+      isRecordingRef.current = false; // 루프 중단
+      setIsRecordingUI(false); // UI 업데이트
+      return;
+    }
+
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const ctx = canvas.getContext('2d');
+
+    try {
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+
+      if (vw === 0 || vh === 0) {
+        console.warn(`[Capture Loop] Video dimensions are 0. Retrying...`);
+        // 비디오가 준비 안 됨. 다음 프레임에서 재시도
+        recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
+        return;
+      }
+
+      if (canvas.width !== vw || canvas.height !== vh) {
+        canvas.width = vw;
+        canvas.height = vh;
+      }
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (blob && blob.size > 0) {
+          // 이 로그가 보여야 합니다!
+          console.log(`[Capture] toBlob Succeeded. Sending frame size: ${blob.size}`);
+          wsSendFrame(blob);
+        }
+
+        // ref를 다시 확인하여 루프 지속
+        if (isRecordingRef.current) {
+          recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
+        }
+      }, 'image/jpeg', 0.8);
+    } catch (e) {
+      console.error('captureAndSendFrame error:', e);
+      isRecordingRef.current = false; // 오류 시 루프 중단
+      setIsRecordingUI(false); // UI 업데이트
+    }
+  }, [videoRef]); // 의존성 배열에서 'isRecording' 제거 (중요!)
+  // --- ⬆️ 수정 완료 ⬆️ ---
+
+  // --- ⬇️ 수정된 부분 3: 버튼 핸들러 수정 ---
+  const handleStartRecording = () => {
+    if (wsStatus !== 'Connected') {
+      alert('웹소켓이 연결되지 않았습니다. 웹캠을 껐다 켜보세요.');
+      return;
+    }
+    isRecordingRef.current = true; // Ref를 true로 설정
+    setIsRecordingUI(true); // UI State를 true로 설정
+    setServerFeedback('녹화 시작...');
+
+    // 이전에 실행 중인 루프가 있다면 취소 (안전장치)
+    if (recordingLoopRef.current) {
+      cancelAnimationFrame(recordingLoopRef.current);
+    }
+    // 루프 시작
+    recordingLoopRef.current = requestAnimationFrame(captureAndSendFrame);
+  };
+
+  const handleStopAndSave = () => {
+    isRecordingRef.current = false; // Ref를 false로 설정 (루프가 스스로 멈춤)
+    setIsRecordingUI(false); // UI State를 false로 설정
+    recordingLoopRef.current = null; // 루프 ID 정리
+
+    setServerFeedback('학습 저장 요청 중...');
+    wsSendSaveLearning();
+  };
+
+  const handleStopAndQuiz = () => {
+    isRecordingRef.current = false; // Ref를 false로 설정 (루프가 스스로 멈춤)
+    setIsRecordingUI(false); // UI State를 false로 설정
+    recordingLoopRef.current = null; // 루프 ID 정리
+
+    setServerFeedback('퀴즈 제출 요청 중...');
+    wsSendFlush();
+  };
+  // --- ⬆️ 수정 완료 ⬆️ ---
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-lg font-medium">웹소켓</div>
-        <div className="text-sm text-gray-500">세션: <code>{WS_SESSION_ID}</code></div>
-      </div>
-
-      <p className="mb-2">Status: <strong>{wsStatus}</strong></p>
-
-      <div className="mb-3">
-        <button
-          onClick={() => wsConnect()}
-          className="px-3 py-1 bg-indigo-600 text-white rounded"
-          disabled={wsStatus === 'Connected'}
-        >
-          웹소켓 연결하기
-        </button>
-
-        <button
-          onClick={() => wsDisconnect()}
-          className="ml-2 px-3 py-1 bg-gray-200 rounded"
-          disabled={wsStatus !== 'Connected'}
-        >
-          연결 해제
-        </button>
-
-        <button
-          onClick={() => { try { wsSendMeta(); } catch (e) { alert(e.message); } }}
-          className="ml-2 px-3 py-1 bg-green-500 text-white rounded"
-          disabled={wsStatus !== 'Connected'}
-        >
-          테스트 'meta' 전송
-        </button>
-      </div>
-
       <div>
-        <h4 className="font-medium mb-2">수신 메시지</h4>
-        <div style={{ background: '#f4f4f4', padding: 8, height: 160, overflowY: 'auto' }}>
-          {wsMessages.length === 0 ? (
-            <div className="text-sm text-gray-500">(메시지 없음)</div>
-          ) : (
-            wsMessages.map((m, i) => (
-              <div key={i} className="text-sm">{JSON.stringify(m)}</div>
-            ))
+        {/* (웹소켓 상태 표시 UI - 기존과 동일) ... */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-lg font-medium">웹소켓 / 연습</div>
+          <div className="text-sm text-gray-500">세션: <code>{WS_SESSION_ID}</code></div>
+        </div>
+        <p className="mb-2">Status: <strong>{wsStatus}</strong></p>
+        {/* ... (연결/해제 버튼 - 기존과 동일) ... */}
+
+
+        {/* 녹화 컨트롤 및 서버 상호작용 */}
+        <div className="mt-4 p-4 border rounded bg-blue-50">
+          <h3 className="text-lg font-bold mb-2">수어 연습하기</h3>
+          <p className="text-sm mb-3">웹소켓 상태: <strong>{wsStatus}</strong></p>
+
+          <div className="flex items-center gap-2">
+            {/* --- ⬇️ 수정된 부분 4: 핸들러 및 disabled 조건 변경 --- */}
+            <button
+                onClick={handleStartRecording}
+                disabled={isRecordingUI || wsStatus !== 'Connected'}
+                className="px-4 py-2 bg-green-600 text-white rounded disabled:bg-gray-400"
+            >
+              녹화 시작
+            </button>
+
+            <button
+                onClick={handleStopAndSave}
+                disabled={!isRecordingUI}
+                className="ml-2 px-4 py-2 bg-blue-600 text-white rounded disabled:bg-gray-400"
+            >
+              개인 학습 저장
+            </button>
+
+            <button
+                onClick={handleStopAndQuiz}
+                disabled={!isRecordingUI}
+                className="ml-2 px-4 py-2 bg-purple-600 text-white rounded disabled:bg-gray-400"
+            >
+              퀴즈 제출
+            </button>
+            {/* --- ⬆️ 수정 완료 ⬆️ --- */}
+          </div>
+
+          {/* 숨겨진 캔버스: 캡처용 (기존과 동일) */}
+          <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
+
+          {serverFeedback && (
+              <div className="mt-3 p-3 bg-white rounded shadow-inner">{serverFeedback}</div>
           )}
         </div>
+
+        {/* 수신 메시지 미리보기 (기존과 동일) */}
+        <div className="mt-3">
+          <h4 className="font-medium mb-2">수신 메시지</h4>
+          <div style={{ background: '#f4f4f4', padding: 8, height: 160, overflowY: 'auto' }}>
+            {wsMessages.length === 0 ? (
+                <div className="text-sm text-gray-500">(메시지 없음)</div>
+            ) : (
+                wsMessages.map((m, i) => (
+                    <div key={i} className="text-sm">{JSON.stringify(m)}</div>
+                ))
+            )}
+          </div>
+        </div>
       </div>
-    </div>
   );
 }
 

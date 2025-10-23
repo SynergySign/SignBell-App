@@ -28,7 +28,13 @@ export function connect(sessionId = SESSION_ID) {
 
   // 반드시 wss로 연결합니다. 프록시가 /ws 경로를 백엔드 FastAPI로 전달합니다.
   const host = (typeof window !== 'undefined' && window.location && window.location.host) ? window.location.host : 'localhost:8443';
-  const wsUrl = `wss://${host}/fastapi/ws/${sessionId}`;
+  // 현재 페이지의 프로토콜(http: 또는 https:)을 확인
+  const isSecure = (typeof window !== 'undefined' && window.location.protocol === 'https:');
+  // http: -> 'ws://', https: -> 'wss://'
+  const wsProtocol = isSecure ? 'wss://' : 'ws://';
+
+  const wsUrl = `${wsProtocol}${host}/fastapi/ws/${sessionId}`;
+
   console.log(`(Cookie Auth via Proxy) Connecting to ${wsUrl}...`);
 
   try {
@@ -127,6 +133,8 @@ export function sendFrame(blob) {
   }
   if (socket && socket.readyState === WebSocket.OPEN) {
     try {
+
+      console.log(`[WebSocket] socket.send(blob) called. Size: ${blob.size}`);
       // Blob은 그대로 전송
       socket.send(blob);
       return true;
