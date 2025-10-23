@@ -58,6 +58,14 @@
   }
 }
 
+.successMessage {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-color);
+  text-align: center;
+  padding: 20px;
+}
+
 // 애니메이션
 @keyframes fadeIn {
   from {

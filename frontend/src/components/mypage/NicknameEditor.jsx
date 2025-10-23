@@ -3,13 +3,14 @@
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-23
  * @최종수정일 2025-10-23
+ * @매개변수 {Function} props.onNicknameUpdate - 닉네임 수정 성공 시 호출되는 콜백 함수
  * @반환값 {JSX.Element} 닉네임 수정 컴포넌트
  */
 
 import { useState } from 'react';
 import styles from './NicknameEditor.module.scss';
 
-const NicknameEditor = () => {
+const NicknameEditor = ({ onNicknameUpdate }) => {
   // TODO: 사용자 프로필 API 연동 필요
   const [originalNickname] = useState('사용자'); // 원본 닉네임 저장
   const [nickname, setNickname] = useState('사용자');
@@ -55,9 +56,15 @@ const NicknameEditor = () => {
       return;
     }
 
+    const trimmedNickname = nickname.trim();
+    
     // TODO: 닉네임 수정 API 연동 필요
-    console.log('닉네임 수정:', nickname.trim());
-    alert('닉네임이 수정되었습니다.');
+    console.log('닉네임 수정:', trimmedNickname);
+    
+    // 부모 컴포넌트에 닉네임 업데이트 알림
+    if (onNicknameUpdate) {
+      onNicknameUpdate(trimmedNickname);
+    }
   };
 
   const handleKeyPress = (e) => {

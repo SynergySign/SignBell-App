@@ -30,7 +30,11 @@ const MyPage = () => {
     isOpen: false,
     title: '',
     content: '',
+    isTermsModal: false, // 약관 모달인지 알림 모달인지 구분
   });
+
+  // 닉네임 업데이트를 위한 key (리렌더링 트리거)
+  const [nicknameKey, setNicknameKey] = useState(0);
 
   const handleViewTerms = (termsType) => {
     if (termsType === 'required') {
@@ -38,14 +42,29 @@ const MyPage = () => {
         isOpen: true,
         title: '서비스 필수 동의 약관',
         content: REQUIRED_TERMS,
+        isTermsModal: true,
       });
     } else {
       setModalState({
         isOpen: true,
         title: '서비스 선택 동의 약관',
         content: OPTIONAL_TERMS,
+        isTermsModal: true,
       });
     }
+  };
+
+  const handleNicknameUpdate = (newNickname) => {
+    // 닉네임 수정 성공 모달 표시
+    setModalState({
+      isOpen: true,
+      title: '닉네임 수정 완료',
+      content: `닉네임이 "${newNickname}"(으)로 변경되었습니다.`,
+      isTermsModal: false,
+    });
+    
+    // 컴포넌트 리렌더링을 위한 key 업데이트
+    setNicknameKey(prev => prev + 1);
   };
 
   const handleEditTerms = () => {
@@ -63,6 +82,7 @@ const MyPage = () => {
       isOpen: false,
       title: '',
       content: '',
+      isTermsModal: false,
     });
   };
 
@@ -74,7 +94,10 @@ const MyPage = () => {
           
           <ProfileImageEditor />
           
-          <NicknameEditor />
+          <NicknameEditor 
+            key={nicknameKey}
+            onNicknameUpdate={handleNicknameUpdate}
+          />
           
           <TermsSection 
             termsStatus={termsStatus}
@@ -89,15 +112,21 @@ const MyPage = () => {
         onClose={closeModal}
         title={modalState.title}
       >
-        <div
-          className={styles.termsContent}
-          dangerouslySetInnerHTML={{
-            __html: modalState.content
-              .replace(/\n/g, '<br />')
-              .replace(/##\s+(.+)/g, '<h2>$1</h2>')
-              .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-          }}
-        />
+        {modalState.isTermsModal ? (
+          <div
+            className={styles.termsContent}
+            dangerouslySetInnerHTML={{
+              __html: modalState.content
+                .replace(/\n/g, '<br />')
+                .replace(/##\s+(.+)/g, '<h2>$1</h2>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            }}
+          />
+        ) : (
+          <div className={styles.successMessage}>
+            {modalState.content}
+          </div>
+        )}
       </Modal>
     </div>
   );
