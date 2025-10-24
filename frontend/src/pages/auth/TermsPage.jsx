@@ -17,7 +17,7 @@ import { useAuthStore } from '../../store/auth/authStore';
 
 const TermsPage = () => {
   const navigate = useNavigate();
-  const { user, refreshMeSilent, logout } = useAuthStore();
+  const { user, fetchMe, refreshMeSilent, logout } = useAuthStore();
   const [agreements, setAgreements] = useState({
     // 마이페이지에서 전달받은 약관 동의 상태
     required: false,
@@ -26,6 +26,44 @@ const TermsPage = () => {
   const location = useLocation();
   const fromMyPage = location.state?.fromMyPage || false;
 
+
+  // 1. ✅ 추가된 로직: 페이지 진입 시 fetchMe()를 호출하고 requiredAgree 상태 확인
+  useEffect(() => {
+    // 1-1. 사용자 정보가 없으면 fetchMe() 호출
+    if (!user) {
+      console.log("TermsPage: User not loaded, calling fetchMe().");
+      fetchMe();
+      return;
+    }
+
+    // 1-2. 사용자 정보가 있고, 필수 약관에 이미 동의했다면 즉시 리디렉션 처리
+    if (user && user.requiredAgree === true) {
+      console.log("TermsPage: Required agreement already true. Redirecting to /main.");
+
+      // 팝업 창에서 넘어온 경우
+      if (window.opener) {
+        // 부모 창을 /main으로 이동시키고 팝업 창을 닫음
+        console.log("TermsPage (Popup): Redirecting opener to /main and closing.");
+        window.opener.location.href = "https://localhost:5173/main";
+        window.opener.focus();
+        window.close();
+      } else {
+        // 메인 창인 경우
+        navigate('/main', { replace: true });
+      }
+      return;
+    }
+
+    // 1-3. 초기 약관 상태 설정 (마이페이지에서 온 경우가 아니라면 user 정보로 초기 상태 설정)
+    // 이 로직은 `requiredAgree`가 `false`일 때만 실행되어야 합니다.
+    if (user && !fromMyPage) {
+      setAgreements({
+        required: user.requiredAgree,
+        optional: user.optionalAgree,
+      });
+    }
+
+  }, [user, navigate, fromMyPage, fetchMe]); // user 객체의 변경을 주시
 
   // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
   useEffect(() => {
