@@ -18,14 +18,14 @@ import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
   console.log('🚀🚀🚀 QuizGamePage 컴포넌트 렌더링 시작');
-  
+
   const { roomId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   console.log('📍 roomId:', roomId);
   console.log('📍 location.state:', location.state);
-  
+
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [totalQuestions, setTotalQuestions] = useState(8);
   const [currentWord, setCurrentWord] = useState(''); // 현재 문제 단어
@@ -140,19 +140,23 @@ const QuizGamePage = () => {
   const startWebcam = useWebcamStore(state => state.startWebcam);
   const stopWebcam = useWebcamStore(state => state.stopWebcam);
   const toggleWebcam = useWebcamStore(state => state.toggleWebcam);
-  
+
   // 로컬 비디오 ref (메인 카드용)
   const mainVideoRef = useRef(null);
+
+  // FastAPI WebSocket 연결 ref
+  const fastApiWsRef = useRef(null);
+  const frameIntervalRef = useRef(null);
 
   // 게임 시작 시 웹캠 자동 시작 (대기실에서 이미 켜져 있으면 유지)
   const webcamInitializedRef = useRef(false);
   const startWebcamAttemptedRef = useRef(false);
-  
+
   useEffect(() => {
-    console.log('📹 웹캠 초기화 체크:', { 
-      isWebcamOn, 
+    console.log('📹 웹캠 초기화 체크:', {
+      isWebcamOn,
       initialized: webcamInitializedRef.current,
-      attempted: startWebcamAttemptedRef.current 
+      attempted: startWebcamAttemptedRef.current
     });
 
     // 이미 초기화 완료했으면 스킵
@@ -171,7 +175,7 @@ const QuizGamePage = () => {
     if (!startWebcamAttemptedRef.current) {
       console.log('📹 게임 페이지 마운트 - 웹캠 자동 시작 시도');
       startWebcamAttemptedRef.current = true;
-      
+
       startWebcam().then(() => {
         console.log('✅ 웹캠 시작 성공');
         webcamInitializedRef.current = true;
@@ -186,13 +190,13 @@ const QuizGamePage = () => {
 
   // 메인 비디오에 스트림 연결
   useEffect(() => {
-    console.log('📹 메인 비디오 스트림 연결 시도:', { 
+    console.log('📹 메인 비디오 스트림 연결 시도:', {
       hasMainVideoRef: !!mainVideoRef.current,
       hasStream: !!stream,
       streamActive: stream?.active,
-      streamTracks: stream?.getTracks().length 
+      streamTracks: stream?.getTracks().length
     });
-    
+
     if (stream && mainVideoRef.current) {
       mainVideoRef.current.srcObject = stream;
       console.log('✅ 메인 비디오 스트림 연결 완료');
@@ -205,7 +209,7 @@ const QuizGamePage = () => {
   // Janus WebRTC 연결 (웹캠 켜진 후)
   useEffect(() => {
     console.log('🔍 Janus 연결 체크:', { isJanusConnected, hasJanusRef: !!janusRef.current, isWebcamOn, hasStream: !!stream });
-    
+
     // 이미 Janus가 연결되어 있으면 재연결하지 않음 (대기실에서 연결 유지)
     if (isJanusConnected && janusRef.current) {
       console.log('✅ Janus 이미 연결됨 - 기존 연결 유지');
@@ -327,7 +331,7 @@ const QuizGamePage = () => {
                     msg['publishers'].forEach((publisher) => {
                       const userId = parseInt(publisher.display);
                       console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', actualUserId);
-                      
+
                       // 자기 자신은 구독하지 않음
                       if (userId !== actualUserId) {
                         userIdToFeedIdRef.current[userId] = publisher.id;
@@ -343,7 +347,7 @@ const QuizGamePage = () => {
                     msg['publishers'].forEach((publisher) => {
                       const userId = parseInt(publisher.display);
                       console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', actualUserId);
-                      
+
                       // 자기 자신은 구독하지 않음
                       if (userId !== actualUserId) {
                         userIdToFeedIdRef.current[userId] = publisher.id;
@@ -543,7 +547,7 @@ const QuizGamePage = () => {
   useEffect(() => {
     console.log('🎮 게임 페이지 진입 - 초기화 시작');
     console.log('🔌 WebSocket 연결 상태:', websocketService.isConnected());
-    
+
     // WebSocket이 연결되어 있지 않으면 경고만 출력 (초기화는 계속 진행)
     if (!websocketService.isConnected()) {
       console.warn('⚠️ WebSocket이 연결되어 있지 않습니다. 재연결 시도...');
@@ -648,6 +652,7 @@ const QuizGamePage = () => {
     websocketService.on('quiz:challenge', handleChallengeUpdate);
     websocketService.on('quiz:challenge:personal', handlePersonalChallengeResponse);
     websocketService.on('quiz:challenger', handleNextChallenger);
+    websocketService.on('quiz:timer', handleTimerUpdate);
     websocketService.on('quiz:answer', handleAnswerResult);
     websocketService.on('quiz:result', handleGameEnd);
     websocketService.on('quiz:return', handleReturnToRoom);
@@ -660,6 +665,7 @@ const QuizGamePage = () => {
       websocketService.off('quiz:challenge', handleChallengeUpdate);
       websocketService.off('quiz:challenge:personal', handlePersonalChallengeResponse);
       websocketService.off('quiz:challenger', handleNextChallenger);
+      websocketService.off('quiz:timer', handleTimerUpdate);
       websocketService.off('quiz:answer', handleAnswerResult);
       websocketService.off('quiz:result', handleGameEnd);
       websocketService.off('quiz:return', handleReturnToRoom);
@@ -806,6 +812,40 @@ const QuizGamePage = () => {
   };
 
   /**
+   * 타이머 업데이트 처리
+   */
+  const handleTimerUpdate = (data) => {
+    console.log('⏱️ 타이머 업데이트:', data);
+
+    if (data.success && data.data) {
+      const { timerType, remainingSeconds, questionNumber, challengerUserId } = data.data;
+
+      console.log(`⏱️ ${timerType} 타이머: ${remainingSeconds}초`);
+
+      if (timerType === 'CHALLENGE') {
+        // 도전 신청 타이머 (10초)
+        setTimer(remainingSeconds);
+      } else if (timerType === 'PREPARE') {
+        // 수어 준비 타이머 (5초)
+        setSolvingTimer(remainingSeconds);
+
+        // 준비 타이머가 0이 되면 수어 동작 시작 신호
+        if (remainingSeconds === 0 && gamePhase === 'myTurn') {
+          console.log('🎬 준비 타이머 완료 - 수어 동작 시작 신호');
+        }
+      } else if (timerType === 'SIGNING') {
+        // 수어 표현 타이머 (10초)
+        setSigningTimer(remainingSeconds);
+
+        // 수어 타이머가 0이 되면 결과 처리 신호
+        if (remainingSeconds === 0 && gamePhase === 'myTurn') {
+          console.log('⏰ 수어 타이머 완료 - 결과 처리 신호');
+        }
+      }
+    }
+  };
+
+  /**
    * 도전 신청 타임아웃 처리
    */
   const handleChallengeTimeout = (data) => {
@@ -893,49 +933,20 @@ const QuizGamePage = () => {
   };
 
   // ============================================
-  // 타이머 관리 useEffect
+  // 타이머 관리 useEffect (WebSocket으로 대체)
   // ============================================
 
-  // 10초 타이머 (도전 신청)
+  // 타이머는 이제 백엔드에서 WebSocket으로 전송됨
+  // handleTimerUpdate에서 처리
+
+  // 수어 표현 타이머 완료 시 결과 처리 (임시: 랜덤 정답/오답)
   useEffect(() => {
-    if (isTimerActive && timer > 0 && gamePhase === 'challenge') {
-      const countdown = setTimeout(() => {
-        setTimer(timer - 1);
-      }, 1000);
-
-      return () => clearTimeout(countdown);
-    } else if (timer === 0 && gamePhase === 'challenge') {
-      handleTimerEnd();
-    }
-  }, [timer, isTimerActive, gamePhase]);
-
-  // 5초 카운트다운 (내 차례 준비)
-  useEffect(() => {
-    if (gamePhase === 'myTurn' && solvingTimer > 0 && signingTimer === 10) {
-      const countdown = setTimeout(() => {
-        setSolvingTimer(solvingTimer - 1);
-      }, 1000);
-
-      return () => clearTimeout(countdown);
-    } else if (gamePhase === 'myTurn' && solvingTimer === 0 && signingTimer === 10) {
-      // 카운트다운 완료 - 수어 동작 시작
-      handleStartSigning();
-    }
-  }, [solvingTimer, gamePhase, signingTimer]);
-
-  // 10초 수어 표현 타이머
-  useEffect(() => {
-    if (gamePhase === 'myTurn' && solvingTimer === 0 && signingTimer > 0 && signingTimer < 10) {
-      const countdown = setTimeout(() => {
-        setSigningTimer(signingTimer - 1);
-      }, 1000);
-
-      return () => clearTimeout(countdown);
-    } else if (gamePhase === 'myTurn' && signingTimer === 0) {
+    if (gamePhase === 'myTurn' && signingTimer === 0) {
       // 수어 표현 시간 종료
-      handleSigningResult();
+      console.log('⏰ 수어 표현 시간 종료 - 결과 처리 (임시)');
+      handleSigningResultTemp();
     }
-  }, [signingTimer, gamePhase, solvingTimer]);
+  }, [signingTimer, gamePhase]);
 
   // 토스트 자동 닫기 (3초 후)
   useEffect(() => {
@@ -1040,56 +1051,286 @@ const QuizGamePage = () => {
   };
 
   /**
-   * 수어 표현 시작 (준비 카운트다운 완료 후)
-   * TODO: MediaPipe 수어 인식 시작
+   * 수어 표현 결과 처리 (임시: 랜덤 정답/오답)
+   * TODO: FastAPI 연동 후 실제 AI 결과로 대체
    */
-  const handleStartSigning = () => {
-    // 수어 표현 타이머 시작
-    setSigningTimer(9); // 10초부터 시작하므로 9로 설정
-    // TODO: MediaPipe 시작
-    // startMediaPipe();
-  };
-
-  /**
-   * 수어 표현 결과 처리 (임시: 랜덤)
-   * TODO: FastAPI 서버에서 받은 결과로 처리
-   */
-  const handleSigningResult = () => {
+  const handleSigningResultTemp = async () => {
     // 수어 인식 결과 대기 상태로 전환
     setIsWaitingResult(true);
     setResultMessage('수어 인식 중...');
 
-    // TODO: FastAPI 서버로 수어 데이터 전송
-    // const response = await fetch('http://fastapi-server/api/verify-sign', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ handLandmarks: ... })
-    // });
+    try {
+      // 임시: 1~2초 대기
+      await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // 임시: 6~10초 사이 랜덤 대기 시간
-    const waitTime = Math.floor(Math.random() * 4000) + 6000; // 6000~10000ms
-
-    setTimeout(() => {
       // 임시로 50% 확률로 정답/오답 처리
       const isCorrect = Math.random() > 0.5;
+      const predictedWord = isCorrect ? currentWord : '다른단어';
+
+      console.log(`🎯 임시 예측 결과: ${predictedWord} (정답: ${currentWord})`);
+
+      // 백엔드로 정답 제출
+      await submitAnswer(predictedWord);
 
       if (isCorrect) {
         setResultMessage('정답입니다! 🎉');
-
-        setTimeout(() => {
-          setIsWaitingResult(false);
-          setResultMessage('');
-          moveToNextQuestion();
-        }, 2000);
       } else {
-        setResultMessage('오답입니다 😢');
-
-        setTimeout(() => {
-          setIsWaitingResult(false);
-          setResultMessage('');
-          moveToNextChallenger();
-        }, 2000);
+        setResultMessage(`오답입니다 😢`);
       }
-    }, waitTime);
+
+      // 2초 후 상태 초기화
+      setTimeout(() => {
+        setIsWaitingResult(false);
+        setResultMessage('');
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ 정답 제출 실패:', error);
+      setResultMessage('오류가 발생했습니다');
+
+      setTimeout(() => {
+        setIsWaitingResult(false);
+        setResultMessage('');
+      }, 2000);
+    }
+  };
+
+  /**
+   * 수어 표현 시작 (준비 카운트다운 완료 후)
+   * FastAPI WebSocket 연결 및 프레임 스트리밍 시작
+   * TODO: FastAPI 연동 시 활성화
+   */
+  const handleStartSigning = async () => {
+    console.log('🤟 수어 동작 시작!');
+
+    if (!mainVideoRef.current) {
+      console.error('❌ 비디오 엘리먼트 없음');
+      return;
+    }
+
+    try {
+      const { verifySignLanguageWebSocket, captureFrameAsBlob } = await import('../../services/api/fastApiService');
+
+      // JWT 토큰 가져오기 (여러 방법 시도)
+      let token = null;
+
+      // 1. 쿠키에서 찾기 (ACCESS_TOKEN, accessToken 모두 시도)
+      const cookies = document.cookie.split('; ');
+      const accessTokenCookie = cookies.find(row => row.startsWith('ACCESS_TOKEN=')) ||
+        cookies.find(row => row.startsWith('accessToken='));
+      if (accessTokenCookie) {
+        token = accessTokenCookie.split('=')[1];
+        console.log('✅ 쿠키에서 토큰 발견');
+      }
+
+      // 2. localStorage에서 찾기
+      if (!token) {
+        token = localStorage.getItem('ACCESS_TOKEN') || localStorage.getItem('accessToken');
+        if (token) {
+          console.log('✅ localStorage에서 토큰 발견');
+        }
+      }
+
+      // 3. sessionStorage에서 찾기
+      if (!token) {
+        token = sessionStorage.getItem('ACCESS_TOKEN') || sessionStorage.getItem('accessToken');
+        if (token) {
+          console.log('✅ sessionStorage에서 토큰 발견');
+        }
+      }
+
+      if (!token) {
+        console.error('❌ JWT 토큰 없음');
+        console.log('🔍 쿠키:', document.cookie);
+        console.log('🔍 localStorage 키:', Object.keys(localStorage));
+        console.log('🔍 sessionStorage 키:', Object.keys(sessionStorage));
+        return;
+      }
+
+      console.log('🔑 토큰 길이:', token.length);
+
+      // FastAPI WebSocket 연결
+      const ws = verifySignLanguageWebSocket(
+        `${roomId}-${myUserId}`, // sessionId
+        token,
+        {
+          word_pk: currentQuestion, // 문제 번호를 word_pk로 사용
+          word_name: currentWord,
+          user_id: myUserId
+        },
+        (result) => {
+          // 추론 결과 수신
+          console.log('📥 FastAPI 추론 결과:', result);
+          window.fastApiResult = result;
+        }
+      );
+
+      fastApiWsRef.current = ws;
+
+      // 5fps로 프레임 전송 (200ms 간격)
+      console.log('📹 프레임 스트리밍 시작 (5fps)');
+
+      frameIntervalRef.current = setInterval(async () => {
+        try {
+          const frameBlob = await captureFrameAsBlob(mainVideoRef.current);
+          ws.sendFrame(frameBlob);
+        } catch (error) {
+          console.error('❌ 프레임 캡처 실패:', error);
+        }
+      }, 200); // 200ms = 5fps
+
+    } catch (error) {
+      console.error('❌ FastAPI 연동 실패:', error);
+    }
+  };
+
+  /**
+   * 수어 표현 결과 처리 (FastAPI 연동)
+   * 10초 후 FastAPI에 추론 요청 (flush)
+   * TODO: FastAPI 연동 시 활성화
+   */
+  const handleSigningResultWithFastAPI = async () => {
+    // 프레임 전송 중지
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current);
+      frameIntervalRef.current = null;
+      console.log('⏹️ 프레임 스트리밍 중지');
+    }
+
+    // 수어 인식 결과 대기 상태로 전환
+    setIsWaitingResult(true);
+    setResultMessage('수어 인식 중...');
+
+    try {
+      // FastAPI에 추론 요청 (flush)
+      if (fastApiWsRef.current && fastApiWsRef.current.isConnected()) {
+        console.log('📤 FastAPI 추론 요청 (flush)');
+        fastApiWsRef.current.requestInference();
+
+        // 추론 결과 대기 (최대 10초)
+        const result = await waitForFastApiResult(10000);
+
+        if (!result) {
+          throw new Error('FastAPI 응답 시간 초과');
+        }
+
+        console.log('📥 FastAPI 최종 결과:', result);
+
+        // 예측 단어 추출
+        const predictedWord = result.predicted || '인식실패';
+        const confidence = result.score || 0;
+
+        console.log(`🎯 예측 결과: ${predictedWord} (신뢰도: ${confidence})`);
+
+        // 백엔드로 정답 제출
+        await submitAnswer(predictedWord);
+
+        // 정답/오답 판정 (백엔드에서 처리하지만 UI 피드백용)
+        const isCorrect = predictedWord === currentWord;
+        if (isCorrect) {
+          setResultMessage('정답입니다! 🎉');
+        } else {
+          setResultMessage(`오답입니다 😢 (인식: ${predictedWord})`);
+        }
+
+      } else {
+        throw new Error('FastAPI WebSocket 연결 없음');
+      }
+
+      // 2초 후 상태 초기화
+      setTimeout(() => {
+        setIsWaitingResult(false);
+        setResultMessage('');
+
+        // WebSocket 연결 종료
+        if (fastApiWsRef.current) {
+          fastApiWsRef.current.close();
+          fastApiWsRef.current = null;
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ 수어 인식 실패:', error);
+      setResultMessage(`수어 인식 실패: ${error.message}`);
+
+      setTimeout(() => {
+        setIsWaitingResult(false);
+        setResultMessage('');
+
+        // WebSocket 연결 종료
+        if (fastApiWsRef.current) {
+          fastApiWsRef.current.close();
+          fastApiWsRef.current = null;
+        }
+      }, 2000);
+    }
+  };
+
+  /**
+   * FastAPI 결과 대기
+   * @param {number} timeout - 타임아웃 (밀리초)
+   * @returns {Promise<Object>} FastAPI 결과
+   */
+  const waitForFastApiResult = (timeout) => {
+    return new Promise((resolve) => {
+      const startTime = Date.now();
+
+      const checkResult = setInterval(() => {
+        if (window.fastApiResult) {
+          clearInterval(checkResult);
+          const result = window.fastApiResult;
+          window.fastApiResult = null;
+          resolve(result);
+        } else if (Date.now() - startTime > timeout) {
+          clearInterval(checkResult);
+          resolve(null);
+        }
+      }, 100);
+    });
+  };
+
+  // 컴포넌트 언마운트 시 정리
+  useEffect(() => {
+    return () => {
+      if (frameIntervalRef.current) {
+        clearInterval(frameIntervalRef.current);
+      }
+      if (fastApiWsRef.current) {
+        fastApiWsRef.current.close();
+      }
+    };
+  }, []);
+  // TODO: 실제로는 10초 동안 수집한 프레임 또는 랜드마크 데이터를 전송
+  // 현재는 임시로 빈 데이터 전송
+
+  // FastAPI 서버로 수어 데이터 전송
+  // const { verifySignLanguage } = await import('../../services/api/fastApiService');
+  // const result = await verifySignLanguage({
+  //   frames: collectedFrames, // 또는
+
+
+  // 2초 후 상태 초기화 (백엔드에서 다음 도전자 또는 다음 문제 메시지가 올 것임)
+
+
+  /**
+   * 백엔드로 정답 제출
+   * 
+   * @param {string} userAnswer - 사용자가 표현한 수어 (AI가 인식한 단어)
+   */
+  const submitAnswer = async (userAnswer) => {
+    try {
+      console.log('📤 정답 제출:', { questionNumber: currentQuestion, userAnswer });
+
+      websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
+        questionNumber: currentQuestion,
+        userAnswer: userAnswer
+      });
+
+      console.log('✅ 정답 제출 완료');
+    } catch (error) {
+      console.error('❌ 정답 제출 실패:', error);
+      throw error;
+    }
   };
 
   /**

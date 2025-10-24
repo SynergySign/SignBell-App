@@ -226,26 +226,26 @@ class WebSocketService {
     // 퀴즈 관련 모든 이벤트 (도전자 신청, 다음 문제, 타임아웃 등)
     this.subscribe(`/topic/room/${roomId}/quiz`, (message) => {
       console.log('📥📥📥 퀴즈 이벤트 RAW:', JSON.stringify(message, null, 2));
-      
+
       // data에 userId가 있으면 NextChallengerResponse
       if (message.data && message.data.userId) {
         console.log('🎯 NextChallengerResponse 감지 - userId:', message.data.userId);
         this.handleMessage('quiz:challenger', message);
         return;
       }
-      
+
       // data에 wordTitle이 있으면 NextQuestionResponse
       if (message.data && message.data.wordTitle) {
         console.log('🎯 NextQuestionResponse 감지 - wordTitle:', message.data.wordTitle);
         this.handleMessage('quiz:question', message);
         return;
       }
-      
+
       // eventType에 따라 다른 핸들러 호출
       if (message.data && message.data.eventType) {
         const eventType = message.data.eventType;
         console.log('🎯 eventType:', eventType);
-        
+
         switch (eventType) {
           case 'CHALLENGER_REGISTERED':
             console.log('→ quiz:challenge 핸들러 호출');
@@ -267,6 +267,12 @@ class WebSocketService {
         console.log('→ quiz:event 핸들러 호출 (데이터 없음)');
         this.handleMessage('quiz:event', message);
       }
+    });
+
+    // 타이머 업데이트
+    this.subscribe(`/topic/room/${roomId}/quiz/timer`, (message) => {
+      console.log('⏱️ 타이머 업데이트:', message);
+      this.handleMessage('quiz:timer', message);
     });
 
     // 정답 결과
@@ -341,6 +347,7 @@ class WebSocketService {
       `/topic/room/${roomId}/quiz/start`,
       `/topic/room/${roomId}/quiz/question`,
       `/topic/room/${roomId}/quiz/challenge`,
+      `/topic/room/${roomId}/quiz/timer`,
       `/topic/room/${roomId}/quiz/answer`,
       `/topic/room/${roomId}/quiz/result`,
       `/topic/room/${roomId}/quiz/return`
