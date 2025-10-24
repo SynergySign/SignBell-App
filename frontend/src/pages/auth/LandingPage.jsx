@@ -18,11 +18,11 @@ const LandingPage = () => {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const intervalRef = useRef(null);
-    // ❗ 추가: 백엔드 카카오 엔드포인트와 인증 상태
+    // 추가: 백엔드 카카오 엔드포인트와 인증 상태
     const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
     const navigate = useNavigate();
 
-    // ❗ 추가: 이미 로그인 상태면 홈으로 이동
+    // 이미 로그인 상태면 홈으로 이동
     useEffect(() => {
         console.log('isAuthenticated:', isAuthenticated);
         if (isAuthenticated) {
@@ -30,7 +30,7 @@ const LandingPage = () => {
         }
     }, [isAuthenticated, navigate]);
 
-    // ❗ 추가: 컴포넌트 언마운트 시 인터벌 정리
+    // 컴포넌트 언마운트 시 인터벌 정리
     useEffect(() => {
         return () => {
             if (intervalRef.current) {

@@ -191,6 +191,14 @@ public class User {
     }
 
     /**
+     * 사용자의 선택 동의 상태 업데이트 편의 메서드
+     * @param optionalAgree 선택 동의 여부
+     */
+    public void updateOptionalAgreement(Boolean optionalAgree) {
+        this.optionalAgree = optionalAgree != null ? optionalAgree : this.optionalAgree;
+    }
+
+    /**
      * 사용자 프로필을 요청 DTO 기반으로 업데이트합니다.
      * - 닉네임: 요청 DTO가 @NotBlank로 보장하므로 그대로 적용
      * - 선택 동의: null이면 기존 값 유지

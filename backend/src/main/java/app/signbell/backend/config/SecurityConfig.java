@@ -110,7 +110,7 @@ public class SecurityConfig {
             "https://127.0.0.1:5173"     // 개발 환경 HTTPS (127.0.0.1)
             // 실제 배포 도메인은 여기에 추가
         ));
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
 

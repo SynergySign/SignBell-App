@@ -45,19 +45,25 @@ const initialState = {
  */
 export const useAuthStore = create(
   persist(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       /**
        * 사용자 상태를 설정
        * @param {object|null} user
        */
-      setUser: (user) => set({ user, isAuthenticated: !!user, error: null }),
+      setUser: (user) => {
+        console.log('setUser called with:', user);
+        set({ user, isAuthenticated: !!user, error: null });
+      },
 
       /**
        * 모든 상태 초기화
        */
-      clear: () => set({ ...initialState, hasCheckedAuth: true }),
+      clear: () => {
+        console.log('clear called');
+        set({ ...initialState, hasCheckedAuth: true });
+      },
 
       /**
        * 현재 사용자 정보를 조회
@@ -65,18 +71,30 @@ export const useAuthStore = create(
        * - 실패/미인증 시 user=null, isAuthenticated=false
        */
       fetchMe: async () => {
+        console.log('fetchMe called');
         set({ loading: true, error: null });
         try {
           const res = await AuthService.me();
+          console.log('fetchMe response:', res);
           if (res?.data?.success) {
-            set({ user: res.data.data, isAuthenticated: true });
+            const userData = res.data.data;
+            console.log('Setting user data:', userData);
+            set({ user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true });
           } else {
-            set({ user: null, isAuthenticated: false });
+            // console.log('No success in response');
+            set({ user: null, isAuthenticated: false, loading: false, hasCheckedAuth: true });
           }
-        } catch {
-          set({ user: null, isAuthenticated: false, error: 'unauthenticated' });
-        } finally {
-          set({ loading: false, hasCheckedAuth: true });
+        } catch (error) {
+          console.log('fetchMe error:', error);
+          // 인증 실패 시 로컬스토리지도 초기화
+          set({ user: null, isAuthenticated: false, error: 'unauthenticated', loading: false, hasCheckedAuth: true });
+          // localStorage에서 auth 데이터 제거
+          try {
+            localStorage.removeItem('auth');
+            // console.log('Cleared localStorage auth data');
+          } catch (e) {
+            console.error('Failed to clear localStorage:', e);
+          }
         }
       },
 
@@ -115,11 +133,59 @@ export const useAuthStore = create(
     {
       // auth localStorage
       name: 'auth',
-      // 저장할 필드는 user와
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
+      // 저장할 필드는 user와 isAuthenticated
+      partialize: (state) => {
+        // console.log('partialize called with state:', state);
+        const userToPersist = state.user
+          ? {
+            // 사용자 ID
+            userId: state.user.userId,
+            // 닉네임
+            nickname: state.user.nickname,
+            // 프로필 이미지 URL
+            profileImage: state.user.profileImageUrl,
+            // 토탈 스코어
+            totalScore: state.user.totalScore,
+            // 필수 동의 여부 (앱 플로우 제어용)
+            requiredAgree: state.user.requiredAgree, // 🔑 필수 포함
+          }
+          : null; // 인증되지 않은 경우 null
+        return {
+          user: userToPersist,
+          isAuthenticated: state.isAuthenticated,
+        };
+      },
+      // HTTPS 환경에서 localStorage 접근 문제 해결
+      storage: {
+        getItem: (name) => {
+          try {
+            const item = localStorage.getItem(name);
+            // console.log('localStorage getItem:', name, item);
+            return item;
+          } catch (error) {
+            console.error('localStorage getItem error:', error);
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            // JSON.stringify로 직렬화하여 [object Object] 문제 해결
+            const serializedValue = JSON.stringify(value);
+            // console.log('localStorage setItem:', name, serializedValue);
+            localStorage.setItem(name, serializedValue);
+          } catch (error) {
+            console.error('localStorage setItem error:', error);
+          }
+        },
+        removeItem: (name) => {
+          try {
+            // console.log('localStorage removeItem:', name);
+            localStorage.removeItem(name);
+          } catch (error) {
+            console.error('localStorage removeItem error:', error);
+          }
+        },
+      },
     }
   )
 );
