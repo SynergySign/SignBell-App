@@ -12,12 +12,13 @@ import useWebcam from '../../hooks/useWebcam';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
 import {useAuthStore} from '../../store/auth/authStore.js';
+import AlertModal from '../../components/ui/AlertModal.jsx';
 
 const QuizWaitingRoom = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [showExitModal, setShowExitModal] = useState(false);
-  // const [myUserId, setMyUserId] = useState(null);
+  const [showRoomClosedAlert, setShowRoomClosedAlert] = useState(false);
 
   // Zustand에서 사용자 정보 가져오기
   const { user, isAuthenticated, hasCheckedAuth } = useAuthStore();
@@ -81,12 +82,20 @@ const QuizWaitingRoom = () => {
     }
   }, [hasCheckedAuth, isAuthenticated, myUserId, navigate]);
 
+  // 방 종료 이벤트 핸들러
+  const handleRoomClosed = (data) => {
+    console.log('📥 방 종료 알림:', data);
+    // AlertModal 표시
+    setShowRoomClosedAlert(true);
+  };
+
   // WebSocket 연결
   useEffect(() => {
     const initWebSocket = async () => {
       try {
         websocketService.on('room:join', handleRoomJoin);
         websocketService.on('participant', handleParticipantEvent);
+        websocketService.on('room:closed', handleRoomClosed);
         websocketService.on('error', handleError);
 
         await websocketService.connect();
@@ -108,6 +117,7 @@ const QuizWaitingRoom = () => {
     return () => {
       websocketService.off('room:join', handleRoomJoin);
       websocketService.off('participant', handleParticipantEvent);
+      websocketService.off('room:closed', handleRoomClosed);
       websocketService.off('error', handleError);
     };
   }, [roomId]);
@@ -369,11 +379,6 @@ const QuizWaitingRoom = () => {
     if (data.success) {
       const roomData = data.data;
 
-      // TODO: 실제 로그인한 사용자 ID 가져오기
-      // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
-      // const myId = roomData.participants[roomData.participants.length - 1].userId;
-      // setMyUserId(myId); // state에 저장
-
       // 참가자 목록 업데이트
       const formattedParticipants = roomData.participants.map(p => ({
         id: p.userId,
@@ -448,9 +453,8 @@ const QuizWaitingRoom = () => {
       case 'PARTICIPANT_LEFT':
         console.log('👋 참가자 퇴장:', eventData.participant);
         if (eventData.roomClosed) {
-          alert('방장이 나가서 방이 종료되었습니다.');
-          websocketService.disconnect();
-          navigate('/main');
+          // 방장이 나가서 방이 종료됨 - AlertModal 표시
+          setShowRoomClosedAlert(true);
           return;
         }
         setParticipants(prev =>
@@ -483,6 +487,12 @@ const QuizWaitingRoom = () => {
           );
           break;
         }
+
+      case 'ROOM_CLOSED':
+        console.log('🚪 방 종료:', eventData);
+        // 방장이 나가서 방이 종료됨 - AlertModal 표시
+        setShowRoomClosedAlert(true);
+        break;
 
       default:
         console.log('알 수 없는 이벤트:', eventData.eventType);
@@ -562,14 +572,65 @@ const QuizWaitingRoom = () => {
     navigate(`/quiz/game/${roomId}`);
   };
 
-  // 방 나가기
+  // 방 나가기 공통 처리 함수
+  const cleanupAndExit = async () => {
+    try {
+      console.log('🚪 방 나가기 처리 시작');
+
+      // 1. Janus WebRTC 정리
+      if (janusRef.current) {
+        try {
+          janusRef.current.destroy();
+          janusRef.current = null;
+          pluginHandleRef.current = null;
+          remoteFeedsRef.current = {};
+          userIdToFeedIdRef.current = {};
+          setIsJanusConnected(false);
+          console.log('✅ Janus 정리 완료');
+        } catch (error) {
+          console.error('Janus 정리 실패:', error);
+        }
+      }
+
+      // 2. 웹캠 정리
+      if (stream) {
+        try {
+          stream.getTracks().forEach((track) => track.stop());
+          console.log('✅ 웹캠 정리 완료');
+        } catch (error) {
+          console.error('웹캠 정리 실패:', error);
+        }
+      }
+
+      // 3. WebSocket 연결 해제
+      // ⚠️ 중요: 연결 해제 시 서버의 WebSocketEventsListener가 자동 감지
+      // → DB 정리 + 다른 참가자에게 브로드캐스팅 자동 처리
+      websocketService.disconnect();
+      console.log('✅ WebSocket 연결 해제 완료 (서버가 자동으로 퇴장 처리)');
+
+      // 4. 메인 페이지로 이동
+      navigate('/main');
+    } catch (error) {
+      console.error('❌ 방 나가기 실패:', error);
+      // 에러가 있어도 강제로 메인으로 이동
+      // 서버는 WebSocket 연결 끊김을 감지하여 자동 처리
+      navigate('/main');
+    }
+  };
+
+  // 나가기 버튼 클릭
   const handleExit = () => {
     setShowExitModal(true);
   };
 
+  // 나가기 확인
   const confirmExit = () => {
-    // TODO: WebSocket으로 방 나가기 전송
-    navigate('/main');
+    cleanupAndExit();
+  };
+
+  // 방 종료 알림 닫기 (메인으로 이동)
+  const handleRoomClosedAlertClose = () => {
+    cleanupAndExit();
   };
 
   // 웹캠 상태 아이콘 색상
@@ -784,6 +845,15 @@ const QuizWaitingRoom = () => {
           </div>
         </>
       )}
+
+      {/* 방 종료 알림 모달 */}
+      <AlertModal
+        isOpen={showRoomClosedAlert}
+        onClose={handleRoomClosedAlertClose}
+        title="방 종료"
+        message="방장이 나가서 방이 종료되었습니다."
+        type="warning"
+      />
     </div>
   );
 };
