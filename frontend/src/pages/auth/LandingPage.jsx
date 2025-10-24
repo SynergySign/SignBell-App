@@ -12,8 +12,6 @@ import styles from './LandingPage.module.scss';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../../store/auth/authStore.js';
 import logo from '../../assets/img/1.png';
-import React, {useEffect, useRef, useState} from 'react';
-import {useAuthStore} from '../../store/auth/authStore.js';
 
 const LandingPage = () => {
 
