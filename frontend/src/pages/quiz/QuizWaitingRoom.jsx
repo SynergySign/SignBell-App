@@ -19,7 +19,6 @@ const QuizWaitingRoom = () => {
   const navigate = useNavigate();
   const [showExitModal, setShowExitModal] = useState(false);
   const [showRoomClosedAlert, setShowRoomClosedAlert] = useState(false);
-  // const [myUserId, setMyUserId] = useState(null);
 
   // Zustand에서 사용자 정보 가져오기
   const { user, isAuthenticated, hasCheckedAuth } = useAuthStore();
@@ -379,11 +378,6 @@ const QuizWaitingRoom = () => {
 
     if (data.success) {
       const roomData = data.data;
-
-      // TODO: 실제 로그인한 사용자 ID 가져오기
-      // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
-      // const myId = roomData.participants[roomData.participants.length - 1].userId;
-      // setMyUserId(myId); // state에 저장
 
       // 참가자 목록 업데이트
       const formattedParticipants = roomData.participants.map(p => ({
