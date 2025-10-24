@@ -6,7 +6,7 @@
  * @반환값 {JSX.Element} 랜딩 페이지 컴포넌트
  */
 
-import { useNavigate } from 'react-router-dom';
+import {useNavigate} from 'react-router-dom';
 import SocialLoginButton from '../../components/auth/SocialLoginButton';
 import styles from './LandingPage.module.scss';
 import React, { useEffect, useRef, useState } from 'react';
@@ -15,30 +15,30 @@ import logo from '../../assets/img/1.png';
 
 const LandingPage = () => {
 
-    const { isAuthenticated } = useAuthStore();
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const intervalRef = useRef(null);
-    // 추가: 백엔드 카카오 엔드포인트와 인증 상태
-    const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
-    const navigate = useNavigate();
+  const {isAuthenticated} = useAuthStore();
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const intervalRef = useRef(null);
+  // 추가: 백엔드 카카오 엔드포인트와 인증 상태
+  const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
+  const navigate = useNavigate();
 
-    // 이미 로그인 상태면 홈으로 이동
-    useEffect(() => {
-        console.log('isAuthenticated:', isAuthenticated);
-        if (isAuthenticated) {
-            navigate('/main', { replace: true }); // Router.jsx에 '/main'이 있으므로 이동
-        }
-    }, [isAuthenticated, navigate]);
+  // 이미 로그인 상태면 홈으로 이동
+  useEffect(() => {
+    console.log('isAuthenticated:', isAuthenticated);
+    if (isAuthenticated) {
+      navigate('/main', {replace: true}); // Router.jsx에 '/main'이 있으므로 이동
+    }
+  }, [isAuthenticated, navigate]);
 
-    // 컴포넌트 언마운트 시 인터벌 정리
-    useEffect(() => {
-        return () => {
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-            }
-        };
-    }, []);
+  // 컴포넌트 언마운트 시 인터벌 정리
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
 
   const handleKakaoLogin = () => {
     // TODO: API 연동이 필요합니다.

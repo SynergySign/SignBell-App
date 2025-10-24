@@ -2,37 +2,78 @@ import React, { useEffect } from "react";
 import {Link, useNavigate, useSearchParams} from 'react-router-dom';
 // import { TbXboxX } from "react-icons/tb";
 import styles from './PopupClosePage.module.scss';
+import { useAuthStore } from "../../store/auth/authStore";
 
 const PopupClosePage = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const errorMessage = searchParams.get('error');
   const statusMessage = searchParams.get('status');
+  const {user, fetchMe, hasCheckedAuth, loading} = useAuthStore();
 
-  // 팝업 창의 상태(성공 또는 실패)를 확인하고 부모 창을 처리하는 로직
+  //  최초 마운트 시 fetchMe()를 호출하여 사용자 정보를 로드 (최우선)
+  // 소셜 로그인 성공 직후 백엔드가 설정한 쿠키를 기반으로 사용자 정보를 가져옵니다.
   useEffect(() => {
-    if (!errorMessage) { // 에러가 없을때 = 로그인 성공
-      console.log("팝업 로그인 성공")
-      if (window.opener) {
-        if (statusMessage === 'logout') {
-          console.log("로그아웃 후 팝업 닫기: 부모 창 이동/새로고침 없음");
-          // 로그아웃 시: 부모 창을 건드리지 않고 팝업만 닫음
-          window.close();
+    // 에러 메시지가 없고, 아직 인증 체크를 하지 않았을 때만 호출
+    if (!errorMessage && !hasCheckedAuth) {
+      console.log("PopupClosePage mount: Calling fetchMe() to load user data (requiredAgree 포함).");
+      fetchMe();
+    }
+  }, [errorMessage, hasCheckedAuth, fetchMe]); // hasCheckedAuth가 false일 때만 fetchMe 호출
 
-        } else {
-          // 약관 제출/정상 로그인 성공 시 (기존의 성공 로직 유지)
-          console.log("로그인 성공 후 부모 창 메인 페이지로 이동 명령");
-          // 부모 창을 메인 페이지로 이동시키고
-          window.opener.location.href = "https://localhost:5173/main";
-          // 현재 팝업 닫기
-          window.close();
+  // 1. OAuth2 로그인 성공 후 사용자 정보가 로드되면 처리하는 로직 (약관 동의 체크 및 리디렉션)
+  // 의존성: errorMessage, hasCheckedAuth, loading, user, statusMessage, navigate
+  useEffect(() => {
+    console.log("로그", errorMessage, hasCheckedAuth, loading, user, statusMessage, navigate);
+    console.log("사용자 정보 로딩 완료!!@#!#!#@!#!@#@");
+    // 에러 메시지가 없고, 인증 체크를 완료했으며, 로딩 중이 아니고, 사용자 정보가 있을 때
+    if (!errorMessage && hasCheckedAuth && !loading && user) {
+      console.log("사용자 정보 로딩 완료, requiredAgree 값 확인:", user.requiredAgree);
+
+      if (window.opener) {
+        // 'logout' 상태가 아닐 때만 약관 동의/메인 페이지 분기 처리
+        if (statusMessage !== 'logout') {
+          // requiredAgree 값에 따른 분기 처리
+          if (user.requiredAgree) {
+            // 약관 동의 완료: 팝업 닫고 부모 창을 /main으로 이동
+            console.log("약관 동의 완료 - 팝업 닫고 부모 창을 /main으로 이동");
+            window.opener.location.href = "https://localhost:5173/main";
+            window.opener.focus();
+            window.close();
+          } else {
+            // 약관 미동의: 팝업 창에서 /terms로 이동
+            console.log("약관 미동의 - 팝업 창에서 /terms로 이동");
+            navigate('/terms');
+          }
         }
       } else {
-        // 팝업이 아닐 경우 그냥 현재창에서 이동
-        navigate('/');
+        // 팝업이 아닐 경우
+        if (user.requiredAgree === true) {
+          console.log("팝업아니어서 메인으로 가기")
+          navigate('/main');
+        } else {
+          navigate('/terms');
+        }
       }
-    } else { // 에러가 있을때 = 로그인 실패
-        console.log("팝업 로그인 실패")
+    }
+  }, [errorMessage, hasCheckedAuth, loading, user, statusMessage, navigate]);
+
+
+  // 2. 로그아웃 상태 처리 (statusMessage === 'logout' logic)
+  // 의존성: statusMessage
+  useEffect(() => {
+    if (statusMessage === 'logout' && window.opener) {
+      console.log("로그아웃 후 팝업 닫기: 부모 창 이동/새로고침 없음");
+      // 로그아웃 시: 부모 창을 건드리지 않고 팝업만 닫음
+      window.close();
+    }
+  }, [statusMessage]);
+
+
+  // 로그인 실패 처리
+  useEffect(() => {
+    if (errorMessage) {
+      console.log("팝업 로그인 실패");
       if (window.opener) {
         // 부모 창을 현재 팝업 창의 URL로 이동
         window.opener.location.href = window.location.href;
