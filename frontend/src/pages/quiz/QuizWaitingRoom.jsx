@@ -11,12 +11,18 @@ import { useParams, useNavigate } from 'react-router-dom';
 import useWebcam from '../../hooks/useWebcam';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
+import {useAuthStore} from '../../store/auth/authStore.js';
 
 const QuizWaitingRoom = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
   const [showExitModal, setShowExitModal] = useState(false);
-  const [myUserId, setMyUserId] = useState(null);
+  // const [myUserId, setMyUserId] = useState(null);
+
+  // Zustand에서 사용자 정보 가져오기
+  const { user, isAuthenticated, hasCheckedAuth } = useAuthStore();
+  const myUserId = user?.userId; // ✅ 직접 가져오기
+
   const [allReady, setAllReady] = useState(false);
 
   // 웹캠 관리
@@ -56,6 +62,24 @@ const QuizWaitingRoom = () => {
 
   // Janus 서버 URL
   const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
+
+  // 인증 체크 - hasCheckedAuth가 true일 때만 체크
+  useEffect(() => {
+
+    // localStorage 복원이 완료될 때까지 대기
+    if (!hasCheckedAuth) {
+      console.log('⏳ 인증 상태 확인 중...');
+      return;
+    }
+
+    // 인증 확인 후 로그인 안 되어 있으면 리다이렉트
+    if (!isAuthenticated || !myUserId) {
+      alert('로그인이 필요합니다.');
+      navigate('/main'); // 또는 '/main'
+    } else {
+      console.log('✅ 인증 확인:', myUserId);
+    }
+  }, [hasCheckedAuth, isAuthenticated, myUserId, navigate]);
 
   // WebSocket 연결
   useEffect(() => {
@@ -347,8 +371,8 @@ const QuizWaitingRoom = () => {
 
       // TODO: 실제 로그인한 사용자 ID 가져오기
       // 임시로 마지막 참가자를 "나"로 설정 (방금 입장한 사람)
-      const myId = roomData.participants[roomData.participants.length - 1].userId;
-      setMyUserId(myId); // state에 저장
+      // const myId = roomData.participants[roomData.participants.length - 1].userId;
+      // setMyUserId(myId); // state에 저장
 
       // 참가자 목록 업데이트
       const formattedParticipants = roomData.participants.map(p => ({
@@ -357,7 +381,7 @@ const QuizWaitingRoom = () => {
         nickname: p.nickname,
         profileImageUrl: p.profileImageUrl,
         score: 0, // TODO: 실제 점수는 나중에
-        isMe: p.userId === myId, // 나인지 확인
+        isMe: p.userId === myUserId, // Zustand에서 가져온 myUserId 사용
         isHost: p.host,
         isReady: p.ready,
         webcamStatus: 'off'
