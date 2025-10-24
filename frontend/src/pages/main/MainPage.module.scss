@@ -101,5 +101,26 @@
         position: relative;
       }
     }
+
+    .right-section {
+      position: absolute;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 10;
+
+      @media (max-width: 1440px) {
+        right: 16px;
+      }
+
+      @media (max-width: 1024px) {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: 100%;
+        max-width: 400px;
+      }
+    }
   }
 }
