@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { faBook, faGamepad } from '@fortawesome/free-solid-svg-icons';
 import UserProfileCard from '../../components/main/UserProfileCard';
 import FeatureButton from '../../components/main/FeatureButton';
+import RankingBoard from '../../components/main/RankingBoard';
 import PersonalStudySidebar from '../../components/study/PersonalStudySidebar';
 import RealTimeQuizSidebar from '../../components/quiz/RealTimeQuizSidebar';
 import styles from './MainPage.module.scss';
@@ -69,6 +70,10 @@ const MainPage = () => {
 
         <div className={styles.centerSection}>
           <UserProfileCard />
+        </div>
+
+        <div className={styles.rightSection}>
+          <RankingBoard />
         </div>
       </div>
 
