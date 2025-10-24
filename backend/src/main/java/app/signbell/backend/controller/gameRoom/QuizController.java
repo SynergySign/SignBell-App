@@ -4,6 +4,7 @@ import app.signbell.backend.dto.common.ApiResponse;
 import app.signbell.backend.dto.request.AnswerSubmitRequest;
 import app.signbell.backend.dto.request.ChallengeRequest;
 import app.signbell.backend.exception.BusinessException;
+import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.service.QuizService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,11 @@ public class QuizController {
                                 StompHeaderAccessor accessor) {
         Long hostId = null;
         try {
-            hostId = (Long) Objects.requireNonNull(accessor.getSessionAttributes()).get("userId");
+            // accessor.getUser().getName()에서 userId 가져오기
+            if (accessor.getUser() == null || accessor.getUser().getName() == null) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+            hostId = Long.valueOf(accessor.getUser().getName());
             quizService.startGame(gameRoomId, hostId);
         } catch (BusinessException e) {
             log.warn("게임 시작 실패 - userId: {}, roomId: {}, error: {}", 
@@ -63,7 +68,10 @@ public class QuizController {
                                 StompHeaderAccessor accessor) {
         Long userId = null;
         try {
-            userId = (Long) Objects.requireNonNull(accessor.getSessionAttributes()).get("userId");
+            if (accessor.getUser() == null || accessor.getUser().getName() == null) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+            userId = Long.valueOf(accessor.getUser().getName());
             quizService.registerChallenge(gameRoomId, userId, request.getQuestionNumber());
         } catch (BusinessException e) {
             log.warn("도전 신청 실패 - userId: {}, roomId: {}, error: {}", 
@@ -97,7 +105,10 @@ public class QuizController {
                              StompHeaderAccessor accessor) {
         Long userId = null;
         try {
-            userId = (Long) Objects.requireNonNull(accessor.getSessionAttributes()).get("userId");
+            if (accessor.getUser() == null || accessor.getUser().getName() == null) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+            userId = Long.valueOf(accessor.getUser().getName());
 
             log.info("정답 제출 - userId: {}, roomId: {}, questionNumber: {}, answer: {}",
                     userId, gameRoomId, request.getQuestionNumber(), request.getUserAnswer());
@@ -136,7 +147,10 @@ public class QuizController {
                                      StompHeaderAccessor accessor) {
         Long userId = null;
         try {
-            userId = (Long) Objects.requireNonNull(accessor.getSessionAttributes()).get("userId");
+            if (accessor.getUser() == null || accessor.getUser().getName() == null) {
+                throw new BusinessException(ErrorCode.UNAUTHORIZED);
+            }
+            userId = Long.valueOf(accessor.getUser().getName());
 
             log.info("방으로 돌아가기 요청 - userId: {}, roomId: {}", userId, gameRoomId);
 

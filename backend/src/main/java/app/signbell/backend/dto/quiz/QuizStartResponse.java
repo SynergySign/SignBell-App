@@ -1,7 +1,10 @@
 package app.signbell.backend.dto.quiz;
 
+import app.signbell.backend.dto.response.ParticipantResponse;
 import lombok.Builder;
 import lombok.Getter;
+
+import java.util.List;
 
 /**
  * 퀴즈 시작 응답 DTO
@@ -19,4 +22,6 @@ public class QuizStartResponse {
     private Integer questionNumber;
     private Integer totalQuestions;
     private String wordTitle; // 문제로 제시할 단어 (예: "안녕하세요")
+    private List<ParticipantResponse> participants; // 참가자 정보
+    private Long myUserId; // 현재 사용자 ID
 }
