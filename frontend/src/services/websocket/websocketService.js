@@ -7,8 +7,7 @@
  * @since 2025-10-22
  */
 
-import { Client } from '@stomp/stompjs';
-
+import { Client } from "@stomp/stompjs";
 
 class WebSocketService {
   constructor() {
@@ -27,13 +26,13 @@ class WebSocketService {
   connect() {
     // 이미 연결되어 있으면 기존 연결 반환
     if (this.client?.connected) {
-      console.log('이미 WebSocket에 연결되어 있습니다.');
+      console.log("이미 WebSocket에 연결되어 있습니다.");
       return Promise.resolve();
     }
 
     // 연결 중이면 기존 프로미스 반환
     if (this.isConnecting && this.connectionPromise) {
-      console.log('WebSocket 연결 중...');
+      console.log("WebSocket 연결 중...");
       return this.connectionPromise;
     }
 
@@ -41,7 +40,7 @@ class WebSocketService {
     this.connectionPromise = new Promise((resolve, reject) => {
       this.client = new Client({
         // 네이티브 WebSocket 사용 (vite proxy를 통해 /ws로 연결)
-        brokerURL: 'wss://localhost:8443/ws',
+        brokerURL: "wss://localhost:8443/ws",
 
         // STOMP 연결 헤더 (쿠키 기반 인증이므로 별도 헤더 불필요)
         connectHeaders: {},
@@ -68,15 +67,21 @@ class WebSocketService {
 
         // 연결 에러 콜백
         onStompError: (frame) => {
-          console.error('❌ STOMP 에러:', frame);
+          console.error("❌ STOMP 에러:", frame);
           this.isConnecting = false;
 
-          const errorMessage = frame.headers?.message || '알 수 없는 오류';
+          const errorMessage = frame.headers?.message || "알 수 없는 오류";
 
           // DUPLICATE_SESSION 에러 처리
-          if (errorMessage.includes('DUPLICATE_SESSION')) {
-            console.warn('⚠️ 중복 세션 감지: 다른 탭이나 창에서 이미 접속 중입니다.');
-            reject(new Error('다른 탭이나 창에서 이미 접속 중입니다. 기존 탭을 닫고 다시 시도해주세요.'));
+          if (errorMessage.includes("DUPLICATE_SESSION")) {
+            console.warn(
+              "⚠️ 중복 세션 감지: 다른 탭이나 창에서 이미 접속 중입니다."
+            );
+            reject(
+              new Error(
+                "다른 탭이나 창에서 이미 접속 중입니다. 기존 탭을 닫고 다시 시도해주세요."
+              )
+            );
           } else {
             reject(new Error(`WebSocket 연결 실패: ${errorMessage}`));
           }
@@ -89,9 +94,9 @@ class WebSocketService {
 
         // WebSocket 에러 콜백
         onWebSocketError: (error) => {
-          console.error('❌ WebSocket 에러:', error);
+          console.error("❌ WebSocket 에러:", error);
           this.isConnecting = false;
-        }
+        },
       });
 
       // 연결 활성화
@@ -111,50 +116,50 @@ class WebSocketService {
 
       // 방 입장 성공 메시지
       subscriptions.push(
-        this.client.subscribe('/user/queue/room', (message) => {
+        this.client.subscribe("/user/queue/room", (message) => {
           try {
             const data = JSON.parse(message.body);
-            this.handleMessage('room:join', data);
+            this.handleMessage("room:join", data);
           } catch (error) {
-            console.error('파싱 에러:', error);
+            console.error("파싱 에러:", error);
           }
         })
       );
 
       // 에러 메시지
       subscriptions.push(
-        this.client.subscribe('/user/queue/errors', (message) => {
-          console.error('📥 에러 메시지:', message);
+        this.client.subscribe("/user/queue/errors", (message) => {
+          console.error("📥 에러 메시지:", message);
           try {
             const data = JSON.parse(message.body);
-            this.handleMessage('error', data);
+            this.handleMessage("error", data);
           } catch (error) {
-            console.error('파싱 에러:', error);
+            console.error("파싱 에러:", error);
           }
         })
       );
 
       // 방 종료 알림
       subscriptions.push(
-        this.client.subscribe('/user/queue/room-closed', (message) => {
-          console.warn('📥 방 종료 알림:', message);
+        this.client.subscribe("/user/queue/room-closed", (message) => {
+          console.warn("📥 방 종료 알림:", message);
           try {
             const data = JSON.parse(message.body);
-            this.handleMessage('room:closed', data);
+            this.handleMessage("room:closed", data);
           } catch (error) {
-            console.error('파싱 에러:', error);
+            console.error("파싱 에러:", error);
           }
         })
       );
 
       // 도전 신청 개인 메시지
       subscriptions.push(
-        this.client.subscribe('/user/queue/challenge', (message) => {
+        this.client.subscribe("/user/queue/challenge", (message) => {
           try {
             const data = JSON.parse(message.body);
-            this.handleMessage('quiz:challenge:personal', data);
+            this.handleMessage("quiz:challenge:personal", data);
           } catch (error) {
-            console.error('파싱 에러:', error);
+            console.error("파싱 에러:", error);
           }
         })
       );
@@ -170,7 +175,7 @@ class WebSocketService {
    */
   joinRoom(roomId) {
     if (!this.client?.connected) {
-      throw new Error('WebSocket이 연결되어 있지 않습니다.');
+      throw new Error("WebSocket이 연결되어 있지 않습니다.");
     }
 
     this.roomId = roomId;
@@ -180,12 +185,12 @@ class WebSocketService {
 
     // 참가자 변경 이벤트 구독 (입장/퇴장/준비상태)
     this.subscribe(`/topic/room/${roomId}/participant`, (message) => {
-      this.handleMessage('participant', message);
+      this.handleMessage("participant", message);
     });
 
     // 게임 시작 알림 구독 (대기실에서도 받아야 함)
     this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
-      this.handleMessage('quiz:start', message);
+      this.handleMessage("quiz:start", message);
     });
   }
 
@@ -195,35 +200,38 @@ class WebSocketService {
    */
   subscribeToGameTopics(roomId) {
     if (!this.client?.connected) {
-      throw new Error('WebSocket이 연결되어 있지 않습니다.');
+      throw new Error("WebSocket이 연결되어 있지 않습니다.");
     }
 
     // 게임 시작 알림 (대기실에서 이미 구독했으므로 중복 구독 방지)
     if (!this.subscriptions.has(`/topic/room/${roomId}/quiz/start`)) {
       this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
-        this.handleMessage('quiz:start', message);
+        this.handleMessage("quiz:start", message);
       });
     }
 
     // 문제 출제
     this.subscribe(`/topic/room/${roomId}/quiz/question`, (message) => {
-      this.handleMessage('quiz:question', message);
+      this.handleMessage("quiz:question", message);
     });
 
     // 퀴즈 관련 모든 이벤트 (도전자 신청, 다음 문제, 타임아웃 등)
     this.subscribe(`/topic/room/${roomId}/quiz`, (message) => {
-      console.log('📥📥📥 퀴즈 이벤트 RAW:', JSON.stringify(message, null, 2));
+      console.log("📥📥📥 퀴즈 이벤트 RAW:", JSON.stringify(message, null, 2));
 
       // data에 userId가 있으면 NextChallengerResponse
       if (message.data && message.data.userId) {
-        console.log('🎯 NextChallengerResponse 감지 - userId:', message.data.userId);
-        this.handleMessage('quiz:challenger', message);
+        console.log(
+          "🎯 NextChallengerResponse 감지 - userId:",
+          message.data.userId
+        );
+        this.handleMessage("quiz:challenger", message);
         return;
       }
 
       // data에 wordTitle이 있으면 NextQuestionResponse
       if (message.data && message.data.wordTitle) {
-        this.handleMessage('quiz:question', message);
+        this.handleMessage("quiz:question", message);
         return;
       }
 
@@ -232,41 +240,41 @@ class WebSocketService {
         const eventType = message.data.eventType;
 
         switch (eventType) {
-          case 'CHALLENGER_REGISTERED':
-            this.handleMessage('quiz:challenge', message);
+          case "CHALLENGER_REGISTERED":
+            this.handleMessage("quiz:challenge", message);
             break;
-          case 'CHALLENGE_TIMEOUT':
-            this.handleMessage('quiz:timeout', message);
+          case "CHALLENGE_TIMEOUT":
+            this.handleMessage("quiz:timeout", message);
             break;
-          case 'NEXT_QUESTION':
-            this.handleMessage('quiz:question', message);
+          case "NEXT_QUESTION":
+            this.handleMessage("quiz:question", message);
             break;
           default:
-            this.handleMessage('quiz:event', message);
+            this.handleMessage("quiz:event", message);
         }
       } else {
-        this.handleMessage('quiz:event', message);
+        this.handleMessage("quiz:event", message);
       }
     });
 
     // 타이머 업데이트
     this.subscribe(`/topic/room/${roomId}/quiz/timer`, (message) => {
-      this.handleMessage('quiz:timer', message);
+      this.handleMessage("quiz:timer", message);
     });
 
     // 정답 결과
     this.subscribe(`/topic/room/${roomId}/quiz/answer`, (message) => {
-      this.handleMessage('quiz:answer', message);
+      this.handleMessage("quiz:answer", message);
     });
 
     // 게임 종료 및 순위
     this.subscribe(`/topic/room/${roomId}/quiz/result`, (message) => {
-      this.handleMessage('quiz:result', message);
+      this.handleMessage("quiz:result", message);
     });
 
     // 방으로 돌아가기
     this.subscribe(`/topic/room/${roomId}/quiz/return`, (message) => {
-      this.handleMessage('quiz:return', message);
+      this.handleMessage("quiz:return", message);
     });
   }
 
@@ -277,7 +285,7 @@ class WebSocketService {
    */
   subscribe(destination, callback) {
     if (!this.client?.connected) {
-      console.error('WebSocket이 연결되어 있지 않습니다.');
+      console.error("WebSocket이 연결되어 있지 않습니다.");
       return;
     }
 
@@ -292,7 +300,7 @@ class WebSocketService {
         const data = JSON.parse(message.body);
         callback(data);
       } catch (error) {
-        console.error('메시지 파싱 오류:', error);
+        console.error("메시지 파싱 오류:", error);
         callback(message.body);
       }
     });
@@ -324,10 +332,10 @@ class WebSocketService {
       `/topic/room/${roomId}/quiz/timer`,
       `/topic/room/${roomId}/quiz/answer`,
       `/topic/room/${roomId}/quiz/result`,
-      `/topic/room/${roomId}/quiz/return`
+      `/topic/room/${roomId}/quiz/return`,
     ];
 
-    gameTopics.forEach(topic => {
+    gameTopics.forEach((topic) => {
       this.unsubscribe(topic);
     });
   }
@@ -339,17 +347,17 @@ class WebSocketService {
    */
   sendMessage(destination, body = {}) {
     if (!this.client?.connected) {
-      console.error('WebSocket이 연결되어 있지 않습니다.');
-      throw new Error('WebSocket이 연결되어 있지 않습니다.');
+      console.error("WebSocket이 연결되어 있지 않습니다.");
+      throw new Error("WebSocket이 연결되어 있지 않습니다.");
     }
 
     try {
       this.client.publish({
         destination,
-        body: JSON.stringify(body)
+        body: JSON.stringify(body),
       });
     } catch (error) {
-      console.error('메시지 전송 실패:', error);
+      console.error("메시지 전송 실패:", error);
       throw error;
     }
   }
@@ -389,7 +397,7 @@ class WebSocketService {
   handleMessage(eventType, data) {
     const handlers = this.messageHandlers.get(eventType);
     if (handlers) {
-      handlers.forEach(handler => {
+      handlers.forEach((handler) => {
         try {
           handler(data);
         } catch (error) {
@@ -491,19 +499,19 @@ class WebSocketService {
    */
   subscribeToWebRTCSignaling(roomId) {
     if (!this.client?.connected) {
-      throw new Error('WebSocket이 연결되어 있지 않습니다.');
+      throw new Error("WebSocket이 연결되어 있지 않습니다.");
     }
 
     // WebRTC 시그널링 메시지 구독
     this.subscribe(`/topic/room/${roomId}/webrtc`, (message) => {
-      console.log('📥 WebRTC 시그널링:', message);
-      this.handleMessage('webrtc:signal', message);
+      console.log("📥 WebRTC 시그널링:", message);
+      this.handleMessage("webrtc:signal", message);
     });
 
     // 개인 WebRTC 메시지 구독
-    this.subscribe('/user/queue/webrtc', (message) => {
-      console.log('📥 WebRTC 개인 메시지:', message);
-      this.handleMessage('webrtc:signal', message);
+    this.subscribe("/user/queue/webrtc", (message) => {
+      console.log("📥 WebRTC 개인 메시지:", message);
+      this.handleMessage("webrtc:signal", message);
     });
   }
 
@@ -522,7 +530,7 @@ class WebSocketService {
    */
   unsubscribeFromWebRTCSignaling(roomId) {
     this.unsubscribe(`/topic/room/${roomId}/webrtc`);
-    this.unsubscribe('/user/queue/webrtc');
+    this.unsubscribe("/user/queue/webrtc");
   }
 }
 
