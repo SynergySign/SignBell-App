@@ -10,10 +10,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import GameResultModal from '../../components/quiz/GameResultModal';
-import useWebcamStore from '../../stores/useWebcamStore';
+import { useWebcamStore } from '../../store/webcam/webcamStore';
 import { useJanus } from '../../contexts/JanusContext';
 import websocketService from '../../services/websocket/websocketService';
-import useUserStore from '../../stores/useUserStore';
+import { useAuthStore } from '../../store/auth/authStore';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
@@ -45,7 +45,9 @@ const QuizGamePage = () => {
   const remoteVideosRef = useRef({});
 
   // Zustand store에서 사용자 정보 가져오기
-  const { userId: myUserId, nickname: myNickname } = useUserStore();
+  const { user } = useAuthStore();
+  const myUserId = user?.userId;
+  const myNickname = user?.nickname;
 
   const [showExitModal, setShowExitModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);

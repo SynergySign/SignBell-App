@@ -8,9 +8,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import useWebcamStore from '../../stores/useWebcamStore'; // ✅ '내 브랜치'의 Zustand 스토어 사용
-import { useJanus } from '../../contexts/JanusContext'; // ✅ '내 브랜치'의 Janus 컨텍스트 사용
-import { useAuthStore } from '../../store/auth/authStore.js'; // ✅ 'dev' 브랜치의 인증 스토어 사용
+import { useWebcamStore } from '../../store/webcam/webcamStore';
+import { useJanus } from '../../contexts/JanusContext';
+import { useAuthStore } from '../../store/auth/authStore';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
 

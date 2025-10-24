@@ -1,5 +1,5 @@
 /**
- * @파일명 useWebcamStore.js
+ * @파일명 webcamStore.js
  * @개요 웹캠 상태를 전역으로 관리하는 Zustand Store
  * @설명 대기실과 게임 페이지 간 웹캠 상태 공유
  * @작성일 2025-10-23
@@ -7,7 +7,7 @@
 
 import { create } from 'zustand';
 
-const useWebcamStore = create((set, get) => ({
+export const useWebcamStore = create((set, get) => ({
   // 웹캠 스트림
   stream: null,
   
@@ -83,5 +83,3 @@ const useWebcamStore = create((set, get) => ({
   // 에러 초기화
   clearError: () => set({ error: null }),
 }));
-
-export default useWebcamStore;
