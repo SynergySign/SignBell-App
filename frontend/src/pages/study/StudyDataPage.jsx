@@ -70,6 +70,30 @@ const StudyDataPage = () => {
 
   const handlePrevious = () => {
     if (currentStep === 2) {
+      // 2단계에서 1단계로 돌아갈 때 모든 타이머 정리
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
+      if (recordingRef.current) {
+        clearTimeout(recordingRef.current);
+        recordingRef.current = null;
+      }
+      if (recordingCountdownRef.current) {
+        clearInterval(recordingCountdownRef.current);
+        recordingCountdownRef.current = null;
+      }
+      
+      // 상태 초기화
+      setCountdown(null);
+      setRecordingCountdown(null);
+      setIsRecording(false);
+      setIsRecordingCompleted(false);
+      setShowSubmissionModal(false);
+      
+      // 웹캠 정지
+      stopWebcam();
+      
       setCurrentStep(1);
     } else {
       // 메인 페이지로 돌아가기
