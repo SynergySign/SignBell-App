@@ -1,0 +1,85 @@
+.mainCard {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  background-color: #000;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.videoContainer {
+  position: relative;
+  width: 100%;
+  padding-top: 75%; // 4:3 비율
+}
+
+.video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 18px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 10px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  background-color: #fff;
+}
+
+.nickname {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+}
+
+.score {
+  font-size: 16px;
+  color: #007bff;
+  font-weight: bold;
+}
+
+.badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 5px 15px;
+  background-color: #28a745;
+  color: white;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}

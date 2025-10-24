@@ -32,6 +32,14 @@ const useWebcam = () => {
       setIsWebcamOn(true);
       setError(null);
 
+      // 트랙 종료 감지
+      mediaStream.getTracks().forEach(track => {
+        track.onended = () => {
+          console.warn('⚠️ 웹캠 트랙이 종료됨');
+          setIsWebcamOn(false);
+        };
+      });
+
       // videoRef가 있으면 자동으로 연결
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
