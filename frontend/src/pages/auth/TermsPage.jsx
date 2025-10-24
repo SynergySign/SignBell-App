@@ -37,7 +37,7 @@ const TermsPage = () => {
     }
 
     // 1-2. 사용자 정보가 있고, 필수 약관에 이미 동의했다면 즉시 리디렉션 처리
-    if (user && user.requiredAgree === true) {
+    if (!fromMyPage && user.requiredAgree === true) {
       console.log("TermsPage: Required agreement already true. Redirecting to /main.");
 
       // 팝업 창에서 넘어온 경우

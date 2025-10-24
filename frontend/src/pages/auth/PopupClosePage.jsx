@@ -39,7 +39,7 @@ const PopupClosePage = () => {
             console.log("약관 동의 완료 - 팝업 닫고 부모 창을 /main으로 이동");
             window.opener.location.href = "https://localhost:5173/main";
             window.opener.focus();
-            // window.close();
+            window.close();
           } else {
             // 약관 미동의: 팝업 창에서 /terms로 이동
             console.log("약관 미동의 - 팝업 창에서 /terms로 이동");
@@ -49,6 +49,7 @@ const PopupClosePage = () => {
       } else {
         // 팝업이 아닐 경우
         if (user.requiredAgree === true) {
+          console.log("팝업아니어서 메인으로 가기")
           navigate('/main');
         } else {
           navigate('/terms');
