@@ -8,11 +8,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useWebcamStore } from '../../store/webcam/webcamStore';
-import { useJanus } from '../../contexts/JanusContext';
+import { useWebcamStore } from '../../store/webcam/webcamStore'; // [병합] '내 브랜치'의 Zustand 스토어 유지
+import { useJanus } from '../../contexts/JanusContext'; // [병합] '내 브랜치'의 Janus Context 유지
 import { useAuthStore } from '../../store/auth/authStore';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
+import AlertModal from '../../components/ui/AlertModal.jsx'; // [병합] 'dev'의 AlertModal 가져오기
 
 const QuizWaitingRoom = () => {
     console.log('🚪 QuizWaitingRoom 렌더링');
@@ -22,15 +23,17 @@ const QuizWaitingRoom = () => {
     const [showExitModal, setShowExitModal] = useState(false);
     const [allReady, setAllReady] = useState(false);
 
-    // 게임 페이지로 이동 중인지 추적 (useRef 사용 - cleanup에서 최신 값 참조)
-    const isNavigatingToGameRef = useRef(false); // ✅ '내 브랜치'의 네비게이션 추적
+    // [병합] 'dev'의 방 종료 알림 모달 상태 추가
+    const [showRoomClosedAlert, setShowRoomClosedAlert] = useState(false);
 
-    // Zustand store에서 사용자 정보 가져오기 및 설정
-    // const { userId: myUserId, setUser } = useUserStore(); // ❌ '내 브랜치'의 useUserStore 제거
-    const { user, isAuthenticated, hasCheckedAuth } = useAuthStore(); // ✅ 'dev'의 useAuthStore 사용
-    const myUserId = user?.userId; // ✅ useAuthStore에서 myUserId 직접 가져오기
+    // [병합] '내 브랜치'의 게임 페이지 이동 추적 Ref (Janus/WS 연결 유지용)
+    const isNavigatingToGameRef = useRef(false);
 
-    // 웹캠 관리 (Zustand store 사용)
+    // Zustand store에서 사용자 정보 가져오기
+    const { user, isAuthenticated, hasCheckedAuth } = useAuthStore();
+    const myUserId = user?.userId;
+
+    // [병합] '내 브랜치'의 useWebcamStore 사용 (dev의 useWebcam 훅 대신)
     const stream = useWebcamStore(state => state.stream);
     const isWebcamOn = useWebcamStore(state => state.isWebcamOn);
     const webcamError = useWebcamStore(state => state.error);
@@ -38,8 +41,8 @@ const QuizWaitingRoom = () => {
     const stopWebcam = useWebcamStore(state => state.stopWebcam);
     const toggleWebcam = useWebcamStore(state => state.toggleWebcam);
 
-    // 로컬 비디오 ref
-    const videoRef = useRef(null); // ✅ '내 브랜치'의 로컬 videoRef 사용 (useWebcamStore와 연동)
+    // 로컬 비디오 ref (useWebcamStore와 연동)
+    const videoRef = useRef(null);
 
     // 방 정보
     const [roomInfo, setRoomInfo] = useState({
@@ -58,6 +61,7 @@ const QuizWaitingRoom = () => {
 
     // ============================================
     // Janus WebRTC 관리 (Context 사용)
+    // [병합] '내 브랜치'의 useJanus 컨텍스트 사용
     // ============================================
     const {
         janusRef,
@@ -68,33 +72,37 @@ const QuizWaitingRoom = () => {
         setRemoteStreams,
         isJanusConnected,
         setIsJanusConnected,
-    } = useJanus(); // ✅ '내 브랜치'의 컨텍스트 사용
+    } = useJanus();
 
     const remoteVideosRef = useRef({}); // { userId: videoElement }
 
     // Janus 서버 URL
     const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
 
-    // ✅ 'dev' 브랜치의 인증 체크 useEffect
+    // 'dev' 브랜치의 인증 체크 useEffect (동일)
     useEffect(() => {
-        // localStorage 복원이 완료될 때까지 대기
         if (!hasCheckedAuth) {
             console.log('⏳ 인증 상태 확인 중...');
             return;
         }
 
-        // 인증 확인 후 로그인 안 되어 있으면 리다이렉트
         if (!isAuthenticated || !myUserId) {
             alert('로그인이 필요합니다.');
-            navigate('/main'); // 또는 '/main'
+            navigate('/main');
         } else {
             console.log('✅ 인증 확인:', myUserId);
         }
     }, [hasCheckedAuth, isAuthenticated, myUserId, navigate]);
 
-    // WebSocket 연결
+    // [병합] 'dev'의 방 종료 이벤트 핸들러 추가
+    const handleRoomClosed = (data) => {
+        console.log('📥 방 종료 알림:', data);
+        // AlertModal 표시
+        setShowRoomClosedAlert(true);
+    };
+
+    // WebSocket 연결 (두 브랜치 로직 병합)
     useEffect(() => {
-        // ✅ 'dev' 브랜치에서 인증이 확인된 후에만 웹소켓 연결 시도
         if (!hasCheckedAuth || !isAuthenticated || !myUserId) {
             console.log('⏳ 인증 대기 중... WebSocket 연결 보류');
             return;
@@ -106,15 +114,16 @@ const QuizWaitingRoom = () => {
             try {
                 websocketService.on('room:join', handleRoomJoin);
                 websocketService.on('participant', handleParticipantEvent);
-                websocketService.on('quiz:start', handleGameStart); // ✅ '내 브랜치'의 게임 시작 이벤트
-                websocketService.on('error', handleError); // ✅ '내 브랜치'의 에러 핸들러
+                websocketService.on('quiz:start', handleGameStart); // [병합] '내 브랜치'의 게임 시작 이벤트
+                websocketService.on('room:closed', handleRoomClosed); // [병합] 'dev'의 방 종료 이벤트
+                websocketService.on('error', handleError); // [병합] '내 브랜치'의 개선된 에러 핸들러
 
                 await websocketService.connect();
                 console.log('✅ WebSocket 연결 성공!');
 
                 setTimeout(() => {
-                    // 컴포넌트가 마운트되어 있고, 게임 페이지로 이동 중이 아닐 때만 방 입장
-                    if (isMounted && !isNavigatingToGameRef.current) { // ✅ '내 브랜치'의 네비게이션 체크
+                    // [병합] '내 브랜치'의 네비게이션 체크 로직 유지
+                    if (isMounted && !isNavigatingToGameRef.current) {
                         websocketService.joinRoom(Number(roomId));
                         console.log(`🚪 방 ${roomId}에 입장 시도`);
                     } else {
@@ -135,33 +144,31 @@ const QuizWaitingRoom = () => {
             websocketService.off('room:join', handleRoomJoin);
             websocketService.off('participant', handleParticipantEvent);
             websocketService.off('quiz:start', handleGameStart);
+            websocketService.off('room:closed', handleRoomClosed); // [병합] 'dev' 이벤트 정리
             websocketService.off('error', handleError);
         };
-        // ✅ myUserId, isAuthenticated, hasCheckedAuth 의존성 추가
     }, [roomId, myUserId, isAuthenticated, hasCheckedAuth]);
 
-    // 스트림을 videoRef에 연결
+    // [병합] '내 브랜치'의 로직 (useWebcamStore의 stream을 videoRef에 연결)
     useEffect(() => {
         if (videoRef.current && stream) {
             videoRef.current.srcObject = stream;
         }
     }, [stream]);
 
-    // Janus WebRTC 연결 (방 입장 후 + 웹캠 켜진 후)
+    // [병합] '내 브랜치'의 Janus WebRTC 연결 useEffect (Context 사용, 426 에러 처리, 자기 자신 구독 방지, cleanup 시 네비게이션 체크)
+    // (dev의 로컬 관리 로직 대신 이 로직을 통째로 사용)
     useEffect(() => {
-        // 방에 입장하지 않았으면 Janus 연결 안 함 (myUserId는 useAuthStore에서 가져옴)
         if (!myUserId || participants.length === 0) {
             console.log('⏳ 방 입장 대기 중... Janus 연결 보류');
             return;
         }
 
-        // 웹캠이 켜지지 않았으면 Janus 연결 안 함
         if (!isWebcamOn || !stream) {
             console.log('⏳ 웹캠 대기 중... Janus 연결 보류');
             return;
         }
 
-        // Janus가 로드되지 않았으면 연결 안 함
         if (!window.Janus) {
             console.error('❌ Janus 라이브러리가 로드되지 않았습니다.');
             return;
@@ -171,19 +178,16 @@ const QuizWaitingRoom = () => {
 
         console.log('🎥 Janus 연결 시작:', { roomId, myUserId });
 
-        // Janus 초기화
         Janus.init({
             debug: 'all',
             callback: function () {
                 console.log('✅ Janus 초기화 완료');
 
-                // Janus 세션 생성
                 janusRef.current = new Janus({
                     server: JANUS_SERVER,
                     success: function () {
                         console.log('✅ Janus 서버 연결 성공');
 
-                        // VideoRoom 플러그인 attach
                         janusRef.current.attach({
                             plugin: 'janus.plugin.videoroom',
                             opaqueId: `user-${myUserId}`,
@@ -191,7 +195,6 @@ const QuizWaitingRoom = () => {
                                 console.log('✅ VideoRoom 플러그인 연결 성공');
                                 pluginHandleRef.current = pluginHandle;
 
-                                // 방 참여 (publisher로)
                                 const register = {
                                     request: 'join',
                                     room: parseInt(roomId),
@@ -208,7 +211,7 @@ const QuizWaitingRoom = () => {
                                 console.log('📨 Janus 메시지 수신:', msg);
                                 const event = msg['videoroom'];
 
-                                // ✅ '내 브랜치'의 방 생성 로직
+                                // [병합] '내 브랜치'의 방 생성 로직 (426 에러)
                                 if (event === 'event' && msg['error_code'] === 426) {
                                     console.log('⚠️ Janus 방이 없음 - 방 생성 시도');
 
@@ -221,9 +224,6 @@ const QuizWaitingRoom = () => {
                                         fir_freq: 10,
                                         audiocodec: 'opus',
                                         videocodec: 'vp8',
-                                        audiolevel_event: true,
-                                        audio_level_average: 65,
-                                        audio_active_packets: 25,
                                         record: false,
                                         permanent: false
                                     };
@@ -232,7 +232,6 @@ const QuizWaitingRoom = () => {
                                         message: create,
                                         success: function (result) {
                                             console.log('✅ Janus 방 생성 성공:', result);
-
                                             // 방 생성 후 다시 참여 시도
                                             const register = {
                                                 request: 'join',
@@ -240,7 +239,6 @@ const QuizWaitingRoom = () => {
                                                 ptype: 'publisher',
                                                 display: String(myUserId),
                                             };
-
                                             pluginHandleRef.current.send({ message: register });
                                         },
                                         error: function (error) {
@@ -255,16 +253,14 @@ const QuizWaitingRoom = () => {
                                     console.log('✅ Janus 방 참여 성공, My Feed ID:', myFeedId);
                                     setIsJanusConnected(true);
 
-                                    // 내 스트림 publish
                                     publishOwnFeed();
 
-                                    // 기존 참가자 구독 (자기 자신 제외)
                                     if (msg['publishers']) {
                                         msg['publishers'].forEach((publisher) => {
                                             const userId = parseInt(publisher.display);
                                             console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
 
-                                            // ✅ '내 브랜치'의 자기 자신 구독 방지
+                                            // [병합] '내 브랜치'의 자기 자신 구독 방지
                                             if (userId !== myUserId) {
                                                 userIdToFeedIdRef.current[userId] = publisher.id;
                                                 subscribeToFeed(publisher.id, userId);
@@ -274,13 +270,12 @@ const QuizWaitingRoom = () => {
                                         });
                                     }
                                 } else if (event === 'event') {
-                                    // 새 참가자 입장 (자기 자신 제외)
                                     if (msg['publishers']) {
                                         msg['publishers'].forEach((publisher) => {
                                             const userId = parseInt(publisher.display);
                                             console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
 
-                                            // ✅ '내 브랜치'의 자기 자신 구독 방지
+                                            // [병합] '내 브랜치'의 자기 자신 구독 방지
                                             if (userId !== myUserId) {
                                                 userIdToFeedIdRef.current[userId] = publisher.id;
                                                 subscribeToFeed(publisher.id, userId);
@@ -289,12 +284,10 @@ const QuizWaitingRoom = () => {
                                             }
                                         });
                                     }
-                                    // 참가자 퇴장
                                     if (msg['leaving']) {
                                         const leavingFeedId = msg['leaving'];
                                         console.log('👋 Janus 참가자 퇴장, Feed ID:', leavingFeedId);
 
-                                        // feedId로 userId 찾기
                                         let leavingUserId = null;
                                         for (const [userId, feedId] of Object.entries(userIdToFeedIdRef.current)) {
                                             if (feedId === leavingFeedId) {
@@ -320,7 +313,6 @@ const QuizWaitingRoom = () => {
                                     }
                                 }
 
-                                // JSEP 처리
                                 if (jsep) {
                                     pluginHandleRef.current.handleRemoteJsep({ jsep: jsep });
                                 }
@@ -329,7 +321,7 @@ const QuizWaitingRoom = () => {
                                 console.log('✅ 로컬 스트림 수신 (Janus echo)');
                             },
                             onremotestream: function () {
-                                // Publisher는 sendonly이므로 원격 스트림 없음
+                                // Publisher는 sendonly
                             },
                         });
                     },
@@ -348,7 +340,7 @@ const QuizWaitingRoom = () => {
             console.log('📤 내 스트림 publish 시작');
 
             pluginHandleRef.current.createOffer({
-                stream: stream, // useWebcamStore의 스트림 사용
+                stream: stream, // [병합] '내 브랜치'의 useWebcamStore 스트림
                 media: {
                     audioRecv: false,
                     videoRecv: false,
@@ -373,7 +365,6 @@ const QuizWaitingRoom = () => {
         // 다른 참가자 구독
         function subscribeToFeed(feedId, userId) {
             let remoteFeed = null;
-
             console.log('📺 참가자 구독 시작:', { feedId, userId });
 
             janusRef.current.attach({
@@ -381,14 +372,12 @@ const QuizWaitingRoom = () => {
                 opaqueId: `subscriber-${myUserId}-${feedId}`,
                 success: function (pluginHandle) {
                     remoteFeed = pluginHandle;
-
                     const subscribe = {
                         request: 'join',
                         room: parseInt(roomId),
                         ptype: 'subscriber',
                         feed: feedId,
                     };
-
                     remoteFeed.send({ message: subscribe });
                 },
                 error: function (error) {
@@ -414,9 +403,7 @@ const QuizWaitingRoom = () => {
                 },
                 onremotestream: function (remoteStream) {
                     console.log('✅ 원격 스트림 수신:', { feedId, userId });
-
                     remoteFeedsRef.current[feedId] = remoteFeed;
-
                     setRemoteStreams((prev) => ({
                         ...prev,
                         [userId]: remoteStream,
@@ -426,7 +413,7 @@ const QuizWaitingRoom = () => {
         }
 
         return () => {
-            // ✅ '내 브랜치'의 게임 페이지 이동 시 Janus 연결 유지 로직
+            // [병합] '내 브랜치'의 게임 페이지 이동 시 Janus 연결 유지 로직
             if (isNavigatingToGameRef.current) {
                 console.log('🎮 게임 페이지로 이동 - Janus 연결 유지');
                 return;
@@ -438,14 +425,16 @@ const QuizWaitingRoom = () => {
                 janusRef.current.destroy();
                 janusRef.current = null;
             }
+            // [병합] '내 브랜치'의 컨텍스트 상태도 초기화
             pluginHandleRef.current = null;
             remoteFeedsRef.current = {};
             userIdToFeedIdRef.current = {};
             setIsJanusConnected(false);
+            setRemoteStreams({}); // 스트림 정보 초기화
         };
-    }, [myUserId, participants.length, roomId, isWebcamOn, stream]);
+    }, [myUserId, participants.length, roomId, isWebcamOn, stream, janusRef, pluginHandleRef, remoteFeedsRef, userIdToFeedIdRef, setIsJanusConnected, setRemoteStreams]); // [병합] Context에서 가져온 state setter들도 의존성에 추가
 
-    // 원격 스트림을 video 엘리먼트에 연결
+    // 원격 스트림을 video 엘리먼트에 연결 (양쪽 브랜치 동일)
     useEffect(() => {
         Object.entries(remoteStreams).forEach(([userId, remoteStream]) => {
             const videoElement = remoteVideosRef.current[userId];
@@ -457,18 +446,12 @@ const QuizWaitingRoom = () => {
     }, [remoteStreams]);
 
     // 핸들러 함수들
-    // ✅ 'dev' 브랜치의 useAuthStore 기반으로 수정된 handleRoomJoin
+    // [병합] '내 브랜치'의 handleRoomJoin (useAuthStore 기반)
     const handleRoomJoin = (data) => {
-        console.log('📥📥📥 방 입장 응답 RAW:', JSON.stringify(data, null, 2));
+        console.log('📥 방 입장 응답:', data);
 
         if (data.success) {
             const roomData = data.data;
-
-            console.log('roomData.participants:', roomData.participants);
-            console.log('participants 길이:', roomData.participants?.length);
-
-            // ✅ myUserId는 useAuthStore에서 이미 가져옴
-            console.log('✅ myUserId from useAuthStore:', myUserId);
 
             if (!myUserId) {
                 console.error('❌ myUserId가 없습니다. useAuthStore를 확인하세요.');
@@ -477,20 +460,13 @@ const QuizWaitingRoom = () => {
                 return;
             }
 
-            // ❌ '내 브랜치'의 setUser 로직 제거
-            // const myInfo = roomData.participants.find(p => p.userId === myUserId);
-            // if (myInfo) {
-            //   setUser({ ... });
-            // }
-
-            // 참가자 목록 업데이트
             const formattedParticipants = roomData.participants.map(p => ({
                 id: p.userId,
                 userId: p.userId,
                 nickname: p.nickname,
                 profileImageUrl: p.profileImageUrl,
                 score: 0,
-                isMe: p.userId === myUserId, // ✅ useAuthStore의 myUserId와 비교
+                isMe: p.userId === myUserId, // useAuthStore의 myUserId와 비교
                 isHost: p.host,
                 isReady: p.ready,
                 webcamStatus: 'off'
@@ -500,7 +476,6 @@ const QuizWaitingRoom = () => {
             setParticipants(formattedParticipants);
             console.log('✅ setParticipants 호출 완료');
 
-            // 방 정보 업데이트
             setRoomInfo({
                 gameRoomId: roomData.gameRoomId,
                 gameTitle: roomData.gameTitle,
@@ -514,6 +489,7 @@ const QuizWaitingRoom = () => {
         }
     };
 
+    // [병합] 'dev'와 '내 브랜치'의 handleParticipantEvent 병합
     const handleParticipantEvent = (data) => {
         console.log('📥 참가자 이벤트:', data);
 
@@ -527,12 +503,10 @@ const QuizWaitingRoom = () => {
                 console.log('🚪 새 참가자 입장:', newUser);
 
                 setParticipants(prev => {
-                    // ✅ 중복 방지: 이미 존재하는 userId면 무시
                     if (prev.some(p => p.userId === newUser.userId)) {
                         console.log('⚠️ 이미 존재하는 참가자, 추가하지 않음:', newUser.userId);
                         return prev;
                     }
-
                     return [
                         ...prev,
                         {
@@ -541,7 +515,7 @@ const QuizWaitingRoom = () => {
                             nickname: newUser.nickname,
                             profileImageUrl: newUser.profileImageUrl,
                             score: 0,
-                            isMe: newUser.userId === myUserId, // ✅ useAuthStore의 myUserId
+                            isMe: newUser.userId === myUserId,
                             isHost: newUser.host,
                             isReady: newUser.ready,
                             webcamStatus: 'off'
@@ -558,11 +532,11 @@ const QuizWaitingRoom = () => {
 
             case 'PARTICIPANT_LEFT':
                 console.log('👋 참가자 퇴장:', eventData.participant);
+                // [병합] 'dev'의 방 종료 로직 (AlertModal 표시)
                 if (eventData.roomClosed) {
-                    alert('방장이 나가서 방이 종료되었습니다.');
-                    websocketService.disconnect();
-                    navigate('/main');
-                    return;
+                    console.log('🚪 방장이 나가 방이 종료됨');
+                    setShowRoomClosedAlert(true);
+                    return; // navigate 대신 모달 표시
                 }
                 setParticipants(prev =>
                     prev.filter(p => p.userId !== eventData.participant.userId)
@@ -584,7 +558,6 @@ const QuizWaitingRoom = () => {
                             ? eventData.ready
                             : false;
 
-                // 개별 참가자 업데이트
                 setParticipants(prev =>
                     prev.map(p =>
                         p.userId === eventData.userId
@@ -595,23 +568,26 @@ const QuizWaitingRoom = () => {
                 break;
             }
 
+            // [병합] 'dev'의 ROOM_CLOSED 이벤트 케이스 추가
+            case 'ROOM_CLOSED':
+                console.log('🚪 방 종료 (이벤트 수신):', eventData);
+                setShowRoomClosedAlert(true);
+                break;
+
             default:
                 console.log('알 수 없는 이벤트:', eventData.eventType);
         }
     };
 
-    // ✅ '내 브랜치'의 개선된 handleError
+    // [병합] '내 브랜치'의 개선된 handleError (ROOM_ALREADY_STARTED 처리)
     const handleError = (data) => {
         console.error('📥 에러:', data);
 
-        // ROOM_ALREADY_STARTED 에러 처리
         if (data.error === 'ROOM_ALREADY_STARTED' || (data.message && data.message.includes('이미 시작된 방'))) {
-            // 게임 페이지로 이동 중이면 에러 무시
             if (isNavigatingToGameRef.current) {
                 console.log('⏭️ 게임 페이지로 이동 중이므로 에러 무시');
                 return;
             }
-
             console.warn('⚠️ 이미 시작된 방입니다.');
             alert('이 방은 이미 게임이 시작되었습니다.\n새로운 방을 만들어주세요.');
             navigate('/main');
@@ -621,41 +597,30 @@ const QuizWaitingRoom = () => {
         alert(data.message || data.detail || '오류가 발생했습니다.');
     };
 
-    // ✅ '내 브랜치'의 handleGameStart (WebSocket 이벤트 핸들러)
+    // [병합] '내 브랜치'의 handleGameStart (WebSocket 이벤트 핸들러)
+    // (dev의 handleStartGame(클릭 핸들러)와 이름이 겹쳤었음, dev의 핸들러는 삭제)
     const handleGameStart = (data) => {
         console.log('📥📥📥 게임 시작 응답 RAW:', JSON.stringify(data, null, 2));
 
         if (data.success) {
             const gameData = data.data;
             console.log('✅ 게임 시작 - 게임 페이지로 이동');
-            console.log('gameData:', JSON.stringify(gameData, null, 2));
-            console.log('totalQuestions:', gameData?.totalQuestions);
-            console.log('questionNumber:', gameData?.questionNumber);
-            console.log('wordTitle:', gameData?.wordTitle);
 
-            // 게임 페이지로 이동 중임을 표시 (Janus cleanup 방지)
+            // [병합] '내 브랜치'의 핵심 로직: 네비게이션 플래그 설정
             isNavigatingToGameRef.current = true;
 
-            // 백엔드에서 받은 참가자 정보 사용
             const participantsToPass = gameData?.participants || participants;
             const myUserIdToPass = gameData?.myUserId || myUserId;
-
-            console.log('🚀🚀🚀 navigate 호출 직전');
-            console.log('백엔드에서 받은 participants:', gameData?.participants);
-            console.log('백엔드에서 받은 myUserId:', gameData?.myUserId);
-            console.log('사용할 participants:', participantsToPass);
-            console.log('사용할 myUserId:', myUserIdToPass);
 
             const stateToPass = {
                 totalQuestions: gameData?.totalQuestions || 8,
                 firstQuestion: gameData?.questionNumber || 1,
                 firstWord: gameData?.wordTitle || '문제',
-                participants: participantsToPass, // 백엔드에서 받은 참가자 정보
-                myUserId: myUserIdToPass // 백엔드에서 받은 사용자 ID
+                participants: participantsToPass,
+                myUserId: myUserIdToPass
             };
 
             console.log('전달할 state:', JSON.stringify(stateToPass, null, 2));
-
             navigate(`/quiz/game/${roomId}`, { state: stateToPass });
         } else {
             console.error('❌ 게임 시작 실패:', data.message);
@@ -663,7 +628,7 @@ const QuizWaitingRoom = () => {
         }
     };
 
-    // 웹캠 상태 변경 시 내 정보 업데이트
+    // 웹캠 상태 변경 시 내 정보 업데이트 (양쪽 브랜치 동일)
     useEffect(() => {
         setParticipants(prev => prev.map(p =>
             p.isMe
@@ -675,7 +640,7 @@ const QuizWaitingRoom = () => {
         ));
     }, [isWebcamOn, webcamError]);
 
-    // 참가자 준비 상태 변경 시 allReady 계산
+    // 참가자 준비 상태 변경 시 allReady 계산 (양쪽 브랜치 동일)
     useEffect(() => {
         const nonHostParticipants = participants.filter(p => !p.isHost);
         const allNonHostReady = nonHostParticipants.length > 0 &&
@@ -684,11 +649,6 @@ const QuizWaitingRoom = () => {
         console.log('🔍 준비 상태 체크:', {
             nonHostCount: nonHostParticipants.length,
             allReady: allNonHostReady,
-            participants: participants.map(p => ({
-                nickname: p.nickname,
-                isHost: p.isHost,
-                isReady: p.isReady
-            }))
         });
 
         setAllReady(allNonHostReady);
@@ -698,48 +658,34 @@ const QuizWaitingRoom = () => {
     // 웹캠 권한 요청
     const handleWebcamRequest = async () => {
         try {
+            // [병합] '내 브랜치'의 useWebcamStore 사용
             await startWebcam();
         } catch (error) {
             console.error('웹캠 권한 거부:', error);
         }
     };
 
-    // 내 정보 가져오기
+    // 내 정보
     const me = participants.find(p => p.userId === myUserId);
     const isHost = me?.isHost || false;
     const isReady = me?.isReady || false;
 
-    // 준비 상태 토글
+    // 준비 상태 토글 (양쪽 브랜치 동일)
     const handleReadyToggle = () => {
         const toggledReady = !isReady;
-
-        // 낙관적 업데이트
         setParticipants((prevParticipants) =>
             prevParticipants.map((p) =>
                 p.userId === myUserId ? { ...p, isReady: toggledReady } : p
             )
         );
-
-        // WebSocket 전송
         websocketService.setReady(Number(roomId), toggledReady);
         console.log(`✅ 준비 상태 전송됨: ${toggledReady}`);
     };
 
-    // ✅ '내 브랜치'의 handleStartGame (버튼 클릭 핸들러)
+    // [병합] '내 브랜치'의 handleStartGame (버튼 클릭 핸들러)
+    // (dev의 단순 navigate 로직 대신 WS 전송 로직 사용)
     const handleStartGame = () => {
         try {
-            console.log('🎮🎮🎮 게임 시작 버튼 클릭!');
-            console.log('현재 participants:', participants);
-            console.log('participants 길이:', participants.length);
-            console.log('현재 myUserId:', myUserId);
-            console.log('roomId:', roomId);
-
-            if (participants.length === 0) {
-                console.error('❌ participants가 비어있습니다!');
-                alert('참가자 정보가 없습니다. 페이지를 새로고침해주세요.');
-                return;
-            }
-
             console.log('🎮 게임 시작 요청 전송 - roomId:', roomId);
             websocketService.startGame(Number(roomId)); // 서버로 게임 시작 요청
         } catch (error) {
@@ -748,17 +694,63 @@ const QuizWaitingRoom = () => {
         }
     };
 
-    // 방 나가기
+    // [병합] 'dev'의 cleanupAndExit 함수 (방 나가기 공통 처리)
+    // (단, '내 브랜치'의 Context/Store를 사용하도록 수정)
+    const cleanupAndExit = async () => {
+        try {
+            console.log('🚪 방 나가기 처리 시작 (Merged)');
+
+            // 1. Janus WebRTC 정리 (Context 사용)
+            if (janusRef.current) {
+                try {
+                    janusRef.current.destroy();
+                    janusRef.current = null;
+                    pluginHandleRef.current = null;
+                    remoteFeedsRef.current = {};
+                    userIdToFeedIdRef.current = {};
+                    setIsJanusConnected(false);
+                    setRemoteStreams({}); // Context의 스트림 초기화
+                    console.log('✅ Janus 정리 완료');
+                } catch (error) {
+                    console.error('Janus 정리 실패:', error);
+                }
+            }
+
+            // 2. 웹캠 정리 (useWebcamStore 사용)
+            if (isWebcamOn) {
+                stopWebcam(); // '내 브랜치'의 스토어 함수 호출
+                console.log('✅ 웹캠 정리 완료 (via store)');
+            }
+
+            // 3. WebSocket 연결 해제
+            websocketService.disconnect();
+            console.log('✅ WebSocket 연결 해제 완료 (서버가 자동으로 퇴장 처리)');
+
+            // 4. 메인 페이지로 이동
+            navigate('/main');
+        } catch (error) {
+            console.error('❌ 방 나가기 실패:', error);
+            navigate('/main'); // 실패 시에도 강제 이동
+        }
+    };
+
+    // 나가기 버튼 클릭
     const handleExit = () => {
         setShowExitModal(true);
     };
 
+    // [병합] 'dev'의 confirmExit (cleanupAndExit 호출)
     const confirmExit = () => {
-        // TODO: WebSocket으로 방 나가기 전송
-        navigate('/main');
+        cleanupAndExit();
     };
 
-    // 웹캠 상태 아이콘 색상
+    // [병합] 'dev'의 방 종료 알림 닫기 핸들러
+    const handleRoomClosedAlertClose = () => {
+        cleanupAndExit(); // 모달 닫을 때도 cleanup
+    };
+
+
+    // 웹캠 상태 아이콘/텍스트 (양쪽 브랜치 동일)
     const getWebcamStatusColor = (status) => {
         switch (status) {
             case 'on': return 'var(--info-color)';
@@ -768,7 +760,6 @@ const QuizWaitingRoom = () => {
         }
     };
 
-    // 웹캠 상태 툴팁 텍스트
     const getWebcamStatusText = (status) => {
         switch (status) {
             case 'on': return 'CAM ON';
@@ -778,6 +769,10 @@ const QuizWaitingRoom = () => {
         }
     };
 
+    // ============================================
+    // 렌더링 (JSX)
+    // [병합] '내 브랜치'의 JSX를 기준으로 'dev'의 AlertModal 추가
+    // ============================================
     return (
         <div className={styles.quizWaitingRoom}>
             {/* 방 정보 섹션 */}
@@ -797,6 +792,7 @@ const QuizWaitingRoom = () => {
                 <div className={styles.webcamControlSection}>
                     <button
                         className={styles.webcamControlButton}
+                        // [병합] '내 브랜치'의 스토어 함수 사용
                         onClick={isWebcamOn ? stopWebcam : handleWebcamRequest}
                     >
                         {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
@@ -822,7 +818,8 @@ const QuizWaitingRoom = () => {
                         onClick={
                             isWebcamOn
                                 ? (isHost
-                                    ? (allReady ? handleStartGame : undefined) // ✅ handleStartGame (WS 전송)
+                                    // [병합] '내 브랜치'의 handleStartGame(WS 전송) 사용
+                                    ? (allReady ? handleStartGame : undefined)
                                     : handleReadyToggle)
                                 : undefined
                         }
@@ -835,7 +832,6 @@ const QuizWaitingRoom = () => {
                             : (isReady ? 'READY' : 'NOT READY')}
                     </button>
 
-                    {/* 웹캠 필수 툴팁 */}
                     {!isWebcamOn && (
                         <div className={styles.webcamRequiredTooltip}>
                             <span>웹캠을 켜야 {isHost ? '게임을 시작' : '준비'}할 수 있습니다</span>
@@ -847,23 +843,20 @@ const QuizWaitingRoom = () => {
                 <div className={styles.participantsGrid}>
                     {participants.map((participant) => (
                         <div key={participant.id} className={styles.participantCard}>
-                            {/* 캠 상태 점 */}
                             <div
                                 className={styles.camStatusDot}
                                 style={{ backgroundColor: getWebcamStatusColor(participant.webcamStatus) }}
                                 title={getWebcamStatusText(participant.webcamStatus)}
                             ></div>
 
-                            {/* 방장 표시 */}
                             {participant.isHost && (
                                 <span className={styles.hostBadge}>방장</span>
                             )}
 
-                            {/* 웹캠 영역 */}
                             <div className={styles.webcamArea}>
                                 {participant.userId === myUserId && isWebcamOn ? (
                                     <video
-                                        ref={videoRef} // ✅ '내 브랜치'의 로컬 ref
+                                        ref={videoRef} // [병합] '내 브랜치'의 로컬 videoRef
                                         autoPlay
                                         playsInline
                                         muted
@@ -883,7 +876,6 @@ const QuizWaitingRoom = () => {
                                 )}
                             </div>
 
-                            {/* 참가자 정보 */}
                             <div className={styles.participantInfo}>
                 <span className={styles.nickname}>
                   {participant.nickname}{participant.userId === myUserId ? ' (나)' : ''}
@@ -891,19 +883,11 @@ const QuizWaitingRoom = () => {
                                 <span className={styles.score}>{participant.score}점</span>
                             </div>
 
-                            {/* READY 상태 표시 (방장 제외, 모두 표시) */}
                             {!participant.isHost && (
                                 <div
                                     className={`${styles.readyBadge} ${participant.isReady ? styles.ready : styles.notReady
                                     }`}
                                 >
-                                    {participant.isReady ? 'READY' : 'NOT READY'}
-                                </div>
-                            )}
-
-                            {/* 내 READY 상태 표시 (방장이 아닌 경우) */}
-                            {participant.userId === myUserId && !participant.isHost && (
-                                <div className={`${styles.myReadyStatus} ${participant.isReady ? styles.ready : styles.notReady}`}>
                                     {participant.isReady ? 'READY' : 'NOT READY'}
                                 </div>
                             )}
@@ -963,6 +947,7 @@ const QuizWaitingRoom = () => {
                             <button className={styles.cancelButton} onClick={() => setShowExitModal(false)}>
                                 취소
                             </button>
+                            {/* [병합] 'dev'의 cleanup 로직이 포함된 confirmExit 호출 */}
                             <button className={styles.confirmButton} onClick={confirmExit}>
                                 나가기
                             </button>
@@ -970,6 +955,15 @@ const QuizWaitingRoom = () => {
                     </div>
                 </>
             )}
+
+            {/* [병합] 'dev'의 방 종료 알림 모달 추가 */}
+            <AlertModal
+                isOpen={showRoomClosedAlert}
+                onClose={handleRoomClosedAlertClose}
+                title="방 종료"
+                message="방장이 나가서 방이 종료되었습니다."
+                type="warning"
+            />
         </div>
     );
 };
