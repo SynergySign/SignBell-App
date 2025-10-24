@@ -747,7 +747,7 @@ public class QuizService {
         }
 
         /**
-         * 수어 표현 타이머 시작 (10초)
+         * 수어 표현 타이머 시작 (5초)
          * 
          * 1초마다 남은 시간을 WebSocket으로 전송
          * 
@@ -756,9 +756,9 @@ public class QuizService {
          * @param challengerUserId 도전자 ID
          */
         private void startSigningTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
-                for (int i = 10; i >= 0; i--) {
+                for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
-                        CompletableFuture.delayedExecutor(10 - i, TimeUnit.SECONDS)
+                        CompletableFuture.delayedExecutor(5 - i, TimeUnit.SECONDS)
                                         .execute(() -> {
                                                 try {
                                                         messagingTemplate.convertAndSend(

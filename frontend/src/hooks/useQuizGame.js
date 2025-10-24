@@ -14,7 +14,7 @@ export const useQuizGame = () => {
   const [challengeOrder, setChallengeOrder] = useState(null);
   const [gamePhase, setGamePhase] = useState('challenge');
   const [solvingTimer, setSolvingTimer] = useState(5);
-  const [signingTimer, setSigningTimer] = useState(10);
+  const [signingTimer, setSigningTimer] = useState(5);
   const [isWaitingResult, setIsWaitingResult] = useState(false);
   const [resultMessage, setResultMessage] = useState('');
   const [players, setPlayers] = useState([]);

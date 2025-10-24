@@ -21,6 +21,7 @@ import { useAuthStore } from '../../store/auth/authStore';
 import { useQuizGame } from '../../hooks/useQuizGame';
 import { useQuizWebSocket } from '../../hooks/useQuizWebSocket';
 import websocketService from '../../services/websocket/websocketService';
+import * as quizFastApi from '../../services/quiz/quizFastApiWebSocket';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
@@ -55,6 +56,13 @@ const QuizGamePage = () => {
   const mainVideoRef = useRef(null);
   const remoteVideosRef = useRef({});
   const webcamInitializedRef = useRef(false);
+
+  // FastAPI WebSocket 관련 Refs
+  const canvasRef = useRef(null);
+  const recordingRef = useRef(null);
+  const isRecordingRef = useRef(false);
+  const lastSentRef = useRef(0);
+  const [fastApiStatus, setFastApiStatus] = useState('Disconnected');
 
   // 모달
   const [showExitModal, setShowExitModal] = useState(false);
@@ -104,7 +112,7 @@ const QuizGamePage = () => {
         if (myInfo && myInfo.id === nextUserId) {
           gameState.setGamePhase('myTurn');
           gameState.setSolvingTimer(5);
-          gameState.setSigningTimer(10);
+          gameState.setSigningTimer(5);
           gameState.showToast('내 차례! 준비하세요!', 'info');
         } else {
           gameState.setGamePhase('solving');
@@ -119,34 +127,69 @@ const QuizGamePage = () => {
     }
   }, [gameState.setPlayers, gameState.setCurrentChallengerInfo, gameState.setGamePhase, gameState.setSolvingTimer, gameState.setSigningTimer, gameState.showToast]);
 
-  // 10초 수어 동작 완료 시 임시 정답 제출
-  const handleSigningComplete = useCallback(() => {
-    console.log('⏰ 수어 동작 완료 - 임시 정답 제출');
+  // 프레임 캡처 및 전송 (25fps)
+  const captureAndSendFrame = useCallback((timestamp) => {
+    if (!isRecordingRef.current) return;
+    recordingRef.current = requestAnimationFrame(captureAndSendFrame);
+
+    if (!canvasRef.current || !mainVideoRef.current) return;
+
+    const FPS = 25;
+    const INTERVAL = 1000 / FPS;
+    const now = typeof timestamp === 'number' ? timestamp : performance.now();
+
+    if (now - (lastSentRef.current || 0) < INTERVAL) return;
+    lastSentRef.current = now;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
 
     try {
-      gameState.setIsWaitingResult(true);
-      gameState.showToast('정답 제출 중...', 'info');
+      const vw = mainVideoRef.current.videoWidth || 640;
+      const vh = mainVideoRef.current.videoHeight || 480;
 
-      // 임시로 현재 단어를 정답으로 제출 (테스트용)
-      websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
-        questionNumber: gameState.currentQuestion,
-        userAnswer: gameState.currentWord, // 임시: 현재 단어를 그대로 제출
-      });
+      if (canvas.width !== vw || canvas.height !== vh) {
+        canvas.width = vw;
+        canvas.height = vh;
+      }
 
-      console.log('✅ 임시 정답 제출 완료:', {
-        questionNumber: gameState.currentQuestion,
-        userAnswer: gameState.currentWord
-      });
-    } catch (error) {
-      console.error('❌ 정답 제출 실패:', error);
-      gameState.showToast('정답 제출 실패', 'error');
-    } finally {
-      // 결과 대기 상태는 백엔드 응답 받을 때 해제
-      setTimeout(() => {
-        gameState.setIsWaitingResult(false);
-      }, 1000);
+      ctx.drawImage(mainVideoRef.current, 0, 0, canvas.width, canvas.height);
+
+      canvas.toBlob((blob) => {
+        if (blob) {
+          quizFastApi.sendFrame(blob);
+        }
+      }, 'image/jpeg', 0.95);
+    } catch (e) {
+      console.error('[QuizGame] captureAndSendFrame error:', e);
     }
-  }, [roomId, gameState]);
+  }, []);
+
+  // 5초 수어 동작 완료 시 FastAPI로 검증 요청
+  const handleSigningComplete = useCallback(() => {
+    console.log('⏰ 수어 동작 완료 - FastAPI 검증 요청');
+
+    try {
+      // 녹화 중지
+      isRecordingRef.current = false;
+      if (recordingRef.current) {
+        cancelAnimationFrame(recordingRef.current);
+        recordingRef.current = null;
+      }
+
+      gameState.setIsWaitingResult(true);
+      gameState.showToast('AI 검증 중...', 'info');
+
+      // FastAPI로 flush 요청 (AI 인식 결과 요청)
+      quizFastApi.sendFlush();
+
+      console.log('✅ FastAPI flush 요청 완료');
+    } catch (error) {
+      console.error('❌ FastAPI 검증 요청 실패:', error);
+      gameState.showToast('검증 요청 실패', 'error');
+      gameState.setIsWaitingResult(false);
+    }
+  }, [roomId, gameState, captureAndSendFrame]);
 
   const handleTimerUpdate = useCallback((data) => {
     if (data.success && data.data) {
@@ -156,6 +199,14 @@ const QuizGamePage = () => {
         gameState.setTimer(remainingSeconds);
       } else if (timerType === 'PREPARE') {
         gameState.setSolvingTimer(remainingSeconds);
+
+        // 준비 시간이 끝나면 (0초) 녹화 시작
+        if (remainingSeconds === 0 && gameState.gamePhase === 'myTurn') {
+          console.log('[QuizGame] 준비 완료 - 녹화 시작');
+          isRecordingRef.current = true;
+          lastSentRef.current = 0;
+          recordingRef.current = requestAnimationFrame(captureAndSendFrame);
+        }
       } else if (timerType === 'SIGNING') {
         gameState.setSigningTimer(remainingSeconds);
 
@@ -164,7 +215,7 @@ const QuizGamePage = () => {
         }
       }
     }
-  }, [gameState.setTimer, gameState.setSolvingTimer, gameState.setSigningTimer, gameState.gamePhase, handleSigningComplete]);
+  }, [gameState.setTimer, gameState.setSolvingTimer, gameState.setSigningTimer, gameState.gamePhase, handleSigningComplete, captureAndSendFrame]);
 
   const handleAnswerResult = useCallback((data) => {
     if (data.success && data.data) {
@@ -216,6 +267,74 @@ const QuizGamePage = () => {
     onChallengeTimeout: handleChallengeTimeout,
     onError: handleError,
   });
+
+  // FastAPI WebSocket 메시지 리스너 등록
+  useEffect(() => {
+    // 상태 리스너
+    const offStatus = quizFastApi.onStatus((status) => {
+      setFastApiStatus(status);
+      console.log('[QuizGame] FastAPI Status:', status);
+    });
+
+    // 메시지 리스너
+    const offMessage = quizFastApi.onMessage((msg) => {
+      console.log('[QuizGame] FastAPI Message:', msg);
+
+      if (msg.type === 'meta_ack') {
+        console.log('[QuizGame] ✅ FastAPI 메타 정보 전송 완료');
+      } else if (msg.type === 'inference_result') {
+        // AI 인식 결과 수신
+        const result = msg.result || {};
+        const predictedWord = result.predicted || '';
+        const score = result.score || 0;
+
+        console.log('[QuizGame] 🤖 AI 인식 결과:', { predictedWord, score });
+
+        // Spring Boot 백엔드로 정답 제출
+        try {
+          websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
+            questionNumber: gameState.currentQuestion,
+            userAnswer: predictedWord,
+          });
+          console.log('[QuizGame] ✅ 정답 제출 완료:', predictedWord);
+        } catch (error) {
+          console.error('[QuizGame] ❌ 정답 제출 실패:', error);
+        }
+
+        gameState.showToast(`AI 인식: ${predictedWord} (${(score * 100).toFixed(1)}%)`, 'info');
+      }
+    });
+
+    return () => {
+      offStatus();
+      offMessage();
+    };
+  }, [roomId]);
+
+  // 내 차례가 되면 FastAPI WebSocket 연결
+  useEffect(() => {
+    if (gameState.gamePhase === 'myTurn' && gameState.currentWord) {
+      console.log('[QuizGame] 내 차례 - FastAPI 연결 시작');
+
+      // FastAPI 연결 (세션 ID 자동 생성)
+      quizFastApi.connect();
+
+      // 연결 상태 확인 후 메타 전송
+      const offStatusLocal = quizFastApi.onStatus((status) => {
+        if (status === 'Connected') {
+          console.log('[QuizGame] FastAPI 연결 완료 - 메타 전송');
+          quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
+        }
+      });
+
+      return () => {
+        offStatusLocal();
+        quizFastApi.disconnect();
+      };
+    }
+  }, [gameState.gamePhase, gameState.currentWord, gameState.currentQuestion]);
+
+
 
   // 초기화
   useEffect(() => {
@@ -662,6 +781,9 @@ const QuizGamePage = () => {
         onReturnToRoom={handleReturnToRoom}
         rankings={rankings}
       />
+
+      {/* 숨겨진 캔버스 - 프레임 캡처용 */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
     </div>
   );
 };
