@@ -1,873 +1,662 @@
 /**
- * @개요 퀴즈 진행 페이지 컴포넌트
+ * @개요 퀴즈 진행 페이지 컴포넌트 (리팩토링)
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-20
- * @반환값 {JSX.Element} 퀴즈 진행 페이지 컴포넌트
+ * @최종수정일 2025-10-24
  */
 
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import Toast from '../../components/ui/Toast';
 import GameResultModal from '../../components/quiz/GameResultModal';
-import useWebcam from '../../hooks/useWebcam';
+import QuizHeader from '../../components/quiz/QuizHeader';
+import QuizQuestion from '../../components/quiz/QuizQuestion';
+import QuizMainVideo from '../../components/quiz/QuizMainVideo';
+import QuizGameState from '../../components/quiz/QuizGameState';
+import QuizPlayerGrid from '../../components/quiz/QuizPlayerGrid';
+import QuizExitModal from '../../components/quiz/QuizExitModal';
+import { useWebcamStore } from '../../store/webcam/webcamStore';
+import { useJanus } from '../../contexts/JanusContext';
+import { useAuthStore } from '../../store/auth/authStore';
+import { useQuizGame } from '../../hooks/useQuizGame';
+import { useQuizWebSocket } from '../../hooks/useQuizWebSocket';
+import websocketService from '../../services/websocket/websocketService';
 import styles from './QuizGamePage.module.scss';
 
 const QuizGamePage = () => {
   const { roomId } = useParams();
   const navigate = useNavigate();
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions] = useState(8);
+  const location = useLocation();
+  const { user } = useAuthStore();
+  const myUserId = user?.userId;
+
+  // 게임 상태 (커스텀 훅)
+  const gameState = useQuizGame();
+
+  // Janus WebRTC
+  const {
+    janusRef,
+    pluginHandleRef,
+    remoteFeedsRef,
+    userIdToFeedIdRef,
+    remoteStreams,
+    setRemoteStreams,
+    isJanusConnected,
+    setIsJanusConnected,
+  } = useJanus();
+
+  // 웹캠
+  const stream = useWebcamStore(state => state.stream);
+  const isWebcamOn = useWebcamStore(state => state.isWebcamOn);
+  const startWebcam = useWebcamStore(state => state.startWebcam);
+  const toggleWebcam = useWebcamStore(state => state.toggleWebcam);
+
+  // Refs
+  const mainVideoRef = useRef(null);
+  const remoteVideosRef = useRef({});
+  const webcamInitializedRef = useRef(false);
+
+  // 모달
   const [showExitModal, setShowExitModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [timer, setTimer] = useState(10);
-  const [isTimerActive, setIsTimerActive] = useState(true);
-  const [challengersCount, setChallengersCount] = useState(0);
-  const [maxChallengers] = useState(4);
-  const [hasChallenged, setHasChallenged] = useState(false);
-  const [challengeOrder, setChallengeOrder] = useState(null);
-  const [gamePhase, setGamePhase] = useState('challenge'); // 'challenge', 'solving', 'result', 'myTurn'
-  const [toast, setToast] = useState({
-    isOpen: false,
-    message: '',
-    type: 'info'
-  });
-  const [solvingTimer, setSolvingTimer] = useState(5); // 5초 카운트다운 (준비 시간)
-  const [signingTimer, setSigningTimer] = useState(10); // 10초 수어 표현 시간
-  const [isMyTurn, setIsMyTurn] = useState(false);
-  const [currentChallenger, setCurrentChallenger] = useState(1); // 현재 도전자 순서
-  const [totalChallengers, setTotalChallengers] = useState(2); // 총 도전자 수
-  const [isWaitingResult, setIsWaitingResult] = useState(false); // 수어 인식 결과 대기 중
-  const [resultMessage, setResultMessage] = useState(''); // 결과 메시지
+  const [rankings] = useState([]);
 
-  // 플레이어 데이터 (실제로는 WebSocket에서 받음)
-  const [players, setPlayers] = useState([
-    { id: 1, nickname: '사용자1', score: 1250, isMe: true, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
-    { id: 2, nickname: '사용자2', score: 980, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
-    { id: 3, nickname: '사용자3', score: 1100, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
-    { id: 4, nickname: '사용자4', score: 850, isMe: false, isCurrentPlayer: false, hasChallenged: false, challengeOrder: null },
-  ]);
-
-  // 도전자 대기열 (선착순)
-  const [challengerQueue, setChallengerQueue] = useState([]);
-  
-  // 현재 도전자 정보 (메인 카드에 표시될 사용자)
-  const [currentChallengerInfo, setCurrentChallengerInfo] = useState({
-    id: null,
-    nickname: '대기중',
-    score: 0
-  });
-
-  // 현재 도전자 및 플레이어 상태 업데이트
-  useEffect(() => {
-    if (gamePhase === 'myTurn') {
-      // 내 정보를 메인 카드에 표시
-      const myInfo = players.find(player => player.isMe);
-      if (myInfo) {
-        setCurrentChallengerInfo({
-          id: myInfo.id,
-          nickname: myInfo.nickname,
-          score: myInfo.score
-        });
-        
-        // 내가 현재 플레이어로 설정
-        setPlayers(prev => prev.map(player => ({
-          ...player,
-          isCurrentPlayer: player.isMe
-        })));
-      }
-    } else if (gamePhase === 'solving' && challengerQueue.length > 0) {
-      // 현재 도전자 정보 설정
-      const currentChallengerIndex = currentChallenger - 1;
-      if (challengerQueue[currentChallengerIndex]) {
-        const challengerInfo = challengerQueue[currentChallengerIndex];
-        setCurrentChallengerInfo({
-          id: challengerInfo.id,
-          nickname: challengerInfo.nickname,
-          score: challengerInfo.score
-        });
-        
-        // 현재 도전자를 현재 플레이어로 설정
-        setPlayers(prev => prev.map(player => ({
-          ...player,
-          isCurrentPlayer: player.id === challengerInfo.id
-        })));
-      }
-    } else {
-      // 도전 신청 단계 또는 기본 상태 - 메인 카드는 대기중으로 표시
-      setCurrentChallengerInfo({
-        id: null,
-        nickname: '대기중',
-        score: 0
-      });
-      
-      // 모든 플레이어의 현재 플레이어 상태 해제
-      setPlayers(prev => prev.map(player => ({
-        ...player,
-        isCurrentPlayer: false
-      })));
+  // WebSocket 이벤트 핸들러
+  const handleNewQuestion = useCallback((data) => {
+    if (data.success && data.data) {
+      const questionData = data.data;
+      gameState.setCurrentQuestion(questionData.questionNumber);
+      gameState.setCurrentWord(questionData.wordTitle);
+      gameState.resetGameState();
+      gameState.showToast(`문제 ${questionData.questionNumber}: ${questionData.wordTitle}`, 'info');
     }
-  }, [gamePhase, challengerQueue, currentChallenger]);
+  }, [gameState.setCurrentQuestion, gameState.setCurrentWord, gameState.resetGameState, gameState.showToast]);
 
-  // 임시 순위 데이터 (실제로는 WebSocket에서 받음)
-  const [rankings] = useState([
-    { rank: 1, userId: 123, nickname: '사용자1', score: 350 },
-    { rank: 2, userId: 456, nickname: '사용자2', score: 200 },
-    { rank: 3, userId: 789, nickname: '사용자3', score: 150 },
-    { rank: 4, userId: 101, nickname: '사용자4', score: 80 },
-  ]);
+  const handleChallengeUpdate = useCallback((data) => {
+    if (data.success && data.data?.eventType === 'CHALLENGER_REGISTERED') {
+      gameState.setChallengersCount(data.data.challengerCount);
+    }
+  }, [gameState.setChallengersCount]);
 
-  // ============================================
-  // 웹캠 관리
-  // ============================================
-  const {
-    stream,
-    isWebcamOn,
-    error: webcamError,
-    videoRef,
-    startWebcam,
-    stopWebcam,
-    toggleWebcam
-  } = useWebcam();
+  const handlePersonalChallengeResponse = useCallback((data) => {
+    if (data.success && data.data) {
+      gameState.setChallengeOrder(data.data.order);
+      gameState.showToast(`도전 신청 완료! ${data.data.order}번째 도전자`, 'success');
+    }
+  }, [gameState.setChallengeOrder, gameState.showToast]);
 
-  // 게임 시작 시 웹캠 자동 시작
-  useEffect(() => {
-    startWebcam();
-    
-    return () => {
-      stopWebcam();
-    };
+  const handleNextChallenger = useCallback((data) => {
+    if (data.success && data.data) {
+      const { userId: nextUserId, nickname, profileImage } = data.data;
+
+      gameState.setPlayers(currentPlayers => {
+        const player = currentPlayers.find(p => p.id === nextUserId);
+        const score = player ? player.score : 0;
+
+        gameState.setCurrentChallengerInfo({
+          id: nextUserId,
+          nickname,
+          profileImage,
+          score
+        });
+
+        const myInfo = currentPlayers.find(p => p.isMe);
+        if (myInfo && myInfo.id === nextUserId) {
+          gameState.setGamePhase('myTurn');
+          gameState.setSolvingTimer(5);
+          gameState.setSigningTimer(10);
+          gameState.showToast('내 차례! 준비하세요!', 'info');
+        } else {
+          gameState.setGamePhase('solving');
+          gameState.showToast(`${nickname}의 차례입니다.`, 'info');
+        }
+
+        return currentPlayers.map(player => ({
+          ...player,
+          isCurrentPlayer: player.id === nextUserId
+        }));
+      });
+    }
+  }, [gameState.setPlayers, gameState.setCurrentChallengerInfo, gameState.setGamePhase, gameState.setSolvingTimer, gameState.setSigningTimer, gameState.showToast]);
+
+  // 10초 수어 동작 완료 시 임시 정답 제출
+  const handleSigningComplete = useCallback(() => {
+    console.log('⏰ 수어 동작 완료 - 임시 정답 제출');
+
+    try {
+      gameState.setIsWaitingResult(true);
+      gameState.showToast('정답 제출 중...', 'info');
+
+      // 임시로 현재 단어를 정답으로 제출 (테스트용)
+      websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
+        questionNumber: gameState.currentQuestion,
+        userAnswer: gameState.currentWord, // 임시: 현재 단어를 그대로 제출
+      });
+
+      console.log('✅ 임시 정답 제출 완료:', {
+        questionNumber: gameState.currentQuestion,
+        userAnswer: gameState.currentWord
+      });
+    } catch (error) {
+      console.error('❌ 정답 제출 실패:', error);
+      gameState.showToast('정답 제출 실패', 'error');
+    } finally {
+      // 결과 대기 상태는 백엔드 응답 받을 때 해제
+      setTimeout(() => {
+        gameState.setIsWaitingResult(false);
+      }, 1000);
+    }
+  }, [roomId, gameState]);
+
+  const handleTimerUpdate = useCallback((data) => {
+    if (data.success && data.data) {
+      const { timerType, remainingSeconds } = data.data;
+
+      if (timerType === 'CHALLENGE') {
+        gameState.setTimer(remainingSeconds);
+      } else if (timerType === 'PREPARE') {
+        gameState.setSolvingTimer(remainingSeconds);
+      } else if (timerType === 'SIGNING') {
+        gameState.setSigningTimer(remainingSeconds);
+
+        if (remainingSeconds === 0 && gameState.gamePhase === 'myTurn') {
+          handleSigningComplete();
+        }
+      }
+    }
+  }, [gameState.setTimer, gameState.setSolvingTimer, gameState.setSigningTimer, gameState.gamePhase, handleSigningComplete]);
+
+  const handleAnswerResult = useCallback((data) => {
+    if (data.success && data.data) {
+      const result = data.data;
+      gameState.setPlayers(prev =>
+        prev.map(player =>
+          player.id === result.userId
+            ? { ...player, score: result.totalScore }
+            : player
+        )
+      );
+
+      if (result.isCorrect) {
+        gameState.showToast(`정답! +${result.score}점`, 'success');
+      } else {
+        gameState.showToast(`오답! ${result.score}점`, 'error');
+      }
+    }
+  }, [gameState.setPlayers, gameState.showToast]);
+
+  const handleGameEnd = useCallback((data) => {
+    if (data.success && data.data?.eventType === 'QUIZ_FINISHED') {
+      setTimeout(() => setShowResultModal(true), 1000);
+    }
   }, []);
 
-  // 게임 단계 변경 시 웹캠 자동 관리
-  useEffect(() => {
-    if ((gamePhase === 'myTurn' || gamePhase === 'solving') && !isWebcamOn) {
-      // 내 차례이거나 문제 풀이 단계일 때 웹캠 자동 켜기
-      startWebcam();
+  const handleChallengeTimeout = useCallback((data) => {
+    if (data.success) {
+      gameState.showToast(data.message || '도전 신청 시간 종료', 'info');
     }
-  }, [gamePhase]);
+  }, [gameState.showToast]);
 
-  // ============================================
-  // TODO: WebSocket 연동 영역
-  // ============================================
-  // useEffect(() => {
-  //   // WebSocket 연결
-  //   const socket = new SockJS('/ws');
-  //   const stompClient = Stomp.over(socket);
-  //   
-  //   stompClient.connect({}, () => {
-  //     // 퀴즈 시작 구독
-  //     stompClient.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
-  //       const data = JSON.parse(message.body);
-  //       // 퀴즈 시작 처리
-  //     });
-  //     
-  //     // 도전 신청 구독
-  //     stompClient.subscribe(`/topic/room/${roomId}/quiz/challenge`, (message) => {
-  //       const data = JSON.parse(message.body);
-  //       setChallengersCount(data.challengersCount);
-  //     });
-  //     
-  //     // 문제 풀이 시작 구독
-  //     stompClient.subscribe(`/topic/room/${roomId}/quiz/solving`, (message) => {
-  //       const data = JSON.parse(message.body);
-  //       setGamePhase('solving');
-  //       setCurrentChallenger(data.challengerOrder);
-  //     });
-  //     
-  //     // 정답/오답 결과 구독
-  //     stompClient.subscribe(`/topic/room/${roomId}/quiz/result`, (message) => {
-  //       const data = JSON.parse(message.body);
-  //       if (data.isCorrect) {
-  //         showToast('정답! 다음 문제로 이동합니다.', 'success');
-  //       } else {
-  //         showToast('오답! 다음 도전자에게 기회가 넘어갑니다.', 'error');
-  //       }
-  //     });
-  //   });
-  //   
-  //   return () => {
-  //     if (stompClient) stompClient.disconnect();
-  //   };
-  // }, [roomId]);
+  const handleError = useCallback((data) => {
+    gameState.showToast(data.message || '오류 발생', 'error');
+  }, [gameState.showToast]);
 
-  // ============================================
-  // TODO: WebRTC 연동 영역
-  // ============================================
-  // useEffect(() => {
-  //   // WebRTC 연결 설정
-  //   // 각 참가자의 비디오 스트림 연결
-  // }, []);
+  // WebSocket 연결
+  const { sendChallenge } = useQuizWebSocket({
+    roomId,
+    myUserId,
+    gameState,
+    onNewQuestion: handleNewQuestion,
+    onChallengeUpdate: handleChallengeUpdate,
+    onPersonalChallengeResponse: handlePersonalChallengeResponse,
+    onNextChallenger: handleNextChallenger,
+    onTimerUpdate: handleTimerUpdate,
+    onAnswerResult: handleAnswerResult,
+    onGameEnd: handleGameEnd,
+    onChallengeTimeout: handleChallengeTimeout,
+    onError: handleError,
+  });
 
-  // ============================================
-  // TODO: MediaPipe 수어 인식 영역
-  // ============================================
-  // useEffect(() => {
-  //   if (gamePhase === 'myTurn' && solvingTimer === 0) {
-  //     // MediaPipe 수어 인식 시작
-  //     // FastAPI 서버로 프레임 전송
-  //   }
-  // }, [gamePhase, solvingTimer]);
-
-  // ============================================
-  // 임시 데이터 (실제로는 WebSocket에서 받음)
-  // ============================================
-  const questionData = {
-    word: '안녕하세요',
-  };
-
-  // ============================================
-  // 타이머 관리 useEffect
-  // ============================================
-  
-  // 10초 타이머 (도전 신청)
+  // 초기화
   useEffect(() => {
-    if (isTimerActive && timer > 0 && gamePhase === 'challenge') {
-      const countdown = setTimeout(() => {
-        setTimer(timer - 1);
-      }, 1000);
+    if (location.state) {
+      const { totalQuestions, firstQuestion, firstWord, participants, myUserId: myId } = location.state;
 
-      return () => clearTimeout(countdown);
-    } else if (timer === 0 && gamePhase === 'challenge') {
-      handleTimerEnd();
-    }
-  }, [timer, isTimerActive, gamePhase]);
+      if (totalQuestions) gameState.setTotalQuestions(totalQuestions);
+      if (firstQuestion) gameState.setCurrentQuestion(firstQuestion);
+      if (firstWord) gameState.setCurrentWord(firstWord);
 
-  // 5초 카운트다운 (내 차례 준비)
-  useEffect(() => {
-    if (gamePhase === 'myTurn' && solvingTimer > 0 && signingTimer === 10) {
-      const countdown = setTimeout(() => {
-        setSolvingTimer(solvingTimer - 1);
-      }, 1000);
+      if (participants && participants.length > 0) {
+        let actualMyUserId = myUserId || myId;
 
-      return () => clearTimeout(countdown);
-    } else if (gamePhase === 'myTurn' && solvingTimer === 0 && signingTimer === 10) {
-      // 카운트다운 완료 - 수어 동작 시작
-      handleStartSigning();
-    }
-  }, [solvingTimer, gamePhase, signingTimer]);
-
-  // 10초 수어 표현 타이머
-  useEffect(() => {
-    if (gamePhase === 'myTurn' && solvingTimer === 0 && signingTimer > 0 && signingTimer < 10) {
-      const countdown = setTimeout(() => {
-        setSigningTimer(signingTimer - 1);
-      }, 1000);
-
-      return () => clearTimeout(countdown);
-    } else if (gamePhase === 'myTurn' && signingTimer === 0) {
-      // 수어 표현 시간 종료
-      handleSigningResult();
-    }
-  }, [signingTimer, gamePhase, solvingTimer]);
-
-  // 토스트 자동 닫기 (3초 후)
-  useEffect(() => {
-    if (toast.isOpen) {
-      const autoClose = setTimeout(() => {
-        closeToast();
-      }, 3000);
-
-      return () => clearTimeout(autoClose);
-    }
-  }, [toast.isOpen]);
-
-  // ============================================
-  // 게임 플로우 핸들러 함수들
-  // ============================================
-  
-  /**
-   * 도전 신청 타이머 종료 처리
-   * - 도전자 없음: 다음 문제로 이동
-   * - 도전자 있음: 문제 풀이 시작
-   */
-  const handleTimerEnd = () => {
-    setIsTimerActive(false);
-    
-    if (challengersCount === 0 || challengerQueue.length === 0) {
-      // 도전자 없음 - 다음 문제로
-      showToast('도전 신청 시간이 종료되었습니다. 다음 문제로 이동합니다.', 'info');
-      
-      setTimeout(() => {
-        moveToNextQuestion();
-      }, 2000);
-    } else {
-      // 도전자 있음 - 첫 번째 도전자부터 시작
-      const firstChallenger = challengerQueue[0];
-      setTotalChallengers(challengerQueue.length);
-      setCurrentChallenger(1);
-      
-      showToast('도전 신청이 마감되었습니다. 도전자 차례입니다.', 'info');
-      
-      setTimeout(() => {
-        // 첫 번째 도전자가 나인지 확인
-        if (firstChallenger && firstChallenger.id === players.find(p => p.isMe)?.id) {
-          setGamePhase('myTurn');
-          setSolvingTimer(5);
-          setSigningTimer(10);
-          showToast('내 차례! 준비하세요! 5초 후 수어 동작을 시작합니다.', 'info');
-        } else {
-          setGamePhase('solving');
+        if (!participants.some(p => p.userId === actualMyUserId)) {
+          actualMyUserId = participants[0].userId;
         }
-      }, 2000);
-    }
-  };
 
-  /**
-   * 다음 문제로 이동
-   * - 마지막 문제인 경우: 게임 결과 모달 표시
-   * - 그 외: 다음 문제 로드 및 상태 초기화
-   * TODO: WebSocket으로 다음 문제 요청
-   */
-  const moveToNextQuestion = () => {
-    if (currentQuestion < totalQuestions) {
-      setCurrentQuestion(currentQuestion + 1);
-      setTimer(10);
-      setIsTimerActive(true);
-      setChallengersCount(0);
-      setHasChallenged(false);
-      setChallengeOrder(null);
-      setGamePhase('challenge');
-      setCurrentChallenger(1);
-      
-      // 도전자 대기열 및 플레이어 상태 초기화
-      setChallengerQueue([]);
-      setPlayers(prev => prev.map(player => ({
-        ...player,
-        hasChallenged: false,
-        challengeOrder: null,
-        isCurrentPlayer: false
-      })));
-      
-      // TODO: WebSocket 전송
-      // stompClient.send(`/app/room/${roomId}/quiz/next`, {}, JSON.stringify({
-      //   questionNumber: currentQuestion + 1
-      // }));
-    } else {
-      // 게임 종료 - 결과 모달 표시
-      setTimeout(() => {
-        setShowResultModal(true);
-      }, 1000);
-      // TODO: WebSocket 전송
-      // stompClient.send(`/app/room/${roomId}/quiz/end`, {}, JSON.stringify({}));
-    }
-  };
+        const initialPlayers = participants.map(p => ({
+          id: p.userId,
+          nickname: p.nickname,
+          score: 0,
+          isMe: p.userId === actualMyUserId,
+          isCurrentPlayer: false,
+          hasChallenged: false,
+          challengeOrder: null
+        }));
 
-  /**
-   * 대기실로 돌아가기
-   * TODO: WebSocket으로 대기실 복귀 전송
-   */
-  const handleReturnToRoom = () => {
-    // TODO: WebSocket 전송
-    // stompClient.send(`/app/room/${roomId}/return`, {}, JSON.stringify({}));
-    navigate(`/quiz/waiting/${roomId}`);
-  };
-
-  /**
-   * 수어 표현 시작 (준비 카운트다운 완료 후)
-   * TODO: MediaPipe 수어 인식 시작
-   */
-  const handleStartSigning = () => {
-    // 수어 표현 타이머 시작
-    setSigningTimer(9); // 10초부터 시작하므로 9로 설정
-    // TODO: MediaPipe 시작
-    // startMediaPipe();
-  };
-
-  /**
-   * 수어 표현 결과 처리 (임시: 랜덤)
-   * TODO: FastAPI 서버에서 받은 결과로 처리
-   */
-  const handleSigningResult = () => {
-    // 수어 인식 결과 대기 상태로 전환
-    setIsWaitingResult(true);
-    setResultMessage('수어 인식 중...');
-    
-    // TODO: FastAPI 서버로 수어 데이터 전송
-    // const response = await fetch('http://fastapi-server/api/verify-sign', {
-    //   method: 'POST',
-    //   body: JSON.stringify({ handLandmarks: ... })
-    // });
-    
-    // 임시: 6~10초 사이 랜덤 대기 시간
-    const waitTime = Math.floor(Math.random() * 4000) + 6000; // 6000~10000ms
-    
-    setTimeout(() => {
-      // 임시로 50% 확률로 정답/오답 처리
-      const isCorrect = Math.random() > 0.5;
-      
-      if (isCorrect) {
-        setResultMessage('정답입니다! 🎉');
-        
-        setTimeout(() => {
-          setIsWaitingResult(false);
-          setResultMessage('');
-          moveToNextQuestion();
-        }, 2000);
+        gameState.setPlayers(initialPlayers);
       } else {
-        setResultMessage('오답입니다 😢');
-        
-        setTimeout(() => {
-          setIsWaitingResult(false);
-          setResultMessage('');
-          handleNextChallenger();
-        }, 2000);
+        alert('참가자 정보를 불러올 수 없습니다.');
+        navigate('/main');
       }
-    }, waitTime);
-  };
-
-  /**
-   * 다음 도전자로 이동
-   * - 남은 도전자 있음: 다음 도전자 차례
-   * - 모든 도전자 실패: 다음 문제로 이동
-   * TODO: WebSocket으로 다음 도전자 알림
-   */
-  const handleNextChallenger = () => {
-    const totalChallengerCount = challengerQueue.length;
-    
-    if (currentChallenger < totalChallengerCount) {
-      const nextChallengerIndex = currentChallenger; // 0-based index
-      const nextChallenger = challengerQueue[nextChallengerIndex];
-      
-      setCurrentChallenger(currentChallenger + 1);
-      
-      // 내 차례인지 확인
-      if (nextChallenger && nextChallenger.id === players.find(p => p.isMe)?.id) {
-        setGamePhase('myTurn');
-        setSolvingTimer(5);
-        setSigningTimer(10);
-        showToast('내 차례! 준비하세요! 5초 후 수어 동작을 시작합니다.', 'info');
-      } else {
-        setGamePhase('solving');
-        showToast(`${nextChallenger?.nickname || '도전자'}의 차례입니다.`, 'info');
-      }
-      
-      // TODO: WebSocket 전송
-      // stompClient.send(`/app/room/${roomId}/quiz/nextChallenger`, {}, JSON.stringify({
-      //   challengerOrder: currentChallenger + 1,
-      //   challengerId: nextChallenger?.id
-      // }));
-    } else {
-      // 모든 도전자 실패 - 다음 문제로
-      showToast('모든 도전자 실패! 다음 문제로 이동합니다.', 'info');
-      
-      setTimeout(() => {
-        moveToNextQuestion();
-      }, 2000);
     }
-  };
+  }, [location.state, myUserId, navigate, gameState.setTotalQuestions, gameState.setCurrentQuestion, gameState.setCurrentWord, gameState.setPlayers]);
 
-  /**
-   * 내 차례 시작 (테스트용)
-   * TODO: WebSocket에서 받은 신호로 처리
-   */
-  const handleMyTurn = () => {
-    setIsMyTurn(true);
-    setGamePhase('myTurn');
-    setSolvingTimer(5);
-    setSigningTimer(10);
-    showToast('내 차례! 준비하세요! 5초 후 수어 동작을 시작합니다.', 'info');
-  };
+  // 웹캠 초기화
+  useEffect(() => {
+    if (webcamInitializedRef.current || isWebcamOn) {
+      webcamInitializedRef.current = true;
+      return;
+    }
 
-  // ============================================
-  // UI 헬퍼 함수들
-  // ============================================
-  
-  /**
-   * 토스트 메시지 표시
-   */
-  const showToast = (message, type = 'info') => {
-    setToast({
-      isOpen: true,
-      message,
-      type
+    startWebcam()
+      .then(() => {
+        webcamInitializedRef.current = true;
+      })
+      .catch(() => {
+        webcamInitializedRef.current = true;
+      });
+  }, [isWebcamOn, startWebcam]);
+
+  // 메인 비디오 스트림 연결
+  useEffect(() => {
+    if (!stream) return;
+
+    const timer = setTimeout(() => {
+      if (mainVideoRef.current && stream) {
+        mainVideoRef.current.srcObject = stream;
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [stream]);
+
+  // gamePhase가 myTurn으로 변경될 때 스트림 재연결
+  useEffect(() => {
+    if (gameState.gamePhase === 'myTurn' && stream && mainVideoRef.current) {
+      const timer = setTimeout(() => {
+        if (mainVideoRef.current && stream) {
+          mainVideoRef.current.srcObject = stream;
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.gamePhase, stream]);
+
+  // Janus WebRTC 연결
+  useEffect(() => {
+    if (isJanusConnected && janusRef.current) {
+      return;
+    }
+
+    if (!isWebcamOn || !stream) {
+      return;
+    }
+
+    if (!window.Janus) {
+      console.error('❌ Janus 라이브러리가 로드되지 않았습니다.');
+      return;
+    }
+
+    const actualUserId = myUserId;
+    if (!actualUserId) {
+      console.error('❌ 사용자 ID가 없습니다.');
+      return;
+    }
+
+    const Janus = window.Janus;
+    const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
+
+    Janus.init({
+      debug: false,
+      callback: function () {
+        janusRef.current = new Janus({
+          server: JANUS_SERVER,
+          success: function () {
+            janusRef.current.attach({
+              plugin: 'janus.plugin.videoroom',
+              opaqueId: `game-user-${actualUserId}`,
+              success: function (pluginHandle) {
+                pluginHandleRef.current = pluginHandle;
+
+                const register = {
+                  request: 'join',
+                  room: parseInt(roomId),
+                  ptype: 'publisher',
+                  display: String(actualUserId),
+                };
+
+                pluginHandle.send({ message: register });
+              },
+              error: function (error) {
+                console.error('❌ 플러그인 연결 실패:', error);
+              },
+              onmessage: function (msg, jsep) {
+                const event = msg['videoroom'];
+
+                if (event === 'event' && msg['error_code'] === 426) {
+                  const create = {
+                    request: 'create',
+                    room: parseInt(roomId),
+                    description: `Game Room ${roomId}`,
+                    publishers: 10,
+                    bitrate: 128000,
+                    fir_freq: 10,
+                    audiocodec: 'opus',
+                    videocodec: 'vp8',
+                    audiolevel_event: true,
+                    audio_level_average: 65,
+                    audio_active_packets: 25,
+                    record: false,
+                    permanent: false
+                  };
+
+                  pluginHandleRef.current.send({
+                    message: create,
+                    success: function () {
+                      const register = {
+                        request: 'join',
+                        room: parseInt(roomId),
+                        ptype: 'publisher',
+                        display: String(actualUserId),
+                      };
+                      pluginHandleRef.current.send({ message: register });
+                    },
+                    error: function (error) {
+                      console.error('❌ Janus 방 생성 실패:', error);
+                    }
+                  });
+                  return;
+                }
+
+                if (event === 'joined') {
+                  setIsJanusConnected(true);
+
+                  // 내 스트림 publish
+                  pluginHandleRef.current.createOffer({
+                    stream: stream,
+                    media: {
+                      audioRecv: false,
+                      videoRecv: false,
+                      audioSend: true,
+                      videoSend: true,
+                    },
+                    success: function (jsep) {
+                      const publish = {
+                        request: 'configure',
+                        audio: true,
+                        video: true,
+                      };
+                      pluginHandleRef.current.send({ message: publish, jsep: jsep });
+                    },
+                    error: function (error) {
+                      console.error('❌ Offer 생성 실패:', error);
+                    },
+                  });
+
+                  // 기존 참가자 구독
+                  if (msg['publishers']) {
+                    msg['publishers'].forEach((publisher) => {
+                      const userId = parseInt(publisher.display);
+                      if (userId !== actualUserId) {
+                        userIdToFeedIdRef.current[userId] = publisher.id;
+                        subscribeToFeed(publisher.id, userId);
+                      }
+                    });
+                  }
+                } else if (event === 'event') {
+                  // 새 참가자 입장
+                  if (msg['publishers']) {
+                    msg['publishers'].forEach((publisher) => {
+                      const userId = parseInt(publisher.display);
+                      if (userId !== actualUserId) {
+                        userIdToFeedIdRef.current[userId] = publisher.id;
+                        subscribeToFeed(publisher.id, userId);
+                      }
+                    });
+                  }
+
+                  // 참가자 퇴장
+                  if (msg['leaving']) {
+                    const leavingFeedId = msg['leaving'];
+                    let leavingUserId = null;
+
+                    for (const [userId, feedId] of Object.entries(userIdToFeedIdRef.current)) {
+                      if (feedId === leavingFeedId) {
+                        leavingUserId = parseInt(userId);
+                        break;
+                      }
+                    }
+
+                    if (remoteFeedsRef.current[leavingFeedId]) {
+                      remoteFeedsRef.current[leavingFeedId].detach();
+                      delete remoteFeedsRef.current[leavingFeedId];
+                    }
+
+                    if (leavingUserId) {
+                      delete userIdToFeedIdRef.current[leavingUserId];
+                      setRemoteStreams((prev) => {
+                        const newStreams = { ...prev };
+                        delete newStreams[leavingUserId];
+                        return newStreams;
+                      });
+                    }
+                  }
+                }
+
+                if (jsep) {
+                  pluginHandleRef.current.handleRemoteJsep({ jsep: jsep });
+                }
+              },
+              onlocalstream: function () { },
+              onremotestream: function () { },
+            });
+          },
+          error: function (error) {
+            console.error('❌ Janus 서버 연결 실패:', error);
+          },
+          destroyed: function () { },
+        });
+      },
     });
-  };
 
-  /**
-   * 토스트 메시지 닫기
-   */
-  const closeToast = () => {
-    setToast({
-      ...toast,
-      isOpen: false
+    function subscribeToFeed(feedId, userId) {
+      let remoteFeed = null;
+
+      janusRef.current.attach({
+        plugin: 'janus.plugin.videoroom',
+        opaqueId: `subscriber-${actualUserId}-${feedId}`,
+        success: function (pluginHandle) {
+          remoteFeed = pluginHandle;
+
+          const subscribe = {
+            request: 'join',
+            room: parseInt(roomId),
+            ptype: 'subscriber',
+            feed: feedId,
+          };
+
+          remoteFeed.send({ message: subscribe });
+        },
+        error: function (error) {
+          console.error('❌ 구독 실패:', error);
+        },
+        onmessage: function (_msg, jsep) {
+          if (jsep) {
+            remoteFeed.createAnswer({
+              jsep: jsep,
+              media: { audioSend: false, videoSend: false },
+              success: function (answerJsep) {
+                const body = { request: 'start', room: parseInt(roomId) };
+                remoteFeed.send({ message: body, jsep: answerJsep });
+              },
+              error: function (error) {
+                console.error('❌ Answer 생성 실패:', error);
+              },
+            });
+          }
+        },
+        onremotestream: function (remoteStream) {
+          console.log(`📥 Janus 원격 스트림 수신 - userId: ${userId}, feedId: ${feedId}`, {
+            streamId: remoteStream.id,
+            active: remoteStream.active,
+            tracks: remoteStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled }))
+          });
+
+          remoteFeedsRef.current[feedId] = remoteFeed;
+          setRemoteStreams((prev) => ({
+            ...prev,
+            [userId]: remoteStream,
+          }));
+        },
+      });
+    }
+
+    return () => { };
+  }, [isWebcamOn, stream, roomId, isJanusConnected, myUserId, janusRef, pluginHandleRef, remoteFeedsRef, userIdToFeedIdRef, setRemoteStreams, setIsJanusConnected]);
+
+  // 원격 스트림 연결
+  useEffect(() => {
+    console.log('🎥 원격 스트림 업데이트:', {
+      remoteStreams: Object.keys(remoteStreams),
+      currentChallengerId: gameState.currentChallengerInfo?.id,
+      gamePhase: gameState.gamePhase
     });
-  };
 
-  /**
-   * 방 나가기 확인 모달 표시
-   */
-  const handleExit = () => {
-    setShowExitModal(true);
-  };
+    const timer = setTimeout(() => {
+      Object.entries(remoteStreams).forEach(([userId, remoteStream]) => {
+        const videoElement = remoteVideosRef.current[userId];
+        console.log(`🎥 스트림 연결 시도 - userId: ${userId}`, {
+          hasVideoElement: !!videoElement,
+          hasStream: !!remoteStream,
+          streamActive: remoteStream?.active
+        });
 
-  /**
-   * 방 나가기 확정
-   * TODO: WebSocket으로 방 나가기 전송
-   */
-  const confirmExit = () => {
-    // TODO: WebSocket 전송
-    // stompClient.send(`/app/room/${roomId}/exit`, {}, JSON.stringify({}));
-    navigate('/main');
-  };
+        if (videoElement && remoteStream) {
+          videoElement.srcObject = remoteStream;
+          console.log(`✅ 스트림 연결 완료 - userId: ${userId}`);
+        }
+      });
+    }, 100);
 
-  // ============================================
-  // 도전 신청 핸들러
-  // ============================================
-  
-  /**
-   * 문제 도전하기 버튼 클릭
-   * - 중복 신청 방지
-   * - 정원 초과 방지
-   * - 시간 종료 방지
-   * TODO: WebSocket으로 도전 신청 전송
-   */
-  const handleChallenge = () => {
-    const myInfo = players.find(player => player.isMe);
-    
+    return () => clearTimeout(timer);
+  }, [remoteStreams, gameState.gamePhase, gameState.currentChallengerInfo]);
+
+  // 토스트 자동 닫기
+  useEffect(() => {
+    if (gameState.toast.isOpen) {
+      const timer = setTimeout(() => gameState.closeToast(), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState.toast.isOpen, gameState.closeToast]);
+
+  // 도전 신청
+  const handleChallenge = useCallback(() => {
+    const myInfo = gameState.players.find(p => p.isMe);
+
     if (!myInfo || myInfo.hasChallenged) {
-      showToast('이미 도전 신청을 하셨습니다.', 'warning');
+      gameState.showToast('이미 도전 신청을 하셨습니다', 'warning');
       return;
     }
 
-    if (challengersCount >= maxChallengers) {
-      showToast('도전자가 모두 찼습니다.', 'warning');
+    if (gameState.challengersCount >= 4) {
+      gameState.showToast('도전자가 모두 찼습니다', 'warning');
       return;
     }
 
-    if (timer === 0) {
-      showToast('도전 신청 시간이 종료되었습니다.', 'warning');
-      return;
+    gameState.setHasChallenged(true);
+    gameState.setPlayers(prev =>
+      prev.map(player =>
+        player.isMe ? { ...player, hasChallenged: true } : player
+      )
+    );
+
+    try {
+      sendChallenge();
+    } catch (error) {
+      gameState.showToast('도전 신청 실패', 'error');
     }
+  }, [gameState.players, gameState.challengersCount, gameState.showToast, gameState.setHasChallenged, gameState.setPlayers, sendChallenge]);
 
-    // 도전 신청 성공
-    const order = challengersCount + 1;
-    setChallengersCount(order);
-    setHasChallenged(true);
-    setChallengeOrder(order);
-
-    // 플레이어 상태 업데이트
-    setPlayers(prev => prev.map(player => 
-      player.isMe 
-        ? { ...player, hasChallenged: true, challengeOrder: order }
-        : player
-    ));
-
-    // 도전자 대기열에 추가
-    setChallengerQueue(prev => [...prev, {
-      id: myInfo.id,
-      nickname: myInfo.nickname,
-      score: myInfo.score,
-      order: order
-    }]);
-
-    showToast(`도전 신청 완료! ${order}번째 도전자로 신청되었습니다!`, 'success');
-
-    // TODO: WebSocket으로 도전 신청 전송
-    // stompClient.send(`/app/room/${roomId}/quiz/challenge`, {}, JSON.stringify({
-    //   questionNumber: currentQuestion,
-    //   playerId: myInfo.id,
-    //   order: order
-    // }));
-  };
+  // 나가기
+  const handleExit = () => setShowExitModal(true);
+  const confirmExit = () => navigate('/main');
+  const handleReturnToRoom = () => navigate(`/quiz/waiting/${roomId}`);
 
   return (
     <div className={styles.quizGamePage}>
-      {/* 방 정보 섹션 */}
-      <div className={styles.roomInfoSection}>
-        <div className={styles.roomInfo}>
-          <span className={styles.roomNumber}>방 번호: #{roomId}</span>
-          <h2 className={styles.roomTitle}>방 제목</h2>
-        </div>
-        <div className={styles.headerControls}>
-          <button 
-            className={styles.webcamToggleHeader}
-            onClick={toggleWebcam}
-          >
-            {isWebcamOn ? '웹캠 끄기' : '웹캠 켜기'}
-          </button>
-          <button className={styles.exitButton} onClick={handleExit}>
-            나가기
-          </button>
-        </div>
-      </div>
-
-      {/* 메인 콘텐츠 */}
-      <main className={styles.gameContent}>
-        {/* 문제 제시 섹션 */}
-        <div className={styles.questionSection}>
-          <span className={styles.questionNumber}>
-            (문제 {currentQuestion}/{totalQuestions})
-          </span>
-          <h1 className={styles.questionText}>
-            '{questionData.word}'를 수어로 표현하세요.
-          </h1>
-        </div>
-
-        {/* 메인 컨텐츠 영역 (가로 배치) */}
-        <div className={styles.mainContentRow}>
-          {/* 메인 영상 카드 (도전자) */}
-          <div className={styles.mainVideoCard}>
-            {/* 도전 중 표시 */}
-            {(gamePhase === 'myTurn' || gamePhase === 'solving') && (
-              <div className={styles.mainChallengerBadge}>도전 중</div>
-            )}
-            
-            <div className={styles.mainWebcam}>
-              {gamePhase === 'myTurn' && isWebcamOn ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className={styles.webcamVideo}
-                />
-              ) : gamePhase === 'solving' && currentChallengerInfo.id && !players.find(p => p.id === currentChallengerInfo.id)?.isMe ? (
-                <div className={styles.challengerWebcam}>
-                  <span>{currentChallengerInfo.nickname}의 웹캠</span>
-                  {/* TODO: WebRTC로 다른 사용자의 웹캠 스트림 표시 */}
-                </div>
-              ) : (
-                <div className={styles.challengerWebcam}>
-                  <span>{gamePhase === 'myTurn' ? '내 웹캠' : currentChallengerInfo.nickname !== '대기중' ? `${currentChallengerInfo.nickname}의 웹캠` : '도전자 웹캠'}</span>
-                </div>
-              )}
-            </div>
-            <div className={styles.mainPlayerInfo}>
-              <span className={styles.mainPlayerName}>{currentChallengerInfo.nickname}</span>
-              <span className={styles.mainPlayerScore}>{currentChallengerInfo.score}점</span>
-            </div>
-          </div>
-
-          {/* 게임 상태별 UI */}
-          <div className={styles.gameStateSection}>
-            {gamePhase === 'challenge' && (
-              <div className={styles.challengeSection}>
-            {/* 타이머 표시 */}
-            <div className={`${styles.timerDisplay} ${timer <= 3 ? styles.urgent : ''}`}>
-              <span className={styles.timerLabel}>남은 시간</span>
-              <span className={styles.timerValue}>{timer}초</span>
-            </div>
-
-            {/* 도전자 모집 정보 */}
-            <div className={styles.challengeInfo}>
-              <span className={styles.challengeTooltip}>
-                선착순으로 도전자를 받는중입니다.
-              </span>
-              <span className={styles.challengeCount}>
-                {challengersCount}/{maxChallengers}
-              </span>
-            </div>
-
-                {/* 문제 도전하기 버튼 */}
-                <button 
-                  className={`${styles.challengeButton} ${
-                    hasChallenged || challengersCount >= maxChallengers || timer === 0
-                      ? styles.disabled 
-                      : styles.active
-                  }`}
-                  onClick={handleChallenge}
-                  disabled={hasChallenged || challengersCount >= maxChallengers || timer === 0}
-                >
-                  {hasChallenged 
-                    ? `도전 신청 완료 (${challengeOrder}번째)` 
-                    : '문제 도전하기'}
-                </button>
-              </div>
-            )}
-
-            {gamePhase === 'solving' && (
-              <div className={styles.solvingPhase}>
-                <div className={styles.solvingMessage}>
-                  <h2>{currentChallenger}번째 도전자가 문제를 풀고 있습니다...</h2>
-                  <p>잠시만 기다려주세요</p>
-                </div>
-              </div>
-            )}
-
-            {gamePhase === 'myTurn' && (
-              <div className={styles.myTurnPhase}>
-                <div className={styles.countdownDisplay}>
-                  <h2>내 차례입니다!</h2>
-                  {isWaitingResult ? (
-                    <>
-                      <div className={styles.loadingSpinner}></div>
-                      <p className={styles.waitingText}>{resultMessage}</p>
-                      <p className={styles.waitingHint}>AI가 수어를 분석하고 있습니다</p>
-                    </>
-                  ) : solvingTimer > 0 ? (
-                    <>
-                      <p>수어 동작 준비하세요</p>
-                      <div className={`${styles.countdownNumber} ${solvingTimer <= 2 ? styles.urgent : ''}`}>
-                        {solvingTimer}
-                      </div>
-                      <p className={styles.prepareHint}>카메라를 확인하고 자세를 준비하세요</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className={styles.signingText}>지금 수어를 표현하세요!</p>
-                      <div className={styles.signingIndicator}>🤟</div>
-                      <div className={`${styles.signingTimer} ${signingTimer <= 3 ? styles.urgent : ''}`}>
-                        남은 시간: {signingTimer}초
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 작은 플레이어 카드들 (아래) */}
-        <div className={styles.smallPlayersGrid}>
-          {players
-            .filter(player => {
-              // 문제 풀이 단계에서는 현재 도전자를 제외하고 표시
-              if (gamePhase === 'solving' || gamePhase === 'myTurn') {
-                return !player.isCurrentPlayer;
-              }
-              // 도전 신청 단계에서는 모든 플레이어 표시
-              return true;
-            })
-            .map((player) => (
-            <div 
-              key={player.id} 
-              className={styles.smallPlayerCard}
-            >
-              <div className={styles.smallWebcam}>
-                {player.isMe && isWebcamOn && gamePhase !== 'myTurn' ? (
-                  <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className={styles.smallWebcamVideo}
-                  />
-                ) : (
-                  <span>웹캠</span>
-                )}
-              </div>
-              <div className={styles.smallPlayerInfo}>
-                <span className={styles.smallPlayerName}>
-                  {player.nickname}{player.isMe ? ' (나)' : ''}
-                </span>
-                <span className={styles.smallPlayerScore}>{player.score}점</span>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* 테스트용 버튼들 (맨 밑) */}
-        <div className={styles.testButtons}>
-          <button 
-            className={styles.testButton}
-            onClick={() => {
-              setGamePhase('challenge');
-              setTimer(10);
-              setIsTimerActive(true);
-            }}
-          >
-            도전 신청 단계
-          </button>
-          <button 
-            className={styles.testButton}
-            onClick={() => {
-              // 임시로 다른 플레이어들도 도전 신청 추가
-              const otherPlayers = players.filter(p => !p.isMe);
-              const newQueue = otherPlayers.slice(0, 2).map((player, index) => ({
-                id: player.id,
-                nickname: player.nickname,
-                score: player.score,
-                order: index + 1
-              }));
-              setChallengerQueue(newQueue);
-              setChallengersCount(newQueue.length);
-              setTotalChallengers(newQueue.length);
-              setCurrentChallenger(1);
-              
-              // 플레이어 상태 업데이트
-              setPlayers(prev => prev.map(player => ({
-                ...player,
-                isCurrentPlayer: player.id === newQueue[0].id
-              })));
-              
-              setGamePhase('solving');
-            }}
-          >
-            문제 풀이 단계 (다른 사람)
-          </button>
-          <button 
-            className={styles.testButton}
-            onClick={() => {
-              // 내가 첫 번째 도전자로 설정
-              const myInfo = players.find(p => p.isMe);
-              if (myInfo) {
-                setChallengerQueue([{
-                  id: myInfo.id,
-                  nickname: myInfo.nickname,
-                  score: myInfo.score,
-                  order: 1
-                }]);
-                setChallengersCount(1);
-                setTotalChallengers(1);
-                setCurrentChallenger(1);
-                handleMyTurn();
-              }
-            }}
-          >
-            내 차례 (1번째 도전자)
-          </button>
-          <button 
-            className={styles.testButton}
-            onClick={handleNextChallenger}
-          >
-            다음 도전자
-          </button>
-          <button 
-            className={styles.testButton}
-            onClick={() => setShowResultModal(true)}
-          >
-            결과 모달 보기
-          </button>
-          <button 
-            className={styles.testButton}
-            onClick={() => {
-              setCurrentQuestion(8);
-              moveToNextQuestion();
-            }}
-          >
-            게임 종료 (8번 문제)
-          </button>
-        </div>
-      </main>
-
-      {/* 나가기 확인 모달 */}
-      {showExitModal && (
-        <>
-          <div className={styles.modalOverlay} onClick={() => setShowExitModal(false)}></div>
-          <div className={styles.exitConfirmModal}>
-            <h3>알림</h3>
-            <p>정말로 나가시겠습니까?</p>
-            <div className={styles.modalButtons}>
-              <button className={styles.cancelButton} onClick={() => setShowExitModal(false)}>
-                취소
-              </button>
-              <button className={styles.confirmButton} onClick={confirmExit}>
-                나가기
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* 토스트 알림 */}
-      <Toast
-        isOpen={toast.isOpen}
-        message={toast.message}
-        type={toast.type}
+      <QuizHeader
+        roomId={roomId}
+        isWebcamOn={isWebcamOn}
+        onToggleWebcam={toggleWebcam}
+        onExit={handleExit}
       />
 
-      {/* 게임 결과 모달 */}
+      <main className={styles.gameContent}>
+        <QuizQuestion
+          currentQuestion={gameState.currentQuestion}
+          totalQuestions={gameState.totalQuestions}
+          word={gameState.currentWord || '문제를 불러오는 중...'}
+        />
+
+        <div className={styles.mainContentRow}>
+          <QuizMainVideo
+            gamePhase={gameState.gamePhase}
+            isWebcamOn={isWebcamOn}
+            mainVideoRef={mainVideoRef}
+            currentChallengerInfo={gameState.currentChallengerInfo}
+            remoteStreams={remoteStreams}
+            remoteVideosRef={remoteVideosRef}
+          />
+
+          <QuizGameState
+            gamePhase={gameState.gamePhase}
+            timer={gameState.timer}
+            challengersCount={gameState.challengersCount}
+            maxChallengers={4}
+            hasChallenged={gameState.hasChallenged}
+            challengeOrder={gameState.challengeOrder}
+            onChallenge={handleChallenge}
+            currentChallengerInfo={gameState.currentChallengerInfo}
+            solvingTimer={gameState.solvingTimer}
+            signingTimer={gameState.signingTimer}
+            isWaitingResult={gameState.isWaitingResult}
+            resultMessage={gameState.resultMessage}
+          />
+        </div>
+
+        <QuizPlayerGrid
+          players={gameState.players}
+          gamePhase={gameState.gamePhase}
+          isWebcamOn={isWebcamOn}
+          stream={stream}
+          remoteStreams={remoteStreams}
+          remoteVideosRef={remoteVideosRef}
+        />
+      </main>
+
+      <QuizExitModal
+        isOpen={showExitModal}
+        onCancel={() => setShowExitModal(false)}
+        onConfirm={confirmExit}
+      />
+
+      <Toast
+        isOpen={gameState.toast.isOpen}
+        message={gameState.toast.message}
+        type={gameState.toast.type}
+      />
+
       <GameResultModal
         isOpen={showResultModal}
         onReturnToRoom={handleReturnToRoom}

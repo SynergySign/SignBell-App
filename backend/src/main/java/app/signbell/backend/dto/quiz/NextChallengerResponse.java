@@ -15,5 +15,7 @@ import lombok.Getter;
 @Builder
 public class NextChallengerResponse {
     private Long userId;
+    private String nickname;
+    private String profileImage;
     private Integer questionNumber;
 }
