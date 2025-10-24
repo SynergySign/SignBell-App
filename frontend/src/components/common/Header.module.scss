@@ -10,7 +10,7 @@
 .header {
   background-color: var(--white-color);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 16px 0;
+  padding: 8px 0;
   animation: fadeInDown 0.5s ease-out;
 
   .header-container {
@@ -22,20 +22,23 @@
     align-items: center;
 
     .logo {
-      font-size: 24px;
-      font-weight: bold;
-      color: var(--primary-color);
       cursor: pointer;
       user-select: none;
-      @include smooth-transition(all, 0.3s);
+      display: flex;
+      align-items: center;
+      
+      .logoImage {
+        height: 55px;
+        width: auto;
+        @include smooth-transition(transform, 0.3s);
 
-      &:hover {
-        transform: scale(1.05);
-        text-shadow: 0 2px 8px rgba(74, 144, 226, 0.3);
-      }
+        &:hover {
+          transform: scale(1.05);
+        }
 
-      &:active {
-        transform: scale(0.98);
+        &:active {
+          transform: scale(0.98);
+        }
       }
     }
 

@@ -138,6 +138,16 @@
   }
 }
 
+// Notebook Grid 애니메이션 (메모장 그리드 대각선 이동)
+@keyframes notebookGrid {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: -300px -300px, -300px -300px;
+  }
+}
+
 // 애니메이션 유틸리티 클래스
 .animate-fadeIn {
   animation: fadeIn 0.5s ease-in-out;
@@ -216,5 +226,43 @@
   
   &:active {
     transform: scale(0.95);
+  }
+}
+
+// 메모장 그리드 배경 믹스인
+@mixin notebook-background($opacity: 0.08) {
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 29px,
+        rgba(150, 150, 150, $opacity) 29px,
+        rgba(150, 150, 150, $opacity) 30px
+      ),
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 29px,
+        rgba(150, 150, 150, $opacity * 0.8) 29px,
+        rgba(150, 150, 150, $opacity * 0.8) 30px
+      );
+    background-size: 30px 30px;
+    animation: notebookGrid 10s linear infinite;
+    pointer-events: none;
+    z-index: 0;
+  }
+  
+  > * {
+    position: relative;
+    z-index: 1;
   }
 }
