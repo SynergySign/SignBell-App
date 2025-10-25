@@ -153,7 +153,7 @@ const QuizWaitingRoom = () => {
     // 🆕 게임에서 돌아올 때 처리
     useEffect(() => {
         if (location.state?.returnFromGame) {
-            console.log('🔄 게임에서 복귀 감지');
+            console.log('🔄 게임에서 복귀 감지, 웹캠 상태:', { isWebcamOn, hasStream: !!stream });
             
             // 🔥 중요: 모든 remote streams 강제 초기화
             console.log('🧹 게임 복귀 - Remote streams 강제 초기화');
@@ -191,19 +191,28 @@ const QuizWaitingRoom = () => {
 
     // [병합] '내 브랜치'의 로직 (useWebcamStore의 stream을 videoRef에 연결)
     useEffect(() => {
-        if (videoRef.current && stream) {
-            console.log('📹 로컬 비디오 ref에 스트림 연결:', stream.id);
-            videoRef.current.srcObject = stream;
-            // 비디오 재생 확인
-            videoRef.current.play().catch(err => {
-                console.error('❌ 비디오 재생 실패:', err);
-            });
-        } else {
-            console.log('⏳ 로컬 비디오 대기 중:', { 
-                hasRef: !!videoRef.current, 
-                hasStream: !!stream 
-            });
-        }
+        // 약간의 지연을 두고 ref 연결 시도 (렌더링 완료 대기)
+        const connectVideo = () => {
+            if (videoRef.current && stream) {
+                console.log('📹 로컬 비디오 ref에 스트림 연결:', stream.id);
+                videoRef.current.srcObject = stream;
+                // 비디오 재생 확인
+                videoRef.current.play().catch(err => {
+                    console.error('❌ 비디오 재생 실패:', err);
+                });
+            } else {
+                console.log('⏳ 로컬 비디오 대기 중:', { 
+                    hasRef: !!videoRef.current, 
+                    hasStream: !!stream 
+                });
+                // ref가 없으면 다시 시도
+                if (!videoRef.current && stream) {
+                    setTimeout(connectVideo, 100);
+                }
+            }
+        };
+        
+        connectVideo();
     }, [stream]);
 
     // [병합] '내 브랜치'의 Janus WebRTC 연결 useEffect (Context 사용, 426 에러 처리, 자기 자신 구독 방지, cleanup 시 네비게이션 체크)
@@ -525,7 +534,7 @@ const QuizWaitingRoom = () => {
                 isMe: p.userId === myUserId, // useAuthStore의 myUserId와 비교
                 isHost: p.host,
                 isReady: p.ready,
-                webcamStatus: 'off'
+                webcamStatus: p.userId === myUserId ? (isWebcamOn ? 'on' : 'off') : 'off' // 🆕 내 웹캠 상태 반영
             }));
 
             console.log('✅ formattedParticipants:', formattedParticipants);
