@@ -717,6 +717,32 @@
       }
     }
   }
+
+  // 메인 콘텐츠 행 (비디오 + 게임 상태)
+  .main-content-row {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 1400px;
+    align-items: flex-start;
+
+    // 비디오 영역 (왼쪽, 고정 크기 - 높이도 고정)
+    > :first-child {
+      flex: 0 0 auto;
+      width: 640px;
+      height: 480px;
+      max-width: 640px;
+      overflow: hidden;
+    }
+
+    // 게임 상태 영역 (오른쪽, 고정 높이)
+    > :last-child {
+      flex: 0 0 auto;
+      width: 400px;
+      height: 480px;
+      overflow-y: auto;
+    }
+  }
 }
 
 // 애니메이션
@@ -724,6 +750,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -734,6 +761,7 @@
     opacity: 0;
     transform: translate(-50%, -50%) scale(0.9);
   }
+
   100% {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
@@ -741,19 +769,25 @@
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
 }
 
 @keyframes urgentPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scale(1);
     opacity: 1;
   }
+
   50% {
     transform: scale(1.2);
     opacity: 0.7;
@@ -761,18 +795,24 @@
 }
 
 @keyframes blink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
 }
 
 @keyframes bounce {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
@@ -782,6 +822,7 @@
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -790,6 +831,20 @@
 // 반응형 디자인
 @media (max-width: 1024px) {
   .quiz-game-page {
+    .main-content-row {
+      flex-direction: column;
+      align-items: center;
+
+      > :first-child {
+        width: 100%;
+        max-width: 600px;
+      }
+
+      > :last-child {
+        width: 100%;
+      }
+    }
+
     .game-content {
       padding: 30px 20px;
 
@@ -849,6 +904,12 @@
           padding: 8px 16px;
           font-size: 13px;
         }
+      }
+    }
+
+    .main-content-row {
+      > :first-child {
+        max-width: 100%;
       }
     }
 
@@ -943,5 +1004,127 @@
         font-size: 14px;
       }
     }
+  }
+}
+
+
+// ==================== 정답/오답 결과 표시 ====================
+.resultPhase {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  height: 100%;
+}
+
+.resultDisplay {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  width: 360px;
+  height: 360px;
+  position: relative;
+  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+
+  // 정답 스타일
+  &.correct {
+    border-color: #10b981;
+    background: #ecfdf5;
+  }
+
+  // 오답 스타일
+  &.incorrect {
+    border-color: #ef4444;
+    background: #fef2f2;
+  }
+}
+
+.resultIcon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.resultTitle {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0 0 16px 0;
+
+  .correct & {
+    color: #059669;
+  }
+
+  .incorrect & {
+    color: #dc2626;
+  }
+}
+
+.resultDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.challenger {
+  font-size: 16px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+}
+
+.scoreChange {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 700;
+
+  &.positive {
+    background: #10b981;
+    color: white;
+  }
+
+  &.negative {
+    background: #ef4444;
+    color: white;
+  }
+
+  &.neutral {
+    background: #6b7280;
+    color: white;
+  }
+}
+
+.scoreLabel {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.scoreValue {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.totalScore {
+  font-size: 14px;
+  color: #6b7280;
+  font-weight: 500;
+
+  strong {
+    color: #1f2937;
+    font-size: 16px;
+    font-weight: 700;
+    margin-left: 4px;
   }
 }
