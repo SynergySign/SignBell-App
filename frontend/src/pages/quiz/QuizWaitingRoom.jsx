@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useWebcamStore } from '../../store/webcam/webcamStore'; // [병합] '내 브랜치'의 Zustand 스토어 유지
 import { useJanus } from '../../contexts/JanusContext'; // [병합] '내 브랜치'의 Janus Context 유지
 import { useAuthStore } from '../../store/auth/authStore';
@@ -20,6 +20,7 @@ const QuizWaitingRoom = () => {
 
     const { roomId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation(); // 🆕 location 추가
     const [showExitModal, setShowExitModal] = useState(false);
     const [allReady, setAllReady] = useState(false);
 
@@ -149,10 +150,59 @@ const QuizWaitingRoom = () => {
         };
     }, [roomId, myUserId, isAuthenticated, hasCheckedAuth]);
 
+    // 🆕 게임에서 돌아올 때 처리
+    useEffect(() => {
+        if (location.state?.returnFromGame) {
+            console.log('🔄 게임에서 복귀 감지');
+            
+            // 🔥 중요: 모든 remote streams 강제 초기화
+            console.log('🧹 게임 복귀 - Remote streams 강제 초기화');
+            setRemoteStreams({});
+            
+            // Remote feeds 정리
+            if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
+                console.log('🧹 Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
+                Object.values(remoteFeedsRef.current).forEach(feed => {
+                    try {
+                        if (feed && typeof feed.detach === 'function') {
+                            feed.detach();
+                        }
+                    } catch (error) {
+                        console.error('❌ Remote feed detach 실패:', error);
+                    }
+                });
+                remoteFeedsRef.current = {};
+            }
+            
+            // UserID to FeedID 매핑 초기화
+            if (userIdToFeedIdRef.current) {
+                userIdToFeedIdRef.current = {};
+            }
+            
+            // Janus 연결 상태 초기화
+            setIsJanusConnected(false);
+            
+            console.log('✅ 게임 복귀 정리 완료 - WebSocket 재연결을 통해 참가자 정보 받음');
+            
+            // location.state 초기화 (중복 처리 방지)
+            window.history.replaceState({}, document.title);
+        }
+    }, [location.state, setRemoteStreams, setIsJanusConnected, remoteFeedsRef, userIdToFeedIdRef]);
+
     // [병합] '내 브랜치'의 로직 (useWebcamStore의 stream을 videoRef에 연결)
     useEffect(() => {
         if (videoRef.current && stream) {
+            console.log('📹 로컬 비디오 ref에 스트림 연결:', stream.id);
             videoRef.current.srcObject = stream;
+            // 비디오 재생 확인
+            videoRef.current.play().catch(err => {
+                console.error('❌ 비디오 재생 실패:', err);
+            });
+        } else {
+            console.log('⏳ 로컬 비디오 대기 중:', { 
+                hasRef: !!videoRef.current, 
+                hasStream: !!stream 
+            });
         }
     }, [stream]);
 
@@ -171,6 +221,12 @@ const QuizWaitingRoom = () => {
 
         if (!window.Janus) {
             console.error('❌ Janus 라이브러리가 로드되지 않았습니다.');
+            return;
+        }
+
+        // 🆕 이미 연결되어 있으면 재연결하지 않음
+        if (isJanusConnected && janusRef.current && pluginHandleRef.current) {
+            console.log('✅ Janus 이미 연결됨 - 재연결 스킵');
             return;
         }
 

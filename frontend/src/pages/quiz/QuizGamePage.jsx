@@ -346,6 +346,25 @@ const QuizGamePage = () => {
         userIdToFeedIdRef.current = {};
       }
       
+      // 🆕 Publisher (내 플러그인)도 Janus 방에서 떠나기
+      if (pluginHandleRef.current) {
+        console.log('🔌 게임 종료 - Publisher도 Janus 방 떠나기');
+        try {
+          const leave = { request: 'leave' };
+          pluginHandleRef.current.send({ 
+            message: leave,
+            success: () => {
+              console.log('✅ 게임 종료 - Janus 방 떠나기 성공');
+            },
+            error: (error) => {
+              console.error('❌ 게임 종료 - Janus 방 떠나기 실패:', error);
+            }
+          });
+        } catch (error) {
+          console.error('❌ 게임 종료 - leave 요청 실패:', error);
+        }
+      }
+      
       console.log('✅ 게임 종료 - WebRTC 연결 정리 완료');
       
       // 순위 정보 저장
@@ -356,7 +375,7 @@ const QuizGamePage = () => {
       // 1초 후 순위 모달 표시
       setTimeout(() => setShowResultModal(true), 1000);
     }
-  }, [remoteFeedsRef, setRemoteStreams, userIdToFeedIdRef, remoteStreams]);
+  }, [remoteFeedsRef, setRemoteStreams, userIdToFeedIdRef, remoteStreams, pluginHandleRef]);
 
   const handleChallengeTimeout = useCallback((data) => {
     if (data.success) {
@@ -817,19 +836,19 @@ const QuizGamePage = () => {
   const handleExit = () => setShowExitModal(true);
   const confirmExit = () => navigate('/main');
   
-  const handleReturnToRoom = () => {
+  const handleReturnToRoom = async () => {
     console.log('🚪 대기실로 돌아가기 요청');
     
-    // 1. WebRTC 연결 정리 (handleGameEnd에서 이미 정리했지만 안전을 위해 재확인)
-    console.log('🧹 대기실 복귀 - WebRTC 연결 재확인');
+    // 1. WebRTC 연결 완전 정리
+    console.log('🧹 대기실 복귀 - WebRTC 연결 완전 정리 시작');
     
-    // Remote feeds가 남아있으면 정리
+    // 1-1. Remote feeds 정리
     if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
-      console.log('⚠️ Remote feeds가 남아있음 - 정리 시작');
+      console.log('⚠️ Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
       Object.values(remoteFeedsRef.current).forEach(feed => {
         try {
           if (feed && typeof feed.detach === 'function') {
-            console.log('🔌 Remote feed detach:', feed);
+            console.log('🔌 Remote feed detach');
             feed.detach();
           }
         } catch (error) {
@@ -839,47 +858,66 @@ const QuizGamePage = () => {
       remoteFeedsRef.current = {};
     }
     
-    // Remote streams 초기화
-    setRemoteStreams({});
+    // 1-2. Publisher (내 플러그인 핸들) 정리 - Janus 방 떠나기
+    if (pluginHandleRef.current) {
+      console.log('🔌 Publisher plugin - Janus 방 떠나기');
+      try {
+        // 🆕 Janus 방을 명시적으로 떠나기 (Promise로 처리)
+        await new Promise((resolve) => {
+          const leave = { request: 'leave' };
+          pluginHandleRef.current.send({ 
+            message: leave,
+            success: () => {
+              console.log('✅ Janus 방 떠나기 성공');
+              resolve();
+            },
+            error: (error) => {
+              console.error('❌ Janus 방 떠나기 실패:', error);
+              resolve(); // 실패해도 계속 진행
+            }
+          });
+          
+          // 타임아웃 (500ms 후 강제 진행)
+          setTimeout(resolve, 500);
+        });
+        
+        // detach
+        pluginHandleRef.current.detach();
+        pluginHandleRef.current = null;
+      } catch (error) {
+        console.error('❌ Publisher 정리 실패:', error);
+        pluginHandleRef.current = null;
+      }
+    }
     
-    // UserID to FeedID 매핑 초기화
+    // 1-3. Janus 연결 종료
+    if (janusRef.current) {
+      console.log('🔌 Janus 연결 종료');
+      try {
+        janusRef.current.destroy();
+      } catch (error) {
+        console.error('❌ Janus destroy 실패:', error);
+      }
+      janusRef.current = null;
+    }
+    
+    // 1-4. 상태 초기화
+    setRemoteStreams({});
+    setIsJanusConnected(false);
     if (userIdToFeedIdRef.current) {
       userIdToFeedIdRef.current = {};
     }
     
-    console.log('✅ 대기실 복귀 - WebRTC 연결 정리 완료');
+    console.log('✅ 대기실 복귀 - WebRTC 연결 완전 정리 완료');
     
-    // 2. RETURN_TO_WAITING_ROOM 이벤트 리스너 등록 (일회성)
-    const handleReturnEvent = (data) => {
-      console.log('📥 대기실 복귀 이벤트 수신:', data);
-      
-      // 이벤트 리스너 제거
-      websocketService.off('quiz:return', handleReturnEvent);
-      
-      // 대기실 페이지로 이동
-      console.log('🚪 대기실 페이지로 이동');
-      navigate(`/quiz/waiting/${roomId}`);
-    };
-    
-    websocketService.on('quiz:return', handleReturnEvent);
-    
-    // 3. WebSocket으로 대기실 복귀 요청
-    try {
-      websocketService.returnToRoom(Number(roomId));
-      console.log('✅ 대기실 복귀 요청 전송');
-      
-      // 타임아웃 설정 (3초 내에 응답 없으면 강제 이동)
-      setTimeout(() => {
-        websocketService.off('quiz:return', handleReturnEvent);
-        console.warn('⚠️ 대기실 복귀 응답 타임아웃 - 강제 이동');
-        navigate(`/quiz/waiting/${roomId}`);
-      }, 3000);
-    } catch (error) {
-      console.error('❌ 대기실 복귀 요청 실패:', error);
-      websocketService.off('quiz:return', handleReturnEvent);
-      // 실패 시에도 이동
-      navigate(`/quiz/waiting/${roomId}`);
-    }
+    // 2. 바로 대기실로 이동 (WebSocket 재연결을 통해 참가자 정보 받음)
+    console.log('🚪 대기실 페이지로 즉시 이동');
+    navigate(`/quiz/waiting/${roomId}`, {
+      state: {
+        returnFromGame: true,
+        needsRejoin: true // 🆕 재입장 필요 플래그
+      }
+    });
   };
 
   return (
