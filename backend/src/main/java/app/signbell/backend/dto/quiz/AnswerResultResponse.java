@@ -15,7 +15,12 @@ import lombok.Getter;
 @Builder
 public class AnswerResultResponse {
     private Long userId;
+    private String nickname;  // 도전자 닉네임
     private Boolean isCorrect;
-    private Integer score;
-    private Integer totalScore;
+    private Integer score;  // 이번 문제에서 획득/차감된 점수
+    private Integer totalScore;  // 누적 점수
+    private String userAnswer;  // 사용자가 제출한 답변
+    private String correctAnswer;  // 정답
+    private Double confidenceScore;  // AI 신뢰도 점수
+    private String resultMessage;  // 결과 메시지
 }

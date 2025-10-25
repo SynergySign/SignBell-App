@@ -2,7 +2,7 @@
  * @개요 퀴즈 진행 페이지 컴포넌트 (리팩토링)
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-24
+ * @최종수정일 2025-10-26 (FastAPI WebSocket 연결 수정)
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -63,22 +63,47 @@ const QuizGamePage = () => {
   const isRecordingRef = useRef(false);
   const lastSentRef = useRef(0);
   const [fastApiStatus, setFastApiStatus] = useState('Disconnected');
+  const fastApiConnectedRef = useRef(false);  // 🆕 연결 상태 추적
+  const metaSentRef = useRef(false);  // 🆕 메타 전송 여부 추적
+  const currentQuestionRef = useRef(1);  // 🆕 현재 문제 번호 추적 (클로저 문제 해결)
 
   // 모달
   const [showExitModal, setShowExitModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const [rankings] = useState([]);
+  const [rankings, setRankings] = useState([]);
 
   // WebSocket 이벤트 핸들러
   const handleNewQuestion = useCallback((data) => {
     if (data.success && data.data) {
       const questionData = data.data;
+      
+      console.log('📝 새 문제 시작:', questionData);
+
+      // 🔥 진행 중인 녹화 중단
+      if (isRecordingRef.current) {
+        console.log('⏹️ 진행 중인 녹화 중단');
+        isRecordingRef.current = false;
+        if (recordingRef.current) {
+          cancelAnimationFrame(recordingRef.current);
+          recordingRef.current = null;
+        }
+      }
+
+      // 상태 초기화
       gameState.setCurrentQuestion(questionData.questionNumber);
       gameState.setCurrentWord(questionData.wordTitle);
       gameState.resetGameState();
+      gameState.setIsWaitingResult(false);
+      gameState.setAnswerResult(null);
       gameState.showToast(`문제 ${questionData.questionNumber}: ${questionData.wordTitle}`, 'info');
+
+      // 🆕 현재 문제 번호 ref 업데이트 (클로저 문제 해결)
+      currentQuestionRef.current = questionData.questionNumber;
+
+      // 🆕 새 문제면 메타 전송 플래그 리셋
+      metaSentRef.current = false;
     }
-  }, [gameState.setCurrentQuestion, gameState.setCurrentWord, gameState.resetGameState, gameState.showToast]);
+  }, [gameState]);
 
   const handleChallengeUpdate = useCallback((data) => {
     if (data.success && data.data?.eventType === 'CHALLENGER_REGISTERED') {
@@ -97,6 +122,22 @@ const QuizGamePage = () => {
     if (data.success && data.data) {
       const { userId: nextUserId, nickname, profileImage } = data.data;
 
+      console.log('👤 다음 도전자:', { nextUserId, nickname });
+
+      // 🔥 진행 중인 녹화 중단 (다른 사람 차례로 넘어갈 때)
+      if (isRecordingRef.current) {
+        console.log('⏹️ 다른 도전자 차례 - 녹화 중단');
+        isRecordingRef.current = false;
+        if (recordingRef.current) {
+          cancelAnimationFrame(recordingRef.current);
+          recordingRef.current = null;
+        }
+      }
+
+      // 대기 상태 초기화
+      gameState.setIsWaitingResult(false);
+      gameState.setAnswerResult(null);
+
       gameState.setPlayers(currentPlayers => {
         const player = currentPlayers.find(p => p.id === nextUserId);
         const score = player ? player.score : 0;
@@ -109,12 +150,23 @@ const QuizGamePage = () => {
         });
 
         const myInfo = currentPlayers.find(p => p.isMe);
+        
+        console.log('🔍 내 차례 확인:', {
+          myInfo: myInfo ? { id: myInfo.id, nickname: myInfo.nickname, isMe: myInfo.isMe } : null,
+          nextUserId,
+          myUserId,
+          isMyTurn: myInfo && myInfo.id === nextUserId,
+          allPlayers: currentPlayers.map(p => ({ id: p.id, nickname: p.nickname, isMe: p.isMe }))
+        });
+
         if (myInfo && myInfo.id === nextUserId) {
+          console.log('✅ 내 차례입니다!');
           gameState.setGamePhase('myTurn');
           gameState.setSolvingTimer(5);
           gameState.setSigningTimer(5);
           gameState.showToast('내 차례! 준비하세요!', 'info');
         } else {
+          console.log('👀 다른 사람 차례:', nickname);
           gameState.setGamePhase('solving');
           gameState.showToast(`${nickname}의 차례입니다.`, 'info');
         }
@@ -220,24 +272,50 @@ const QuizGamePage = () => {
   const handleAnswerResult = useCallback((data) => {
     if (data.success && data.data) {
       const result = data.data;
+      
+      console.log('📊 정답 결과:', result);
+
+      // 점수 업데이트
       gameState.setPlayers(prev =>
-        prev.map(player =>
-          player.id === result.userId
-            ? { ...player, score: result.totalScore }
-            : player
-        )
+          prev.map(player =>
+              player.id === result.userId
+                  ? { ...player, score: result.totalScore }
+                  : player
+          )
       );
 
-      if (result.isCorrect) {
-        gameState.showToast(`정답! +${result.score}점`, 'success');
-      } else {
-        gameState.showToast(`오답! ${result.score}점`, 'error');
-      }
+      // 결과 정보 저장 (화면에 표시용)
+      gameState.setAnswerResult(result);
+
+      // 게임 단계를 'result'로 변경 (3초간 결과 표시)
+      gameState.setGamePhase('result');
+
+      // 결과 상세 정보 콘솔 출력
+      console.log('📊 정답 결과 상세:', {
+        도전자: result.nickname,
+        정답여부: result.isCorrect ? '✅ 정답' : '❌ 오답',
+        제출답변: result.userAnswer,
+        정답: result.correctAnswer,
+        신뢰도: result.confidenceScore ? `${(result.confidenceScore * 100).toFixed(1)}%` : 'N/A',
+        획득점수: result.score,
+        누적점수: result.totalScore
+      });
+
+      // 3초 후 자동으로 다음 단계로 (백엔드에서 처리)
+      // 백엔드가 3초 후 다음 문제 또는 다음 도전자 메시지를 보냄
     }
-  }, [gameState.setPlayers, gameState.showToast]);
+  }, [gameState.setPlayers, gameState.setAnswerResult, gameState.setGamePhase]);
 
   const handleGameEnd = useCallback((data) => {
     if (data.success && data.data?.eventType === 'QUIZ_FINISHED') {
+      console.log('🏁 게임 종료:', data.data);
+      
+      // 순위 정보 저장
+      if (data.data.rankings) {
+        setRankings(data.data.rankings);
+      }
+      
+      // 1초 후 순위 모달 표시
       setTimeout(() => setShowResultModal(true), 1000);
     }
   }, []);
@@ -249,11 +327,29 @@ const QuizGamePage = () => {
   }, [gameState.showToast]);
 
   const handleError = useCallback((data) => {
+    console.error('❌ 에러 발생:', data);
+    
+    // 진행 중인 녹화 중단
+    if (isRecordingRef.current) {
+      console.log('⏹️ 에러 발생 - 녹화 중단');
+      isRecordingRef.current = false;
+      if (recordingRef.current) {
+        cancelAnimationFrame(recordingRef.current);
+        recordingRef.current = null;
+      }
+    }
+
+    // 대기 상태 초기화
+    gameState.setIsWaitingResult(false);
+    
+    // 게임 상태를 challenge로 되돌림 (다시 도전 신청 가능)
+    gameState.setGamePhase('challenge');
+    
     gameState.showToast(data.message || '오류 발생', 'error');
-  }, [gameState.showToast]);
+  }, [gameState]);
 
   // WebSocket 연결
-  const { sendChallenge } = useQuizWebSocket({
+  const { sendChallenge, sendAnswer } = useQuizWebSocket({
     roomId,
     myUserId,
     gameState,
@@ -268,16 +364,31 @@ const QuizGamePage = () => {
     onError: handleError,
   });
 
-  // FastAPI WebSocket 메시지 리스너 등록
+  // 🔥 FastAPI WebSocket 연결 (한 번만! 컴포넌트 전체 생명주기 동안 유지)
   useEffect(() => {
-    // 상태 리스너
-    const offStatus = quizFastApi.onStatus((status) => {
-      setFastApiStatus(status);
+    // 이미 연결되어 있으면 중복 연결 방지
+    if (fastApiConnectedRef.current) {
+      console.log('[QuizGame] FastAPI 이미 연결됨 - 스킵');
+      return;
+    }
+
+    console.log('[QuizGame] 🔌 FastAPI WebSocket 연결 시작');
+
+    // 세션 ID 생성
+    const fastApiSessionId = `quiz-${roomId}-${myUserId}-${Date.now()}`;
+
+    // 연결
+    quizFastApi.connect(fastApiSessionId);
+    fastApiConnectedRef.current = true;
+
+    // 상태 리스너 등록
+    const unsubscribeStatus = quizFastApi.onStatus((status) => {
       console.log('[QuizGame] FastAPI Status:', status);
+      setFastApiStatus(status);
     });
 
-    // 메시지 리스너
-    const offMessage = quizFastApi.onMessage((msg) => {
+    // 메시지 리스너 등록
+    const unsubscribeMessage = quizFastApi.onMessage((msg) => {
       console.log('[QuizGame] FastAPI Message:', msg);
 
       if (msg.type === 'meta_ack') {
@@ -286,55 +397,71 @@ const QuizGamePage = () => {
         // AI 인식 결과 수신
         const result = msg.result || {};
         const predictedWord = result.predicted || '';
-        const score = result.score || 0;
+        const confidenceScore = result.score || 0;
 
-        console.log('[QuizGame] 🤖 AI 인식 결과:', { predictedWord, score });
+        console.log('[QuizGame] 🤖 AI 인식 결과:', { predictedWord, confidenceScore });
 
-        // Spring Boot 백엔드로 정답 제출
+        // Spring Boot 백엔드로 정답 제출 (신뢰도 점수 포함)
         try {
+          // 🔥 최신 문제 번호 사용 (클로저 문제 해결)
+          const currentQuestionNumber = currentQuestionRef.current;
+          
           websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
-            questionNumber: gameState.currentQuestion,
+            questionNumber: currentQuestionNumber,
             userAnswer: predictedWord,
+            confidenceScore: confidenceScore,  // 신뢰도 점수 추가
           });
-          console.log('[QuizGame] ✅ 정답 제출 완료:', predictedWord);
+          console.log('[QuizGame] ✅ 정답 제출 완료:', { 
+            questionNumber: currentQuestionNumber,
+            predictedWord, 
+            confidenceScore 
+          });
         } catch (error) {
           console.error('[QuizGame] ❌ 정답 제출 실패:', error);
         }
 
-        gameState.showToast(`AI 인식: ${predictedWord} (${(score * 100).toFixed(1)}%)`, 'info');
+        gameState.setIsWaitingResult(false);
+        gameState.showToast(`AI 인식: ${predictedWord} (${(confidenceScore * 100).toFixed(1)}%)`, 'info');
       }
     });
 
+    // 🔥 컴포넌트 완전히 언마운트될 때만 연결 해제
     return () => {
-      offStatus();
-      offMessage();
+      console.log('[QuizGame] 🔌 컴포넌트 언마운트 - FastAPI 연결 해제');
+      unsubscribeStatus();
+      unsubscribeMessage();
+      quizFastApi.disconnect();
+      fastApiConnectedRef.current = false;
+      metaSentRef.current = false;
     };
-  }, [roomId]);
+  }, []);  // 🔥 빈 배열! = 마운트 시 1회만 실행
 
-  // 내 차례가 되면 FastAPI WebSocket 연결
+  // 🔥 내 차례가 되면 메타데이터 전송 (연결은 유지하고 메타만 전송)
   useEffect(() => {
-    if (gameState.gamePhase === 'myTurn' && gameState.currentWord) {
-      console.log('[QuizGame] 내 차례 - FastAPI 연결 시작');
+    if (gameState.gamePhase === 'myTurn' && gameState.currentWord && !metaSentRef.current) {
+      console.log('[QuizGame] 내 차례 - 단어 정보 FastAPI로 전송:', gameState.currentWord);
 
-      // FastAPI 연결 (세션 ID 자동 생성)
-      quizFastApi.connect();
+      // 🔥 현재 문제 번호 ref 업데이트
+      currentQuestionRef.current = gameState.currentQuestion;
 
-      // 연결 상태 확인 후 메타 전송
-      const offStatusLocal = quizFastApi.onStatus((status) => {
-        if (status === 'Connected') {
-          console.log('[QuizGame] FastAPI 연결 완료 - 메타 전송');
-          quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
-        }
-      });
+      // 연결 상태 확인
+      if (fastApiStatus === 'Connected') {
+        quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
+        metaSentRef.current = true;
+      } else {
+        // 연결이 안 되어 있으면 잠시 후 재시도
+        console.log('[QuizGame] FastAPI 연결 대기 중...');
+        const retryTimer = setTimeout(() => {
+          if (quizFastApi.getStatus() === 'Connected') {
+            quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
+            metaSentRef.current = true;
+          }
+        }, 1000);
 
-      return () => {
-        offStatusLocal();
-        quizFastApi.disconnect();
-      };
+        return () => clearTimeout(retryTimer);
+      }
     }
-  }, [gameState.gamePhase, gameState.currentWord, gameState.currentQuestion]);
-
-
+  }, [gameState.gamePhase, gameState.currentWord, gameState.currentQuestion, fastApiStatus]);
 
   // 초기화
   useEffect(() => {
@@ -378,81 +505,53 @@ const QuizGamePage = () => {
     }
 
     startWebcam()
-      .then(() => {
-        webcamInitializedRef.current = true;
-      })
-      .catch(() => {
-        webcamInitializedRef.current = true;
-      });
+        .then(() => {
+          webcamInitializedRef.current = true;
+        })
+        .catch(() => {
+          webcamInitializedRef.current = true;
+        });
   }, [isWebcamOn, startWebcam]);
 
-  // 메인 비디오 스트림 연결
+  // 메인 비디오 스트림 연결은 QuizMainVideo 컴포넌트에서 처리
+
+  // Janus 연결
   useEffect(() => {
-    if (!stream) return;
-
-    const timer = setTimeout(() => {
-      if (mainVideoRef.current && stream) {
-        mainVideoRef.current.srcObject = stream;
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
-  }, [stream]);
-
-  // gamePhase가 myTurn으로 변경될 때 스트림 재연결
-  useEffect(() => {
-    if (gameState.gamePhase === 'myTurn' && stream && mainVideoRef.current) {
-      const timer = setTimeout(() => {
-        if (mainVideoRef.current && stream) {
-          mainVideoRef.current.srcObject = stream;
-        }
-      }, 100);
-
-      return () => clearTimeout(timer);
-    }
-  }, [gameState.gamePhase, stream]);
-
-  // Janus WebRTC 연결
-  useEffect(() => {
-    if (isJanusConnected && janusRef.current) {
-      return;
-    }
-
-    if (!isWebcamOn || !stream) {
-      return;
-    }
-
-    if (!window.Janus) {
-      console.error('❌ Janus 라이브러리가 로드되지 않았습니다.');
+    if (isJanusConnected || !stream || !isWebcamOn) {
       return;
     }
 
     const actualUserId = myUserId;
-    if (!actualUserId) {
-      console.error('❌ 사용자 ID가 없습니다.');
-      return;
-    }
 
-    const Janus = window.Janus;
-    const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
+    console.log(`🔗 Janus 초기화 시작 - userId: ${actualUserId}, roomId: ${roomId}`);
 
-    Janus.init({
-      debug: false,
+    window.Janus.init({
+      debug: 'all',
       callback: function () {
-        janusRef.current = new Janus({
-          server: JANUS_SERVER,
+        if (!window.Janus.isWebrtcSupported()) {
+          alert('WebRTC를 지원하지 않는 브라우저입니다.');
+          return;
+        }
+
+        janusRef.current = new window.Janus({
+          server: 'https://localhost:8443/janus',
           success: function () {
+            console.log('✅ Janus 서버 연결 성공');
+
             janusRef.current.attach({
               plugin: 'janus.plugin.videoroom',
-              opaqueId: `game-user-${actualUserId}`,
+              opaqueId: `publisher-${actualUserId}`,
               success: function (pluginHandle) {
+                console.log('✅ VideoRoom 플러그인 연결 성공');
                 pluginHandleRef.current = pluginHandle;
+                setIsJanusConnected(true);
 
                 const register = {
                   request: 'join',
                   room: parseInt(roomId),
                   ptype: 'publisher',
-                  display: String(actualUserId),
+                  id: parseInt(actualUserId),
+                  display: `User-${actualUserId}`,
                 };
 
                 pluginHandle.send({ message: register });
@@ -460,102 +559,71 @@ const QuizGamePage = () => {
               error: function (error) {
                 console.error('❌ 플러그인 연결 실패:', error);
               },
+              mediaState: function (medium, on) {
+                console.log(`🎥 미디어 상태 변경 - ${medium}: ${on ? 'ON' : 'OFF'}`);
+              },
+              webrtcState: function (isConnected) {
+                console.log(`🔗 WebRTC 상태: ${isConnected ? '연결됨' : '연결 끊김'}`);
+              },
               onmessage: function (msg, jsep) {
                 const event = msg['videoroom'];
 
-                if (event === 'event' && msg['error_code'] === 426) {
-                  const create = {
-                    request: 'create',
-                    room: parseInt(roomId),
-                    description: `Game Room ${roomId}`,
-                    publishers: 10,
-                    bitrate: 128000,
-                    fir_freq: 10,
-                    audiocodec: 'opus',
-                    videocodec: 'vp8',
-                    audiolevel_event: true,
-                    audio_level_average: 65,
-                    audio_active_packets: 25,
-                    record: false,
-                    permanent: false
-                  };
-
-                  pluginHandleRef.current.send({
-                    message: create,
-                    success: function () {
-                      const register = {
-                        request: 'join',
-                        room: parseInt(roomId),
-                        ptype: 'publisher',
-                        display: String(actualUserId),
-                      };
-                      pluginHandleRef.current.send({ message: register });
-                    },
-                    error: function (error) {
-                      console.error('❌ Janus 방 생성 실패:', error);
-                    }
-                  });
-                  return;
-                }
-
                 if (event === 'joined') {
-                  setIsJanusConnected(true);
+                  console.log('✅ VideoRoom 참여 성공:', msg);
 
-                  // 내 스트림 publish
+                  const myId = msg['id'];
+                  console.log(`📌 내 Publisher ID: ${myId}`);
+
                   pluginHandleRef.current.createOffer({
-                    stream: stream,
-                    media: {
-                      audioRecv: false,
-                      videoRecv: false,
-                      audioSend: true,
-                      videoSend: true,
-                    },
-                    success: function (jsep) {
-                      const publish = {
-                        request: 'configure',
-                        audio: true,
-                        video: true,
-                      };
-                      pluginHandleRef.current.send({ message: publish, jsep: jsep });
+                    media: { video: true, audio: true },
+                    success: function (offerJsep) {
+                      const publish = { request: 'configure', audio: true, video: true };
+                      pluginHandleRef.current.send({ message: publish, jsep: offerJsep });
                     },
                     error: function (error) {
                       console.error('❌ Offer 생성 실패:', error);
                     },
                   });
 
-                  // 기존 참가자 구독
                   if (msg['publishers']) {
-                    msg['publishers'].forEach((publisher) => {
-                      const userId = parseInt(publisher.display);
-                      if (userId !== actualUserId) {
-                        userIdToFeedIdRef.current[userId] = publisher.id;
-                        subscribeToFeed(publisher.id, userId);
+                    const publishers = msg['publishers'];
+                    console.log(`📡 기존 Publisher ${publishers.length}명 발견:`, publishers);
+
+                    publishers.forEach((pub) => {
+                      const feedId = pub['id'];
+                      const userId = pub['display']?.replace('User-', '');
+                      console.log(`🔍 Publisher 발견 - feedId: ${feedId}, userId: ${userId}`);
+
+                      if (userId && feedId) {
+                        userIdToFeedIdRef.current[userId] = feedId;
+                        subscribeToFeed(feedId, userId);
                       }
                     });
                   }
                 } else if (event === 'event') {
-                  // 새 참가자 입장
                   if (msg['publishers']) {
-                    msg['publishers'].forEach((publisher) => {
-                      const userId = parseInt(publisher.display);
-                      if (userId !== actualUserId) {
-                        userIdToFeedIdRef.current[userId] = publisher.id;
-                        subscribeToFeed(publisher.id, userId);
+                    const publishers = msg['publishers'];
+                    console.log(`📢 새로운 Publisher ${publishers.length}명 참여:`, publishers);
+
+                    publishers.forEach((pub) => {
+                      const feedId = pub['id'];
+                      const userId = pub['display']?.replace('User-', '');
+                      console.log(`🆕 새 Publisher - feedId: ${feedId}, userId: ${userId}`);
+
+                      if (userId && feedId) {
+                        userIdToFeedIdRef.current[userId] = feedId;
+                        subscribeToFeed(feedId, userId);
                       }
                     });
                   }
 
-                  // 참가자 퇴장
                   if (msg['leaving']) {
                     const leavingFeedId = msg['leaving'];
-                    let leavingUserId = null;
+                    console.log(`👋 Publisher 퇴장 - feedId: ${leavingFeedId}`);
 
-                    for (const [userId, feedId] of Object.entries(userIdToFeedIdRef.current)) {
-                      if (feedId === leavingFeedId) {
-                        leavingUserId = parseInt(userId);
-                        break;
-                      }
-                    }
+                    const leavingUserId = Object.keys(userIdToFeedIdRef.current).find(
+                        (uid) => userIdToFeedIdRef.current[uid] === leavingFeedId
+                    );
 
                     if (remoteFeedsRef.current[leavingFeedId]) {
                       remoteFeedsRef.current[leavingFeedId].detach();
@@ -695,9 +763,9 @@ const QuizGamePage = () => {
 
     gameState.setHasChallenged(true);
     gameState.setPlayers(prev =>
-      prev.map(player =>
-        player.isMe ? { ...player, hasChallenged: true } : player
-      )
+        prev.map(player =>
+            player.isMe ? { ...player, hasChallenged: true } : player
+        )
     );
 
     try {
@@ -710,81 +778,102 @@ const QuizGamePage = () => {
   // 나가기
   const handleExit = () => setShowExitModal(true);
   const confirmExit = () => navigate('/main');
-  const handleReturnToRoom = () => navigate(`/quiz/waiting/${roomId}`);
+  
+  const handleReturnToRoom = () => {
+    console.log('🚪 대기실로 돌아가기 요청');
+    
+    // WebSocket으로 대기실 복귀 요청
+    try {
+      websocketService.returnToRoom(Number(roomId));
+      console.log('✅ 대기실 복귀 요청 전송');
+      
+      // 잠시 대기 후 이동 (백엔드 트랜잭션 커밋 대기)
+      setTimeout(() => {
+        console.log('🚪 대기실 페이지로 이동');
+        navigate(`/quiz/waiting/${roomId}`);
+      }, 500);
+    } catch (error) {
+      console.error('❌ 대기실 복귀 요청 실패:', error);
+      // 실패 시에도 이동
+      navigate(`/quiz/waiting/${roomId}`);
+    }
+  };
 
   return (
-    <div className={styles.quizGamePage}>
-      <QuizHeader
-        roomId={roomId}
-        isWebcamOn={isWebcamOn}
-        onToggleWebcam={toggleWebcam}
-        onExit={handleExit}
-      />
-
-      <main className={styles.gameContent}>
-        <QuizQuestion
-          currentQuestion={gameState.currentQuestion}
-          totalQuestions={gameState.totalQuestions}
-          word={gameState.currentWord || '문제를 불러오는 중...'}
-        />
-
-        <div className={styles.mainContentRow}>
-          <QuizMainVideo
-            gamePhase={gameState.gamePhase}
+      <div className={styles.quizGamePage}>
+        <QuizHeader
+            roomId={roomId}
             isWebcamOn={isWebcamOn}
-            mainVideoRef={mainVideoRef}
-            currentChallengerInfo={gameState.currentChallengerInfo}
-            remoteStreams={remoteStreams}
-            remoteVideosRef={remoteVideosRef}
-          />
-
-          <QuizGameState
-            gamePhase={gameState.gamePhase}
-            timer={gameState.timer}
-            challengersCount={gameState.challengersCount}
-            maxChallengers={4}
-            hasChallenged={gameState.hasChallenged}
-            challengeOrder={gameState.challengeOrder}
-            onChallenge={handleChallenge}
-            currentChallengerInfo={gameState.currentChallengerInfo}
-            solvingTimer={gameState.solvingTimer}
-            signingTimer={gameState.signingTimer}
-            isWaitingResult={gameState.isWaitingResult}
-            resultMessage={gameState.resultMessage}
-          />
-        </div>
-
-        <QuizPlayerGrid
-          players={gameState.players}
-          gamePhase={gameState.gamePhase}
-          isWebcamOn={isWebcamOn}
-          stream={stream}
-          remoteStreams={remoteStreams}
-          remoteVideosRef={remoteVideosRef}
+            onToggleWebcam={toggleWebcam}
+            onExit={handleExit}
         />
-      </main>
 
-      <QuizExitModal
-        isOpen={showExitModal}
-        onCancel={() => setShowExitModal(false)}
-        onConfirm={confirmExit}
-      />
+        <main className={styles.gameContent}>
+          <QuizQuestion
+              currentQuestion={gameState.currentQuestion}
+              totalQuestions={gameState.totalQuestions}
+              word={gameState.currentWord || '문제를 불러오는 중...'}
+          />
 
-      <Toast
-        isOpen={gameState.toast.isOpen}
-        message={gameState.toast.message}
-        type={gameState.toast.type}
-      />
+          <div className={styles.mainContentRow}>
+            <QuizMainVideo
+                gamePhase={gameState.gamePhase}
+                isWebcamOn={isWebcamOn}
+                mainVideoRef={mainVideoRef}
+                currentChallengerInfo={gameState.currentChallengerInfo}
+                remoteStreams={remoteStreams}
+                remoteVideosRef={remoteVideosRef}
+                stream={stream}
+            />
 
-      <GameResultModal
-        isOpen={showResultModal}
-        onReturnToRoom={handleReturnToRoom}
-        rankings={rankings}
-      />
+            <QuizGameState
+                gamePhase={gameState.gamePhase}
+                timer={gameState.timer}
+                challengersCount={gameState.challengersCount}
+                maxChallengers={4}
+                hasChallenged={gameState.hasChallenged}
+                challengeOrder={gameState.challengeOrder}
+                onChallenge={handleChallenge}
+                currentChallengerInfo={gameState.currentChallengerInfo}
+                solvingTimer={gameState.solvingTimer}
+                signingTimer={gameState.signingTimer}
+                isWaitingResult={gameState.isWaitingResult}
+                resultMessage={gameState.resultMessage}
+                answerResult={gameState.answerResult}
+            />
+          </div>
 
-      {/* 숨겨진 캔버스 - 프레임 캡처용 */}
-      <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
-    </div>
+          <QuizPlayerGrid
+              players={gameState.players}
+              gamePhase={gameState.gamePhase}
+              isWebcamOn={isWebcamOn}
+              stream={stream}
+              remoteStreams={remoteStreams}
+              remoteVideosRef={remoteVideosRef}
+          />
+        </main>
+
+        <QuizExitModal
+            isOpen={showExitModal}
+            onCancel={() => setShowExitModal(false)}
+            onConfirm={confirmExit}
+        />
+
+        <Toast
+            isOpen={gameState.toast.isOpen}
+            message={gameState.toast.message}
+            type={gameState.toast.type}
+        />
+
+        <GameResultModal
+            isOpen={showResultModal}
+            onReturnToRoom={handleReturnToRoom}
+            rankings={rankings}
+        />
+
+        {/* 숨겨진 캔버스 - 프레임 캡처용 */}
+        <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
+      </div>
   );
 };
 

@@ -184,8 +184,20 @@ public class QuizService {
                 }
         }
 
+        /**
+         * 정답 제출 (테스트용 - 신뢰도 점수 없음)
+         */
         @Transactional
         public void submitAnswer(Long roomId, Long userId, Integer questionNumber, String answer) {
+                // 테스트에서는 신뢰도 점수를 1.0으로 간주 (항상 통과)
+                submitAnswer(roomId, userId, questionNumber, answer, 1.0);
+        }
+
+        /**
+         * 정답 제출 (실제 게임용 - 신뢰도 점수 포함)
+         */
+        @Transactional
+        public void submitAnswer(Long roomId, Long userId, Integer questionNumber, String answer, Double confidenceScore) {
                 // 1. 게임 진행 중인지 확인
                 validateGameInProgress(roomId);
 
@@ -196,7 +208,23 @@ public class QuizService {
 
                 // 3. 도전 차례 확인
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
-                if (currentChallenger == null || !currentChallenger.equals(userId)) {
+                
+                log.info("도전 차례 확인 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}", 
+                        roomId, questionNumber, currentChallenger, userId);
+                
+                if (currentChallenger == null) {
+                        log.warn("도전 차례 없음 - roomId: {}, question: {}, userId: {}", 
+                                roomId, questionNumber, userId);
+                        messagingTemplate.convertAndSendToUser(
+                                        String.valueOf(userId),
+                                        "/queue/errors",
+                                        ApiResponse.error("도전 차례가 설정되지 않았습니다"));
+                        return;
+                }
+                
+                if (!currentChallenger.equals(userId)) {
+                        log.warn("도전 차례 불일치 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}", 
+                                roomId, questionNumber, currentChallenger, userId);
                         messagingTemplate.convertAndSendToUser(
                                         String.valueOf(userId),
                                         "/queue/errors",
@@ -209,20 +237,48 @@ public class QuizService {
                 QuizWord quizWord = quizWordRepository.findByIdWithSign(quizWordId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_FOUND));
 
-                // 5. FastAPI 인식 결과 확인
-                boolean isRecognitionFailed = (answer == null || answer.trim().isEmpty());
+                String correctAnswer = quizWord.getSign().getTitle();
+
+                // 5. FastAPI 인식 결과 확인 및 정답 검증
+                // FastAPI 오류 메시지 감지 (오류:, 랜드마크, 데이터 없음 등)
+                boolean isRecognitionFailed = (answer == null || answer.trim().isEmpty() 
+                        || answer.contains("오류:") 
+                        || answer.contains("랜드마크") 
+                        || answer.contains("데이터 없음")
+                        || (confidenceScore != null && confidenceScore == 0.0));
+                
                 boolean isCorrect = false;
+                String failureReason = null;
 
                 if (!isRecognitionFailed) {
-                        // FastAPI가 단어를 인식한 경우 정답 확인
-                        isCorrect = quizWord.getSign().getTitle().equals(answer);
+                        // 신뢰도 점수 확인 (70% 이상)
+                        if (confidenceScore == null || confidenceScore < 0.7) {
+                                failureReason = String.format("신뢰도 부족 (%.1f%%)", 
+                                        confidenceScore != null ? confidenceScore * 100 : 0);
+                                log.info("신뢰도 부족 - userId: {}, question: {}, answer: {}, confidence: {}", 
+                                        userId, questionNumber, answer, confidenceScore);
+                        } else {
+                                // 정답 매칭 검증 (DB 단어에 FastAPI 단어가 포함되는지 확인)
+                                isCorrect = isAnswerMatching(correctAnswer, answer);
+                                
+                                if (!isCorrect) {
+                                        failureReason = String.format("오답 (정답: %s, 인식: %s)", correctAnswer, answer);
+                                }
+                                
+                                log.info("정답 검증 - userId: {}, question: {}, correctAnswer: {}, userAnswer: {}, confidence: {}, isCorrect: {}", 
+                                        userId, questionNumber, correctAnswer, answer, confidenceScore, isCorrect);
+                        }
+                } else {
+                        failureReason = "수어 인식 실패";
+                        log.info("인식 실패 - userId: {}, question: {}, answer: {}, confidence: {}", 
+                                userId, questionNumber, answer, confidenceScore);
                 }
 
                 Integer order = roomState.getChallengerOrder(questionNumber, userId);
 
                 // 6. 점수 계산
-                // - 정답: 순서별 점수 (100, 90, 80, 70)
-                // - 오답: -50점
+                // - 정답 (신뢰도 70% 이상 + 단어 매칭): 순서별 점수 (100, 90, 80, 70)
+                // - 오답 또는 신뢰도 부족: -50점
                 // - 인식 실패: 0점 (점수 변동 없음)
                 int score = isRecognitionFailed ? 0 : calculateScore(order, isCorrect);
 
@@ -234,33 +290,95 @@ public class QuizService {
                 log.info("점수 누적 - userId: {}, question: {}, isRecognitionFailed: {}, isCorrect: {}, addScore: {}, totalScore: {}",
                                 userId, questionNumber, isRecognitionFailed, isCorrect, score, newScore);
 
-                // 8. 결과 메시지 전송
+                // 8. 도전자 정보 조회
+                User challenger = userRepository.findById(userId)
+                                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+                // 9. 결과 메시지 생성
                 String resultMessage;
                 if (isRecognitionFailed) {
                         resultMessage = "수어 인식에 실패했습니다";
                 } else if (isCorrect) {
-                        resultMessage = "정답입니다!";
+                        resultMessage = String.format("정답입니다! +%d점 (신뢰도: %.1f%%)", score, confidenceScore * 100);
                 } else {
-                        resultMessage = "오답입니다";
+                        resultMessage = failureReason != null ? failureReason : "오답입니다";
                 }
 
+                // 10. 모든 참가자에게 결과 브로드캐스트
                 messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz",
+                                "/topic/room/" + roomId + "/quiz/answer",
                                 ApiResponse.success(resultMessage,
                                                 AnswerResultResponse.builder()
                                                                 .userId(userId)
+                                                                .nickname(challenger.getNickname())
                                                                 .isCorrect(isCorrect)
                                                                 .score(score)
                                                                 .totalScore(newScore)
+                                                                .userAnswer(answer)
+                                                                .correctAnswer(correctAnswer)
+                                                                .confidenceScore(confidenceScore)
+                                                                .resultMessage(resultMessage)
                                                                 .build()));
 
-                if (isCorrect) {
-                        // 9. 정답 시 다음 문제로 이동
-                        moveToNextQuestion(roomId, questionNumber);
-                } else {
-                        // 10. 오답 또는 인식 실패 시 다음 도전자에게 기회 넘김
-                        notifyNextChallenger(roomId, questionNumber);
+                // 11. 결과를 보여주는 시간 (3초) 후 다음 단계로 이동
+                // 람다 표현식에서 사용하기 위해 final 변수로 복사
+                final boolean finalIsCorrect = isCorrect;
+                final Long finalRoomId = roomId;
+                final Integer finalQuestionNumber = questionNumber;
+
+                CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS)
+                                .execute(() -> {
+                                        if (finalIsCorrect) {
+                                                // 정답 시 다음 문제로 이동
+                                                moveToNextQuestion(finalRoomId, finalQuestionNumber);
+                                        } else {
+                                                // 오답 또는 인식 실패 시 다음 도전자에게 기회 넘김
+                                                notifyNextChallenger(finalRoomId, finalQuestionNumber);
+                                        }
+                                });
+        }
+
+        /**
+         * 정답 매칭 검증
+         * 
+         * DB에 저장된 단어(예: "인사,경례")에 FastAPI에서 인식한 단어(예: "인사")가 포함되는지 확인
+         * 
+         * @param correctAnswer DB에 저장된 정답 (쉼표로 구분된 여러 단어 가능)
+         * @param userAnswer FastAPI에서 인식한 단어
+         * @return 매칭 여부
+         */
+        private boolean isAnswerMatching(String correctAnswer, String userAnswer) {
+                if (correctAnswer == null || userAnswer == null) {
+                        return false;
                 }
+
+                // 공백 제거 및 소문자 변환
+                String normalizedUserAnswer = userAnswer.trim().toLowerCase();
+                String normalizedCorrectAnswer = correctAnswer.trim().toLowerCase();
+
+                // 1. 완전 일치 확인
+                if (normalizedCorrectAnswer.equals(normalizedUserAnswer)) {
+                        return true;
+                }
+
+                // 2. DB 단어에 쉼표가 있는 경우 (예: "인사,경례")
+                if (normalizedCorrectAnswer.contains(",")) {
+                        String[] correctWords = normalizedCorrectAnswer.split(",");
+                        for (String word : correctWords) {
+                                String trimmedWord = word.trim();
+                                // 각 단어와 완전 일치하는지 확인
+                                if (trimmedWord.equals(normalizedUserAnswer)) {
+                                        return true;
+                                }
+                        }
+                }
+
+                // 3. DB 단어에 사용자 답변이 포함되는지 확인 (예: "인사,경례"에 "인사" 포함)
+                if (normalizedCorrectAnswer.contains(normalizedUserAnswer)) {
+                        return true;
+                }
+
+                return false;
         }
 
         /**
@@ -284,8 +402,19 @@ public class QuizService {
                                 .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
                 Integer completedRound = gameRoom.getCurrentRound();
 
+                // 모든 참가자 조회 (시도하지 않은 사람도 포함)
+                List<GameParticipant> allParticipants = gameParticipantRepository.findAllByGameRoom_Id(roomId);
+                
+                // 모든 참가자의 점수를 포함 (시도하지 않은 사람은 0점)
+                Map<Long, Integer> allScores = new java.util.HashMap<>();
+                for (GameParticipant participant : allParticipants) {
+                        Long userId = participant.getParticipant().getId();
+                        Integer score = roundScores.getOrDefault(userId, 0);
+                        allScores.put(userId, score);
+                }
+
                 // 최종 순위 계산 (이번 라운드 점수 기준)
-                List<Map.Entry<Long, Integer>> sortedScores = roundScores.entrySet().stream()
+                List<Map.Entry<Long, Integer>> sortedScores = allScores.entrySet().stream()
                                 .sorted(Map.Entry.<Long, Integer>comparingByValue().reversed())
                                 .collect(Collectors.toList());
 

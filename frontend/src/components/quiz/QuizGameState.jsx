@@ -16,6 +16,7 @@ const QuizGameState = ({
   signingTimer,
   isWaitingResult,
   resultMessage,
+  answerResult,  // 정답 결과 정보
 }) => {
   // 도전 신청 단계
   if (gamePhase === 'challenge') {
@@ -108,6 +109,36 @@ const QuizGameState = ({
                 </div>
               </>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 결과 표시 단계 (3초간 표시)
+  if (gamePhase === 'result' && answerResult) {
+    return (
+      <div className={styles.gameStateSection}>
+        <div className={styles.resultPhase}>
+          <div className={`${styles.resultDisplay} ${answerResult.isCorrect ? styles.correct : styles.incorrect}`}>
+            <div className={styles.resultIcon}>
+              {answerResult.isCorrect ? '✅' : answerResult.score === 0 ? '⚠️' : '❌'}
+            </div>
+            <h2 className={styles.resultTitle}>
+              {answerResult.isCorrect ? '정답입니다!' : answerResult.score === 0 ? '인식 실패' : '오답입니다!'}
+            </h2>
+            <div className={styles.resultDetails}>
+              <p className={styles.challenger}>{answerResult.nickname}님</p>
+              <div className={`${styles.scoreChange} ${answerResult.score > 0 ? styles.positive : answerResult.score < 0 ? styles.negative : styles.neutral}`}>
+                <span className={styles.scoreLabel}>점수 변동:</span>
+                <span className={styles.scoreValue}>
+                  {answerResult.score > 0 ? '+' : ''}{answerResult.score}점
+                </span>
+              </div>
+              <div className={styles.totalScore}>
+                누적 점수: <strong>{answerResult.totalScore}점</strong>
+              </div>
+            </div>
           </div>
         </div>
       </div>
