@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -39,6 +40,7 @@ public class QuizService {
         private final UserRepository userRepository;
         private final QuizStateCache quizStateCache;
         private final SimpMessagingTemplate messagingTemplate;
+        private final QuizTransactionService transactionService;
 
         @Transactional
         public GameStartResponse startGame(Long roomId, Long userId) {
@@ -326,14 +328,21 @@ public class QuizService {
                 final Long finalRoomId = roomId;
                 final Integer finalQuestionNumber = questionNumber;
 
+                // 비동기 실행 후 새로운 트랜잭션에서 처리
+                // QuizTransactionService를 통해 새 트랜잭션 생성
                 CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS)
                                 .execute(() -> {
-                                        if (finalIsCorrect) {
-                                                // 정답 시 다음 문제로 이동
-                                                moveToNextQuestion(finalRoomId, finalQuestionNumber);
-                                        } else {
-                                                // 오답 또는 인식 실패 시 다음 도전자에게 기회 넘김
-                                                notifyNextChallenger(finalRoomId, finalQuestionNumber);
+                                        try {
+                                                if (finalIsCorrect) {
+                                                        // 정답 시 다음 문제로 이동 (새 트랜잭션)
+                                                        transactionService.moveToNextQuestion(finalRoomId, finalQuestionNumber);
+                                                } else {
+                                                        // 오답 또는 인식 실패 시 다음 도전자에게 기회 넘김
+                                                        notifyNextChallenger(finalRoomId, finalQuestionNumber);
+                                                }
+                                        } catch (Exception e) {
+                                                log.error("정답 처리 후 다음 단계 이동 중 오류 - roomId: {}, question: {}", 
+                                                        finalRoomId, finalQuestionNumber, e);
                                         }
                                 });
         }
@@ -434,8 +443,11 @@ public class QuizService {
                 List<RankingInfo> rankings = new ArrayList<>();
                 List<GameHistory> historiesToSave = new ArrayList<>();
 
-                // 3. 랭킹 및 저장할 데이터 처리
-                int rank = 1; // 실제 랭킹 (퇴장한 사람 제외)
+                // 3. 랭킹 및 저장할 데이터 처리 (SQL RANK() 함수처럼 동점자 처리)
+                int rank = 1; // 현재 순위
+                Integer previousScore = null; // 이전 사람의 점수
+                int sameRankCount = 0; // 같은 순위의 사람 수
+                
                 for (int i = 0; i < sortedScores.size(); i++) {
                         Map.Entry<Long, Integer> entry = sortedScores.get(i);
                         Long userId = entry.getKey();
@@ -448,6 +460,14 @@ public class QuizService {
                                 log.info("게임 중 퇴장한 사용자 랭킹 제외 - userId: {}, score: {}", userId, roundScore);
                                 continue;
                         }
+
+                        // 동점자 처리: 이전 점수와 다르면 순위 업데이트
+                        if (previousScore != null && !previousScore.equals(roundScore)) {
+                                rank += sameRankCount; // 동점자 수만큼 순위 증가
+                                sameRankCount = 0;
+                        }
+                        sameRankCount++;
+                        previousScore = roundScore;
 
                         // GameHistory 객체를 생성하여 리스트에 추가합니다. (DB에 바로 저장하지 않음)
                         historiesToSave.add(GameHistory.builder()
@@ -473,17 +493,28 @@ public class QuizService {
                                         .profileImageUrl(user.getProfileImageUrl())
                                         .score(roundScore)
                                         .build());
-
-                        rank++; // 다음 순위로 증가
                 }
 
                 // 4. 준비된 GameHistory 리스트를 "한 번에" DB에 저장합니다. (Bulk Insert)
                 gameHistoryRepository.saveAll(historiesToSave);
 
-                log.info("게임 종료 - roomId: {}, completedRound: {}, participants: {}",
+                log.info("🏁 게임 종료 - roomId: {}, completedRound: {}, participants: {}",
                                 roomId, completedRound, sortedScores.size());
 
-                // 5. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
+                // 5. 대기실로 복귀합니다. (메시지 전송보다 먼저!)
+                log.info("🔄 방 상태 변경 시작 - roomId: {}, 현재 상태: {}", roomId, gameRoom.getStatus());
+                gameRoom.proceedToNextRound();
+                gameRoom.updateStatus(GameRoomStatus.WAITING);
+                gameRoomRepository.flush(); // 즉시 DB에 반영
+                log.info("✅ 방 상태 변경 완료 - roomId: {}, nextRound: {}, status: WAITING",
+                                roomId, gameRoom.getCurrentRound());
+
+                // 6. 캐시를 정리합니다.
+                quizStateCache.clearRoomState(roomId);
+
+                // 7. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
+                // 방 상태가 이미 WAITING으로 변경된 후에 전송하므로,
+                // 클라이언트가 즉시 대기실로 이동해도 문제없음
                 messagingTemplate.convertAndSend(
                                 "/topic/room/" + roomId + "/quiz",
                                 ApiResponse.success("게임이 종료되었습니다", GameEndResponse.builder()
@@ -493,16 +524,6 @@ public class QuizService {
                                                 .rankings(rankings)
                                                 .showReturnButton(true) // "방으로 돌아가기" 버튼 표시
                                                 .build()));
-
-                // 6. 대기실로 복귀합니다.
-                gameRoom.proceedToNextRound();
-                gameRoom.updateStatus(GameRoomStatus.WAITING);
-
-                log.info("대기실 복귀 완료 - roomId: {}, nextRound: {}, status: WAITING",
-                                roomId, gameRoom.getCurrentRound());
-
-                // 7. 캐시를 정리합니다.
-                quizStateCache.clearRoomState(roomId);
         }
 
         /**
@@ -510,22 +531,30 @@ public class QuizService {
          * 
          * 게임 종료 후 순위 발표 화면에서 "방으로 돌아가기" 버튼 클릭 시 호출
          * - 최초 입장처럼 전체 방 정보를 다시 전송하여 대기실 화면 렌더링
-         * - 방 상태는 이미 endGame()에서 WAITING으로 변경되어 있음
+         * - 방 상태는 이미 endGame()에서 WAITING으로 변경되어 있어야 함
          */
         @Transactional(readOnly = true)
         public void returnToWaitingRoom(Long roomId, Long userId) {
+                log.info("🚪 returnToWaitingRoom 호출 - userId: {}, roomId: {}", userId, roomId);
+                
                 // 1. 방 존재 확인
                 GameRoom gameRoom = gameRoomRepository.findById(roomId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
 
-                // 2. 게임 상태 확인 (대기 상태인지)
-                validateGameWaiting(gameRoom);
+                log.info("🔍 현재 방 상태 - roomId: {}, status: {}, currentRound: {}", 
+                                roomId, gameRoom.getStatus(), gameRoom.getCurrentRound());
+
+                // 2. 게임 상태 확인
+                if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
+                        log.warn("❌ 방이 이미 종료됨 - roomId: {}", roomId);
+                        throw new BusinessException(ErrorCode.ROOM_ALREADY_FINISHED);
+                }
 
                 // 3. 참가자 확인
                 gameParticipantRepository.findByGameRoom_IdAndParticipant_Id(roomId, userId)
                                 .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPANT_NOT_FOUND));
 
-                log.info("방으로 돌아가기 - userId: {}, roomId: {}, status: {}",
+                log.info("✅ 방으로 돌아가기 검증 완료 - userId: {}, roomId: {}, status: {}",
                                 userId, roomId, gameRoom.getStatus());
 
                 // 3. 전체 참가자 정보 조회 (최초 입장과 동일한 정보)
@@ -632,42 +661,7 @@ public class QuizService {
                 }
         }
 
-        private void moveToNextQuestion(Long roomId, Integer currentQuestion) {
-                if (currentQuestion >= 8) {
-                        // 게임 종료
-                        endGame(roomId);
-                        return;
-                }
 
-                Integer nextQuestion = currentQuestion + 1;
-                QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
-                Long nextQuizWordId = roomState.getQuizWordId(nextQuestion);
-
-                if (nextQuizWordId == null) {
-                        endGame(roomId);
-                        return;
-                }
-
-                QuizWord nextQuiz = quizWordRepository.findByIdWithSign(nextQuizWordId)
-                                .orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_FOUND));
-
-                log.info("다음 문제 이동 - roomId: {}, nextQuestion: {}, wordTitle: {}",
-                                roomId, nextQuestion, nextQuiz.getSign().getTitle());
-
-                messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz",
-                                ApiResponse.success("다음 문제", NextQuestionResponse.builder()
-                                                .questionNumber(nextQuestion)
-                                                .totalQuestions(8)
-                                                .wordTitle(nextQuiz.getSign().getTitle())
-                                                .build()));
-
-                // 다음 문제 도전 신청 타임아웃 스케줄링 (10초)
-                scheduleChallengeTimeout(roomId, nextQuestion);
-
-                // 도전 신청 타이머 시작 (10초)
-                startChallengeTimer(roomId, nextQuestion);
-        }
 
         /**
          * 도전 신청 타임아웃 스케줄링
@@ -678,7 +672,7 @@ public class QuizService {
          * @param roomId         게임방 ID
          * @param questionNumber 문제 번호
          */
-        private void scheduleChallengeTimeout(Long roomId, Integer questionNumber) {
+        public void scheduleChallengeTimeout(Long roomId, Integer questionNumber) {
                 CompletableFuture.delayedExecutor(10, TimeUnit.SECONDS)
                                 .execute(() -> {
                                         try {
@@ -732,8 +726,8 @@ public class QuizService {
                                                         Map.of("eventType", "CHALLENGE_TIMEOUT",
                                                                         "questionNumber", questionNumber)));
 
-                        // 다음 문제로 이동
-                        moveToNextQuestion(roomId, questionNumber);
+                        // 다음 문제로 이동 (새 트랜잭션)
+                        transactionService.moveToNextQuestion(roomId, questionNumber);
                 } else {
                         // 도전 신청한 사람이 있음 - 첫 번째 도전자에게 차례 부여
                         log.info("도전 신청 타임아웃 - 도전자 {}명 - roomId: {}, question: {}",
@@ -801,9 +795,9 @@ public class QuizService {
                         CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS)
                                         .execute(() -> startSigningTimer(roomId, questionNumber, nextChallenger));
                 } else {
-                        // 모두 실패 - 다음 문제로
+                        // 모두 실패 - 다음 문제로 (새 트랜잭션)
                         log.info("모두 실패 - roomId: {}, question: {}", roomId, questionNumber);
-                        moveToNextQuestion(roomId, questionNumber);
+                        transactionService.moveToNextQuestion(roomId, questionNumber);
                 }
         }
 
@@ -815,7 +809,7 @@ public class QuizService {
          * @param roomId         게임방 ID
          * @param questionNumber 문제 번호
          */
-        private void startChallengeTimer(Long roomId, Integer questionNumber) {
+        public void startChallengeTimer(Long roomId, Integer questionNumber) {
                 for (int i = 10; i >= 0; i--) {
                         final int remainingSeconds = i;
                         CompletableFuture.delayedExecutor(10 - i, TimeUnit.SECONDS)

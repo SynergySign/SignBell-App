@@ -310,6 +310,44 @@ const QuizGamePage = () => {
     if (data.success && data.data?.eventType === 'QUIZ_FINISHED') {
       console.log('🏁 게임 종료:', data.data);
       
+      // 게임 종료 시 즉시 WebRTC 연결 정리 (다른 사람들의 비디오 스트림)
+      console.log('🧹 게임 종료 - WebRTC 연결 정리 시작');
+      console.log('📊 현재 remoteFeedsRef:', remoteFeedsRef.current);
+      console.log('📊 현재 remoteStreams:', remoteStreams);
+      
+      // Remote feeds 정리
+      if (remoteFeedsRef.current) {
+        const feedIds = Object.keys(remoteFeedsRef.current);
+        console.log(`🔍 정리할 remote feeds 개수: ${feedIds.length}`, feedIds);
+        
+        Object.entries(remoteFeedsRef.current).forEach(([feedId, feed]) => {
+          try {
+            console.log(`🔌 Remote feed detach 시도 - feedId: ${feedId}`, feed);
+            if (feed && typeof feed.detach === 'function') {
+              feed.detach();
+              console.log(`✅ Remote feed detach 성공 - feedId: ${feedId}`);
+            } else {
+              console.warn(`⚠️ detach 함수 없음 - feedId: ${feedId}`, feed);
+            }
+          } catch (error) {
+            console.error(`❌ Remote feed detach 실패 - feedId: ${feedId}`, error);
+          }
+        });
+        remoteFeedsRef.current = {};
+      }
+      
+      // Remote streams 초기화
+      console.log('🧹 Remote streams 초기화');
+      setRemoteStreams({});
+      
+      // UserID to FeedID 매핑 초기화
+      if (userIdToFeedIdRef.current) {
+        console.log('🧹 UserID to FeedID 매핑 초기화');
+        userIdToFeedIdRef.current = {};
+      }
+      
+      console.log('✅ 게임 종료 - WebRTC 연결 정리 완료');
+      
       // 순위 정보 저장
       if (data.data.rankings) {
         setRankings(data.data.rankings);
@@ -318,7 +356,7 @@ const QuizGamePage = () => {
       // 1초 후 순위 모달 표시
       setTimeout(() => setShowResultModal(true), 1000);
     }
-  }, []);
+  }, [remoteFeedsRef, setRemoteStreams, userIdToFeedIdRef, remoteStreams]);
 
   const handleChallengeTimeout = useCallback((data) => {
     if (data.success) {
@@ -782,18 +820,63 @@ const QuizGamePage = () => {
   const handleReturnToRoom = () => {
     console.log('🚪 대기실로 돌아가기 요청');
     
-    // WebSocket으로 대기실 복귀 요청
+    // 1. WebRTC 연결 정리 (handleGameEnd에서 이미 정리했지만 안전을 위해 재확인)
+    console.log('🧹 대기실 복귀 - WebRTC 연결 재확인');
+    
+    // Remote feeds가 남아있으면 정리
+    if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
+      console.log('⚠️ Remote feeds가 남아있음 - 정리 시작');
+      Object.values(remoteFeedsRef.current).forEach(feed => {
+        try {
+          if (feed && typeof feed.detach === 'function') {
+            console.log('🔌 Remote feed detach:', feed);
+            feed.detach();
+          }
+        } catch (error) {
+          console.error('❌ Remote feed detach 실패:', error);
+        }
+      });
+      remoteFeedsRef.current = {};
+    }
+    
+    // Remote streams 초기화
+    setRemoteStreams({});
+    
+    // UserID to FeedID 매핑 초기화
+    if (userIdToFeedIdRef.current) {
+      userIdToFeedIdRef.current = {};
+    }
+    
+    console.log('✅ 대기실 복귀 - WebRTC 연결 정리 완료');
+    
+    // 2. RETURN_TO_WAITING_ROOM 이벤트 리스너 등록 (일회성)
+    const handleReturnEvent = (data) => {
+      console.log('📥 대기실 복귀 이벤트 수신:', data);
+      
+      // 이벤트 리스너 제거
+      websocketService.off('quiz:return', handleReturnEvent);
+      
+      // 대기실 페이지로 이동
+      console.log('🚪 대기실 페이지로 이동');
+      navigate(`/quiz/waiting/${roomId}`);
+    };
+    
+    websocketService.on('quiz:return', handleReturnEvent);
+    
+    // 3. WebSocket으로 대기실 복귀 요청
     try {
       websocketService.returnToRoom(Number(roomId));
       console.log('✅ 대기실 복귀 요청 전송');
       
-      // 잠시 대기 후 이동 (백엔드 트랜잭션 커밋 대기)
+      // 타임아웃 설정 (3초 내에 응답 없으면 강제 이동)
       setTimeout(() => {
-        console.log('🚪 대기실 페이지로 이동');
+        websocketService.off('quiz:return', handleReturnEvent);
+        console.warn('⚠️ 대기실 복귀 응답 타임아웃 - 강제 이동');
         navigate(`/quiz/waiting/${roomId}`);
-      }, 500);
+      }, 3000);
     } catch (error) {
       console.error('❌ 대기실 복귀 요청 실패:', error);
+      websocketService.off('quiz:return', handleReturnEvent);
       // 실패 시에도 이동
       navigate(`/quiz/waiting/${roomId}`);
     }
