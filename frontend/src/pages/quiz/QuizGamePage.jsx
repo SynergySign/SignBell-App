@@ -76,12 +76,9 @@ const QuizGamePage = () => {
   const handleNewQuestion = useCallback((data) => {
     if (data.success && data.data) {
       const questionData = data.data;
-      
-      console.log('📝 새 문제 시작:', questionData);
 
       // 🔥 진행 중인 녹화 중단
       if (isRecordingRef.current) {
-        console.log('⏹️ 진행 중인 녹화 중단');
         isRecordingRef.current = false;
         if (recordingRef.current) {
           cancelAnimationFrame(recordingRef.current);
@@ -122,11 +119,8 @@ const QuizGamePage = () => {
     if (data.success && data.data) {
       const { userId: nextUserId, nickname, profileImage } = data.data;
 
-      console.log('👤 다음 도전자:', { nextUserId, nickname });
-
       // 🔥 진행 중인 녹화 중단 (다른 사람 차례로 넘어갈 때)
       if (isRecordingRef.current) {
-        console.log('⏹️ 다른 도전자 차례 - 녹화 중단');
         isRecordingRef.current = false;
         if (recordingRef.current) {
           cancelAnimationFrame(recordingRef.current);
@@ -150,23 +144,13 @@ const QuizGamePage = () => {
         });
 
         const myInfo = currentPlayers.find(p => p.isMe);
-        
-        console.log('🔍 내 차례 확인:', {
-          myInfo: myInfo ? { id: myInfo.id, nickname: myInfo.nickname, isMe: myInfo.isMe } : null,
-          nextUserId,
-          myUserId,
-          isMyTurn: myInfo && myInfo.id === nextUserId,
-          allPlayers: currentPlayers.map(p => ({ id: p.id, nickname: p.nickname, isMe: p.isMe }))
-        });
 
         if (myInfo && myInfo.id === nextUserId) {
-          console.log('✅ 내 차례입니다!');
           gameState.setGamePhase('myTurn');
           gameState.setSolvingTimer(5);
           gameState.setSigningTimer(5);
           gameState.showToast('내 차례! 준비하세요!', 'info');
         } else {
-          console.log('👀 다른 사람 차례:', nickname);
           gameState.setGamePhase('solving');
           gameState.showToast(`${nickname}의 차례입니다.`, 'info');
         }
@@ -219,8 +203,6 @@ const QuizGamePage = () => {
 
   // 5초 수어 동작 완료 시 FastAPI로 검증 요청
   const handleSigningComplete = useCallback(() => {
-    console.log('⏰ 수어 동작 완료 - FastAPI 검증 요청');
-
     try {
       // 녹화 중지
       isRecordingRef.current = false;
@@ -234,8 +216,6 @@ const QuizGamePage = () => {
 
       // FastAPI로 flush 요청 (AI 인식 결과 요청)
       quizFastApi.sendFlush();
-
-      console.log('✅ FastAPI flush 요청 완료');
     } catch (error) {
       console.error('❌ FastAPI 검증 요청 실패:', error);
       gameState.showToast('검증 요청 실패', 'error');
@@ -254,7 +234,6 @@ const QuizGamePage = () => {
 
         // 준비 시간이 끝나면 (0초) 녹화 시작
         if (remainingSeconds === 0 && gameState.gamePhase === 'myTurn') {
-          console.log('[QuizGame] 준비 완료 - 녹화 시작');
           isRecordingRef.current = true;
           lastSentRef.current = 0;
           recordingRef.current = requestAnimationFrame(captureAndSendFrame);
@@ -272,8 +251,6 @@ const QuizGamePage = () => {
   const handleAnswerResult = useCallback((data) => {
     if (data.success && data.data) {
       const result = data.data;
-      
-      console.log('📊 정답 결과:', result);
 
       // 점수 업데이트
       gameState.setPlayers(prev =>
@@ -308,64 +285,37 @@ const QuizGamePage = () => {
 
   const handleGameEnd = useCallback((data) => {
     if (data.success && data.data?.eventType === 'QUIZ_FINISHED') {
-      console.log('🏁 게임 종료:', data.data);
-      
-      // 게임 종료 시 즉시 WebRTC 연결 정리 (다른 사람들의 비디오 스트림)
-      console.log('🧹 게임 종료 - WebRTC 연결 정리 시작');
-      console.log('📊 현재 remoteFeedsRef:', remoteFeedsRef.current);
-      console.log('📊 현재 remoteStreams:', remoteStreams);
-      
       // Remote feeds 정리
       if (remoteFeedsRef.current) {
-        const feedIds = Object.keys(remoteFeedsRef.current);
-        console.log(`🔍 정리할 remote feeds 개수: ${feedIds.length}`, feedIds);
-        
-        Object.entries(remoteFeedsRef.current).forEach(([feedId, feed]) => {
+        Object.values(remoteFeedsRef.current).forEach(feed => {
           try {
-            console.log(`🔌 Remote feed detach 시도 - feedId: ${feedId}`, feed);
             if (feed && typeof feed.detach === 'function') {
               feed.detach();
-              console.log(`✅ Remote feed detach 성공 - feedId: ${feedId}`);
-            } else {
-              console.warn(`⚠️ detach 함수 없음 - feedId: ${feedId}`, feed);
             }
           } catch (error) {
-            console.error(`❌ Remote feed detach 실패 - feedId: ${feedId}`, error);
+            console.error('Remote feed detach 실패:', error);
           }
         });
         remoteFeedsRef.current = {};
       }
       
       // Remote streams 초기화
-      console.log('🧹 Remote streams 초기화');
       setRemoteStreams({});
       
       // UserID to FeedID 매핑 초기화
       if (userIdToFeedIdRef.current) {
-        console.log('🧹 UserID to FeedID 매핑 초기화');
         userIdToFeedIdRef.current = {};
       }
       
-      // 🆕 Publisher (내 플러그인)도 Janus 방에서 떠나기
+      // Publisher (내 플러그인)도 Janus 방에서 떠나기
       if (pluginHandleRef.current) {
-        console.log('🔌 게임 종료 - Publisher도 Janus 방 떠나기');
         try {
           const leave = { request: 'leave' };
-          pluginHandleRef.current.send({ 
-            message: leave,
-            success: () => {
-              console.log('✅ 게임 종료 - Janus 방 떠나기 성공');
-            },
-            error: (error) => {
-              console.error('❌ 게임 종료 - Janus 방 떠나기 실패:', error);
-            }
-          });
+          pluginHandleRef.current.send({ message: leave });
         } catch (error) {
-          console.error('❌ 게임 종료 - leave 요청 실패:', error);
+          console.error('Janus leave 실패:', error);
         }
       }
-      
-      console.log('✅ 게임 종료 - WebRTC 연결 정리 완료');
       
       // 순위 정보 저장
       if (data.data.rankings) {
@@ -384,11 +334,10 @@ const QuizGamePage = () => {
   }, [gameState.showToast]);
 
   const handleError = useCallback((data) => {
-    console.error('❌ 에러 발생:', data);
+    console.error('게임 에러:', data);
     
     // 진행 중인 녹화 중단
     if (isRecordingRef.current) {
-      console.log('⏹️ 에러 발생 - 녹화 중단');
       isRecordingRef.current = false;
       if (recordingRef.current) {
         cancelAnimationFrame(recordingRef.current);
@@ -425,11 +374,8 @@ const QuizGamePage = () => {
   useEffect(() => {
     // 이미 연결되어 있으면 중복 연결 방지
     if (fastApiConnectedRef.current) {
-      console.log('[QuizGame] FastAPI 이미 연결됨 - 스킵');
       return;
     }
-
-    console.log('[QuizGame] 🔌 FastAPI WebSocket 연결 시작');
 
     // 세션 ID 생성
     const fastApiSessionId = `quiz-${roomId}-${myUserId}-${Date.now()}`;

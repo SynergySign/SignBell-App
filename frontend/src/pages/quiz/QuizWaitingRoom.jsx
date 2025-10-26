@@ -16,8 +16,6 @@ import websocketService from '../../services/websocket/websocketService.js';
 import AlertModal from '../../components/ui/AlertModal.jsx'; // [병합] 'dev'의 AlertModal 가져오기
 
 const QuizWaitingRoom = () => {
-    console.log('🚪 QuizWaitingRoom 렌더링');
-
     const { roomId } = useParams();
     const navigate = useNavigate();
     const location = useLocation(); // 🆕 location 추가
@@ -58,8 +56,6 @@ const QuizWaitingRoom = () => {
     // 참가자 데이터
     const [participants, setParticipants] = useState([]);
 
-    console.log('👥 participants:', participants.length, participants);
-
     // ============================================
     // Janus WebRTC 관리 (Context 사용)
     // [병합] '내 브랜치'의 useJanus 컨텍스트 사용
@@ -90,15 +86,11 @@ const QuizWaitingRoom = () => {
         if (!isAuthenticated || !myUserId) {
             alert('로그인이 필요합니다.');
             navigate('/main');
-        } else {
-            console.log('✅ 인증 확인:', myUserId);
         }
     }, [hasCheckedAuth, isAuthenticated, myUserId, navigate]);
 
     // [병합] 'dev'의 방 종료 이벤트 핸들러 추가
     const handleRoomClosed = (data) => {
-        console.log('📥 방 종료 알림:', data);
-        // AlertModal 표시
         setShowRoomClosedAlert(true);
     };
 
@@ -120,15 +112,10 @@ const QuizWaitingRoom = () => {
                 websocketService.on('error', handleError); // [병합] '내 브랜치'의 개선된 에러 핸들러
 
                 await websocketService.connect();
-                console.log('✅ WebSocket 연결 성공!');
 
                 setTimeout(() => {
-                    // [병합] '내 브랜치'의 네비게이션 체크 로직 유지
                     if (isMounted && !isNavigatingToGameRef.current) {
                         websocketService.joinRoom(Number(roomId));
-                        console.log(`🚪 방 ${roomId}에 입장 시도`);
-                    } else {
-                        console.log('⏭️ 게임 페이지로 이동 중이므로 방 입장 스킵');
                     }
                 }, 300);
 
