@@ -115,7 +115,7 @@ const StudyDataPage = () => {
         setWsStatus(status);
         if (status === 'Connected') {
           try {
-            wsSendMeta({ word_pk: wordId, word_name: word.wordName });
+            wsSendMeta({ word_pk: wordId, word_name: word.word });
           } catch (e) {
             console.error('sendMeta 호출 오류:', e);
             setServerFeedback(`sendMeta error: ${e.message}`);
@@ -157,7 +157,7 @@ const StudyDataPage = () => {
   };
 
   // [추가] 프레임 캡처 및 전송 로직 (SignDetailPage.jsx 동일)
-  const FPS = 25;
+  const FPS = 30;
   const INTERVAL = 1000 / FPS;
 
   const captureAndSendFrame = useCallback((timestamp) => {
