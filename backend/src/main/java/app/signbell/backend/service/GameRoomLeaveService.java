@@ -216,12 +216,15 @@ public class GameRoomLeaveService {
 
         // 3. 게임 진행 중이면 캐시에서 해당 유저 제거 및 다음 도전자 확인
         Long nextChallengerId = null;
+        Integer questionNumber = null;
         log.info("🔍 방 상태 확인 - roomId: {}, status: {}", gameRoomId, room.getStatus());
         
         if (room.getStatus() == GameRoomStatus.IN_PROGRESS) {
             log.info("🎮 게임 진행 중 - 다음 도전자 확인 시작");
-            nextChallengerId = handleGameInProgressLeave(gameRoomId, userId);
-            log.info("🎮 다음 도전자 확인 완료 - nextChallengerId: {}", nextChallengerId);
+            Long[] result = handleGameInProgressLeave(gameRoomId, userId);
+            nextChallengerId = result[0];
+            questionNumber = result[1] != null ? result[1].intValue() : null;
+            log.info("🎮 다음 도전자 확인 완료 - nextChallengerId: {}, questionNumber: {}", nextChallengerId, questionNumber);
         } else {
             log.info("⏸️ 게임 진행 중 아님 - 다음 도전자 확인 생략");
         }
@@ -230,8 +233,8 @@ public class GameRoomLeaveService {
         gameRoomRepository.save(room);
 
         // 5. 퇴장 완료 로그 기록 (현재 남은 참가자 수 포함)
-        log.info("User {} left room {}. currentParticipants={}, nextChallengerId={}",
-                userId, gameRoomId, room.getCurrentParticipants(), nextChallengerId);
+        log.info("User {} left room {}. currentParticipants={}, nextChallengerId={}, questionNumber={}",
+                userId, gameRoomId, room.getCurrentParticipants(), nextChallengerId, questionNumber);
 
         // 6. 참가자 퇴장 이벤트 응답 객체 생성 및 반환
         //    이 객체는 주로 WebSocket을 통해 같은 방의 다른 참가자들에게 브로드캐스트됨
@@ -243,9 +246,11 @@ public class GameRoomLeaveService {
                 .gameRoomId(room.getId())
                 .roomClosed(false)
                 .nextChallengerId(nextChallengerId)
+                .questionNumber(questionNumber)
                 .build();
         
-        log.info("📤 PARTICIPANT_LEFT 이벤트 생성 완료 - nextChallengerId: {}", response.getNextChallengerId());
+        log.info("📤 PARTICIPANT_LEFT 이벤트 생성 완료 - nextChallengerId: {}, questionNumber: {}", 
+                response.getNextChallengerId(), response.getQuestionNumber());
         return response;
     }
 
@@ -259,9 +264,9 @@ public class GameRoomLeaveService {
      * 
      * @param roomId 게임방 ID
      * @param userId 퇴장한 사용자 ID
-     * @return 다음 도전자 정보 (없으면 null)
+     * @return 다음 도전자 정보와 문제 번호를 담은 배열 [nextChallengerId, questionNumber] (없으면 [null, null])
      */
-    private Long handleGameInProgressLeave(Long roomId, Long userId) {
+    private Long[] handleGameInProgressLeave(Long roomId, Long userId) {
         try {
             QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
             
@@ -270,6 +275,7 @@ public class GameRoomLeaveService {
             log.info("게임 중 퇴장 - 캐시에서 점수 제거: userId={}, roomId={}", userId, roomId);
             
             Long nextChallengerId = null;
+            Integer currentQuestionNumber = null;
             
             // 2. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거 및 차례 확인
             for (int questionNumber = 1; questionNumber <= 8; questionNumber++) {
@@ -282,12 +288,16 @@ public class GameRoomLeaveService {
                     // 다음 도전자 확인 (제거하기 전에 큐에서 조회)
                     Long nextChallenger = roomState.getNextChallenger(questionNumber);
                     if (nextChallenger != null) {
-                        log.info("게임 중 퇴장 - 다음 도전자로 변경: question={}, 퇴장userId={}, 다음userId={}", 
+                        log.info("게임 중 퇴장 - 다음 도전자 확인: question={}, 퇴장userId={}, 다음userId={}", 
                                 questionNumber, userId, nextChallenger);
+                        // 다음 도전자 정보 저장 (notifyNextChallenger에서 setCurrentChallenger 호출)
                         nextChallengerId = nextChallenger;
+                        currentQuestionNumber = questionNumber;
                     } else {
                         log.info("게임 중 퇴장 - 남은 도전자 없음: question={}, 퇴장userId={}", 
                                 questionNumber, userId);
+                        // 현재 도전자를 null로 설정
+                        roomState.setCurrentChallenger(questionNumber, null);
                     }
                 } else {
                     // 현재 도전자가 아니면 그냥 제거만
@@ -295,14 +305,14 @@ public class GameRoomLeaveService {
                 }
             }
             
-            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}, nextChallengerId={}", 
-                    userId, roomId, nextChallengerId);
+            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}, nextChallengerId={}, questionNumber={}", 
+                    userId, roomId, nextChallengerId, currentQuestionNumber);
             
-            return nextChallengerId;
+            return new Long[]{nextChallengerId, currentQuestionNumber != null ? Long.valueOf(currentQuestionNumber) : null};
             
         } catch (Exception e) {
             log.error("게임 중 퇴장 캐시 처리 실패 - userId={}, roomId={}", userId, roomId, e);
-            return null;
+            return new Long[]{null, null};
         }
     }
 }

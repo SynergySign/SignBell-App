@@ -117,8 +117,12 @@ const QuizGamePage = () => {
   }, [gameState.setChallengeOrder, gameState.showToast]);
 
   const handleNextChallenger = useCallback((data) => {
+    console.log('🎯 handleNextChallenger 호출:', data);
+
     if (data.success && data.data) {
       const { userId: nextUserId, nickname, profileImage } = data.data;
+
+      console.log('🎯 다음 도전자 설정:', { nextUserId, nickname });
 
       // 🔥 진행 중인 녹화 중단 (다른 사람 차례로 넘어갈 때)
       if (isRecordingRef.current) {
@@ -144,6 +148,8 @@ const QuizGamePage = () => {
           score
         });
 
+        console.log('✅ currentChallengerInfo 업데이트 완료:', { id: nextUserId, nickname });
+
         const myInfo = currentPlayers.find(p => p.isMe);
 
         if (myInfo && myInfo.id === nextUserId) {
@@ -151,9 +157,11 @@ const QuizGamePage = () => {
           gameState.setSolvingTimer(5);
           gameState.setSigningTimer(5);
           gameState.showToast('내 차례! 준비하세요!', 'info');
+          console.log('✅ 내 차례로 설정 완료');
         } else {
           gameState.setGamePhase('solving');
           gameState.showToast(`${nickname}의 차례입니다.`, 'info');
+          console.log('✅ 다른 사람 차례로 설정 완료');
         }
 
         return currentPlayers.map(player => ({
@@ -299,15 +307,15 @@ const QuizGamePage = () => {
         });
         remoteFeedsRef.current = {};
       }
-      
+
       // Remote streams 초기화
       setRemoteStreams({});
-      
+
       // UserID to FeedID 매핑 초기화
       if (userIdToFeedIdRef.current) {
         userIdToFeedIdRef.current = {};
       }
-      
+
       // Publisher (내 플러그인)도 Janus 방에서 떠나기
       if (pluginHandleRef.current) {
         try {
@@ -317,12 +325,12 @@ const QuizGamePage = () => {
           console.error('Janus leave 실패:', error);
         }
       }
-      
+
       // 순위 정보 저장
       if (data.data.rankings) {
         setRankings(data.data.rankings);
       }
-      
+
       // 1초 후 순위 모달 표시
       setTimeout(() => setShowResultModal(true), 1000);
     }
@@ -384,34 +392,10 @@ const QuizGamePage = () => {
           // 대기 상태 초기화
           gameState.setIsWaitingResult(false);
 
-          // 다음 도전자가 있으면 수동으로 전환
+          // 다음 도전자가 있으면 백엔드에서 자동으로 처리됨
+          // handleNextChallenger에서 처리되므로 여기서는 로그만 남김
           if (nextPlayerInfo) {
-            console.log(`🔄 다음 도전자로 전환: ${nextPlayerInfo.nickname}`);
-
-            gameState.setCurrentChallengerInfo({
-              id: nextPlayerInfo.id,
-              nickname: nextPlayerInfo.nickname,
-              profileImage: nextPlayerInfo.profileImage || '/default-profile.png',
-              score: nextPlayerInfo.score
-            });
-
-            const myInfo = gameState.players.find(p => p.isMe);
-
-            if (myInfo && myInfo.id === nextChallengerId) {
-              gameState.setGamePhase('myTurn');
-              gameState.setSolvingTimer(5);
-              gameState.setSigningTimer(5);
-              gameState.showToast('내 차례! 준비하세요!', 'info');
-            } else {
-              gameState.setGamePhase('solving');
-              gameState.showToast(`${nextPlayerInfo.nickname}의 차례입니다.`, 'info');
-            }
-
-            // 현재 도전자 표시 업데이트
-            gameState.setPlayers(prev => prev.map(player => ({
-              ...player,
-              isCurrentPlayer: player.id === nextChallengerId
-            })));
+            console.log(`🔄 다음 도전자 정보 확인: ${nextPlayerInfo.nickname} (백엔드에서 자동 전환 예정)`);
           } else {
             console.log('⏳ 다음 도전자 없음 - 다음 문제 대기 중...');
             gameState.setGamePhase('challenge');
@@ -484,10 +468,10 @@ const QuizGamePage = () => {
 
     // 대기 상태 초기화
     gameState.setIsWaitingResult(false);
-    
+
     // 게임 상태를 challenge로 되돌림 (다시 도전 신청 가능)
     gameState.setGamePhase('challenge');
-    
+
     gameState.showToast(data.message || '오류 발생', 'error');
   }, [gameState]);
 
@@ -546,16 +530,16 @@ const QuizGamePage = () => {
         try {
           // 🔥 최신 문제 번호 사용 (클로저 문제 해결)
           const currentQuestionNumber = currentQuestionRef.current;
-          
+
           websocketService.sendMessage(`/app/room/${roomId}/quiz/answer`, {
             questionNumber: currentQuestionNumber,
             userAnswer: predictedWord,
             confidenceScore: confidenceScore,  // 신뢰도 점수 추가
           });
-          console.log('[QuizGame] ✅ 정답 제출 완료:', { 
+          console.log('[QuizGame] ✅ 정답 제출 완료:', {
             questionNumber: currentQuestionNumber,
-            predictedWord, 
-            confidenceScore 
+            predictedWord,
+            confidenceScore
           });
         } catch (error) {
           console.error('[QuizGame] ❌ 정답 제출 실패:', error);

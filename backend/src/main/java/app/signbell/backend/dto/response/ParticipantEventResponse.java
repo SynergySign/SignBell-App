@@ -53,4 +53,10 @@ public class ParticipantEventResponse {
      * - null이면: 다음 도전자 없음 (다음 문제로 이동 또는 일반 퇴장)
      */
     private Long nextChallengerId;
+
+    /**
+     * 현재 문제 번호 (게임 중 도전자가 퇴장한 경우)
+     * - nextChallengerId와 함께 사용됨
+     */
+    private Integer questionNumber;
 }

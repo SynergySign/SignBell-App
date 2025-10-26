@@ -15,9 +15,10 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
+
+import static java.util.concurrent.Executors.newScheduledThreadPool;
 
 /**
  * QuizService 클래스
@@ -41,6 +42,14 @@ public class QuizService {
         private final QuizStateCache quizStateCache;
         private final SimpMessagingTemplate messagingTemplate;
         private final QuizTransactionService transactionService;
+
+        // 타이머 관리를 위한 ScheduledExecutorService
+        private final ScheduledExecutorService timerScheduler =
+                newScheduledThreadPool(10);
+        
+        // 각 방의 타이머를 관리하는 맵 (roomId -> List<ScheduledFuture>)
+        private final Map<String, List<ScheduledFuture<?>>> activeTimers =
+                new ConcurrentHashMap<>();
 
         @Transactional
         public GameStartResponse startGame(Long roomId, Long userId) {
@@ -512,7 +521,10 @@ public class QuizService {
                 // 6. 캐시를 정리합니다.
                 quizStateCache.clearRoomState(roomId);
 
-                // 7. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
+                // 7. 모든 타이머를 취소합니다.
+                cancelAllTimersForRoom(roomId);
+
+                // 8. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
                 // 방 상태가 이미 WAITING으로 변경된 후에 전송하므로,
                 // 클라이언트가 즉시 대기실로 이동해도 문제없음
                 messagingTemplate.convertAndSend(
@@ -767,13 +779,24 @@ public class QuizService {
                 }
         }
 
-        private void notifyNextChallenger(Long roomId, Integer questionNumber) {
+        public void notifyNextChallenger(Long roomId, Integer questionNumber) {
                 QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
 
+                // 이전 도전자 확인 및 타이머 취소
+                Long previousChallenger = roomState.getCurrentChallenger(questionNumber);
+                if (previousChallenger != null) {
+                        log.info("이전 도전자 타이머 취소 - userId: {}, question: {}", previousChallenger, questionNumber);
+                        cancelTimersForChallenger(roomId, questionNumber, previousChallenger);
+                }
+
+                // 다음 도전자 확인 및 설정
                 Long nextChallenger = roomState.getNextChallenger(questionNumber);
 
                 if (nextChallenger != null) {
                         log.info("다음 도전자 알림 - userId: {}, question: {}", nextChallenger, questionNumber);
+                        
+                        // 다음 도전자를 현재 도전자로 설정
+                        roomState.setCurrentChallenger(questionNumber, nextChallenger);
 
                         // 도전자 정보 조회
                         User challenger = userRepository.findById(nextChallenger)
@@ -791,9 +814,9 @@ public class QuizService {
                         // 수어 준비 타이머 시작 (5초)
                         startPrepareTimer(roomId, questionNumber, nextChallenger);
 
-                        // 5초 후 수어 표현 타이머 시작 (10초)
-                        CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS)
-                                        .execute(() -> startSigningTimer(roomId, questionNumber, nextChallenger));
+                        // 5초 후 수어 표현 타이머 시작
+                        timerScheduler.schedule(() -> startSigningTimer(roomId, questionNumber, nextChallenger), 
+                                5, TimeUnit.SECONDS);
                 } else {
                         // 모두 실패 - 다음 문제로 (새 트랜잭션)
                         log.info("모두 실패 - roomId: {}, question: {}", roomId, questionNumber);
@@ -834,6 +857,62 @@ public class QuizService {
         }
 
         /**
+         * 특정 도전자의 타이머를 취소합니다.
+         * 
+         * @param roomId           게임방 ID
+         * @param questionNumber   문제 번호
+         * @param challengerUserId 도전자 ID
+         */
+        private void cancelTimersForChallenger(Long roomId, Integer questionNumber, Long challengerUserId) {
+                String timerKey = roomId + "-" + questionNumber + "-" + challengerUserId;
+                java.util.List<java.util.concurrent.ScheduledFuture<?>> timers = activeTimers.get(timerKey);
+                
+                if (timers != null) {
+                        int cancelledCount = 0;
+                        for (java.util.concurrent.ScheduledFuture<?> timer : timers) {
+                                if (timer != null && !timer.isDone()) {
+                                        timer.cancel(false);
+                                        cancelledCount++;
+                                }
+                        }
+                        activeTimers.remove(timerKey);
+                        log.info("타이머 취소 완료 - roomId: {}, question: {}, challenger: {}, 취소된 타이머 수: {}", 
+                                roomId, questionNumber, challengerUserId, cancelledCount);
+                }
+        }
+
+        /**
+         * 특정 방의 모든 타이머를 취소합니다.
+         * 
+         * @param roomId 게임방 ID
+         */
+        public void cancelAllTimersForRoom(Long roomId) {
+                int totalCancelled = 0;
+                java.util.List<String> keysToRemove = new java.util.ArrayList<>();
+                
+                for (String timerKey : activeTimers.keySet()) {
+                        if (timerKey.startsWith(roomId + "-")) {
+                                java.util.List<java.util.concurrent.ScheduledFuture<?>> timers = activeTimers.get(timerKey);
+                                if (timers != null) {
+                                        for (java.util.concurrent.ScheduledFuture<?> timer : timers) {
+                                                if (timer != null && !timer.isDone()) {
+                                                        timer.cancel(false);
+                                                        totalCancelled++;
+                                                }
+                                        }
+                                }
+                                keysToRemove.add(timerKey);
+                        }
+                }
+                
+                for (String key : keysToRemove) {
+                        activeTimers.remove(key);
+                }
+                
+                log.info("방의 모든 타이머 취소 완료 - roomId: {}, 취소된 타이머 수: {}", roomId, totalCancelled);
+        }
+
+        /**
          * 수어 준비 타이머 시작 (5초)
          * 
          * 1초마다 남은 시간을 WebSocket으로 전송
@@ -843,28 +922,35 @@ public class QuizService {
          * @param challengerUserId 도전자 ID
          */
         private void startPrepareTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
+                // 기존 타이머가 있으면 취소
+                cancelTimersForChallenger(roomId, questionNumber, challengerUserId);
+                
+                String timerKey = roomId + "-" + questionNumber + "-" + challengerUserId;
+                java.util.List<java.util.concurrent.ScheduledFuture<?>> timers = new java.util.ArrayList<>();
+                
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
-                        CompletableFuture.delayedExecutor(5 - i, TimeUnit.SECONDS)
-                                        .execute(() -> {
-                                                try {
-                                                        messagingTemplate.convertAndSend(
-                                                                        "/topic/room/" + roomId + "/quiz/timer",
-                                                                        ApiResponse.success("타이머 업데이트",
-                                                                                        TimerUpdateResponse.builder()
-                                                                                                        .timerType("PREPARE")
-                                                                                                        .remainingSeconds(
-                                                                                                                        remainingSeconds)
-                                                                                                        .questionNumber(questionNumber)
-                                                                                                        .challengerUserId(
-                                                                                                                        challengerUserId)
-                                                                                                        .build()));
-                                                } catch (Exception e) {
-                                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
-                                                                        roomId, remainingSeconds, e);
-                                                }
-                                        });
+                        java.util.concurrent.ScheduledFuture<?> future = timerScheduler.schedule(() -> {
+                                try {
+                                        messagingTemplate.convertAndSend(
+                                                        "/topic/room/" + roomId + "/quiz/timer",
+                                                        ApiResponse.success("타이머 업데이트",
+                                                                        TimerUpdateResponse.builder()
+                                                                                        .timerType("PREPARE")
+                                                                                        .remainingSeconds(remainingSeconds)
+                                                                                        .questionNumber(questionNumber)
+                                                                                        .challengerUserId(challengerUserId)
+                                                                                        .build()));
+                                } catch (Exception e) {
+                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
+                                                        roomId, remainingSeconds, e);
+                                }
+                        }, 5 - i, TimeUnit.SECONDS);
+                        
+                        timers.add(future);
                 }
+                
+                activeTimers.put(timerKey, timers);
                 log.info("수어 준비 타이머 시작 - roomId: {}, question: {}, challenger: {}",
                                 roomId, questionNumber, challengerUserId);
         }
@@ -879,28 +965,36 @@ public class QuizService {
          * @param challengerUserId 도전자 ID
          */
         private void startSigningTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
+                String timerKey = roomId + "-" + questionNumber + "-" + challengerUserId;
+                java.util.List<java.util.concurrent.ScheduledFuture<?>> existingTimers = activeTimers.get(timerKey);
+                
+                if (existingTimers == null) {
+                        existingTimers = new java.util.ArrayList<>();
+                        activeTimers.put(timerKey, existingTimers);
+                }
+                
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
-                        CompletableFuture.delayedExecutor(5 - i, TimeUnit.SECONDS)
-                                        .execute(() -> {
-                                                try {
-                                                        messagingTemplate.convertAndSend(
-                                                                        "/topic/room/" + roomId + "/quiz/timer",
-                                                                        ApiResponse.success("타이머 업데이트",
-                                                                                        TimerUpdateResponse.builder()
-                                                                                                        .timerType("SIGNING")
-                                                                                                        .remainingSeconds(
-                                                                                                                        remainingSeconds)
-                                                                                                        .questionNumber(questionNumber)
-                                                                                                        .challengerUserId(
-                                                                                                                        challengerUserId)
-                                                                                                        .build()));
-                                                } catch (Exception e) {
-                                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
-                                                                        roomId, remainingSeconds, e);
-                                                }
-                                        });
+                        java.util.concurrent.ScheduledFuture<?> future = timerScheduler.schedule(() -> {
+                                try {
+                                        messagingTemplate.convertAndSend(
+                                                        "/topic/room/" + roomId + "/quiz/timer",
+                                                        ApiResponse.success("타이머 업데이트",
+                                                                        TimerUpdateResponse.builder()
+                                                                                        .timerType("SIGNING")
+                                                                                        .remainingSeconds(remainingSeconds)
+                                                                                        .questionNumber(questionNumber)
+                                                                                        .challengerUserId(challengerUserId)
+                                                                                        .build()));
+                                } catch (Exception e) {
+                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
+                                                        roomId, remainingSeconds, e);
+                                }
+                        }, 5 - i, TimeUnit.SECONDS);
+                        
+                        existingTimers.add(future);
                 }
+                
                 log.info("수어 표현 타이머 시작 - roomId: {}, question: {}, challenger: {}",
                                 roomId, questionNumber, challengerUserId);
         }

@@ -3,16 +3,17 @@ package app.signbell.backend.service;
 import app.signbell.backend.config.UserSessionRegistry;
 import app.signbell.backend.dto.common.ApiResponse;
 import app.signbell.backend.dto.response.ParticipantEventResponse;
-import app.signbell.backend.entity.User;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
-import app.signbell.backend.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+
+import static java.util.concurrent.CompletableFuture.delayedExecutor;
 
 /**
  * WebSocket 세션의 라이프사이클을 관리하는 서비스입니다.
@@ -29,14 +30,25 @@ import java.util.List;
  * @since 2025-10-16
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class WebSocketSessionService {
 
     private final GameRoomLeaveService leaveService;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserSessionRegistry userSessionRegistry;
-    private final UserRepository userRepository;
+    private final QuizService quizService;
+
+    public WebSocketSessionService(
+            GameRoomLeaveService leaveService,
+            SimpMessagingTemplate messagingTemplate,
+            UserSessionRegistry userSessionRegistry,
+            @Lazy QuizService quizService
+    ) {
+        this.leaveService = leaveService;
+        this.messagingTemplate = messagingTemplate;
+        this.userSessionRegistry = userSessionRegistry;
+        this.quizService = quizService;
+    }
 
     /**
      * 세션 연결 해제 처리
@@ -188,39 +200,29 @@ public class WebSocketSessionService {
             broadcastLeaveEvent(roomId, eventResp);
 
             // 게임 중 현재 도전자가 퇴장하여 다음 도전자가 있는 경우
-            if (eventResp.getNextChallengerId() != null) {
-                log.info("게임 중 도전자 퇴장 - 다음 도전자에게 알림 전송: nextChallengerId={}", 
-                        eventResp.getNextChallengerId());
+            if (eventResp.getNextChallengerId() != null && eventResp.getQuestionNumber() != null) {
+                log.info("게임 중 도전자 퇴장 - 다음 도전자 처리: nextChallengerId={}, questionNumber={}", 
+                        eventResp.getNextChallengerId(), eventResp.getQuestionNumber());
                 
                 try {
-                    // 다음 도전자 정보 조회
                     Long nextChallengerId = eventResp.getNextChallengerId();
-                    User nextUser = userRepository.findById(nextChallengerId)
-                            .orElse(null);
+                    Integer questionNumber = eventResp.getQuestionNumber();
                     
-                    if (nextUser != null) {
-                        // 다음 도전자 이벤트 생성
-                        java.util.Map<String, Object> nextChallengerData = new java.util.HashMap<>();
-                        nextChallengerData.put("userId", nextUser.getId());
-                        nextChallengerData.put("nickname", nextUser.getNickname());
-                        nextChallengerData.put("profileImage", nextUser.getProfileImageUrl());
-                        
-                        // 다음 도전자 알림 브로드캐스트
-                        messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz/challenger",
-                                ApiResponse.success(
-                                        "다음 도전자 차례입니다.",
-                                        nextChallengerData
-                                )
-                        );
-                        
-                        log.info("✅ 다음 도전자 알림 전송 완료 - nextChallengerId: {}, nickname: {}", 
-                                nextChallengerId, nextUser.getNickname());
-                    } else {
-                        log.warn("⚠️ 다음 도전자 정보를 찾을 수 없습니다 - nextChallengerId: {}", nextChallengerId);
-                    }
+                    // 프론트엔드에서 다음 도전자 알림을 먼저 처리할 수 있도록 500ms 지연 후 타이머 시작
+                    delayedExecutor(500, TimeUnit.MILLISECONDS)
+                            .execute(() -> {
+                                try {
+                                    // QuizService의 notifyNextChallenger 호출 (알림 + 타이머 포함)
+                                    quizService.notifyNextChallenger(roomId, questionNumber);
+                                    log.info("✅ 다음 도전자 알림 및 타이머 시작 완료 - nextChallengerId: {}, questionNumber: {}", 
+                                            nextChallengerId, questionNumber);
+                                } catch (Exception e) {
+                                    log.error("❌ 다음 도전자 알림 및 타이머 시작 실패", e);
+                                }
+                            });
+                    
                 } catch (Exception e) {
-                    log.error("❌ 다음 도전자 알림 전송 실패", e);
+                    log.error("❌ 다음 도전자 처리 실패", e);
                 }
             }
 

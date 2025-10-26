@@ -56,6 +56,14 @@ public class QuizTransactionService {
         log.info("🔄 moveToNextQuestion 호출 (새 트랜잭션) - roomId: {}, currentQuestion: {}", 
                 roomId, currentQuestion);
         
+        // 현재 문제의 모든 타이머 취소
+        QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
+        Long currentChallenger = roomState.getCurrentChallenger(currentQuestion);
+        if (currentChallenger != null) {
+            // 현재 도전자의 타이머 취소는 QuizService에서 처리
+            log.info("현재 문제 타이머 정리 - roomId: {}, question: {}", roomId, currentQuestion);
+        }
+        
         if (currentQuestion >= 8) {
             // 게임 종료
             log.info("마지막 문제 완료 - 게임 종료 - roomId: {}", roomId);
