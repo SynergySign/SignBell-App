@@ -1,8 +1,8 @@
 /**
  * @개요 수어 연습 영상 데이터 제공 페이지 (useWebcam + WS 전송)
  * @작성자 신동준 (sdj3959)
- * @최종수정 (Gemini)
- * @최종수정일 2025-10-26 (작동하는 useWebcam 훅 + WS 로직 + 로딩 가드 추가)
+ * @최종수정 백승현
+ * @최종수정일 2025-10-26
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -12,10 +12,7 @@ import DataSubmissionModal from '../../components/study/DataSubmissionModal';
 import styles from './StudyDataPage.module.scss';
 import { getSignDetail } from '../../services/signEdu/signEdu.js';
 
-// [변경] 작동이 검증된 useWebcam 훅을 다시 사용
 import useWebcam from '../../hooks/useWebcam';
-
-// [유지] 웹소켓 서비스는 그대로 사용
 import {
   connect as wsConnect,
   disconnect as wsDisconnect,
@@ -27,7 +24,6 @@ import {
   getStatus as wsGetStatus,
 } from '../../services/signedu/signEduWebSocket';
 
-// [추가] sleep 유틸리티
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const StudyDataPage = () => {
@@ -37,33 +33,29 @@ const StudyDataPage = () => {
   const [word, setWord] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // [유지] 모달 제어용 상태
   const [isRecordingCompleted, setIsRecordingCompleted] = useState(false);
   const [showSubmissionModal, setShowSubmissionModal] = useState(false);
 
-  // [교체] useSignEduWebcam -> useWebcam 훅으로 원복
   const {
     isWebcamOn,
     error: webcamError,
     startWebcam,
     stopWebcam,
-    videoRef: webcamRef // 이름 호환
+    videoRef: webcamRef
   } = useWebcam();
 
-  // [추가] SignDetailPage.jsx의 웹소켓/녹화 상태
   const [wsStatus, setWsStatus] = useState(wsGetStatus());
-  const [serverFeedback, setServerFeedback] = useState('');
+  // [제거] const [serverFeedback, setServerFeedback] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [countdownText, setCountdownText] = useState("");
 
-  // [추가] SignDetailPage.jsx의 캡처용 Ref
   const canvasRef = useRef(null);
-  const recordingRef = useRef(null); // requestAnimationFrame ID
+  const recordingRef = useRef(null);
   const isRecordingRef = useRef(false);
   const lastSentRef = useRef(0);
   const debugFrameCountRef = useRef(0);
 
-  // (단어 정보 로딩 useEffect는 원본과 동일)
+  // (단어 정보 로딩 useEffect)
   useEffect(() => {
     const loadWordData = async () => {
       setIsLoading(true);
@@ -80,20 +72,21 @@ const StudyDataPage = () => {
     if (wordId) loadWordData();
   }, [wordId]);
 
-  // [추가] WebSocket 상태 및 메시지 리스너 (SignDetailPage.jsx 로직)
+  // [수정] WebSocket 상태 및 메시지 리스너 (서버 피드백 제거)
   useEffect(() => {
     const offStatus = wsOnStatus((s) => setWsStatus(s));
 
     const offMsg = wsOnMessage((m) => {
-      if (m && m.type === 'meta_ack') {
-        setServerFeedback('✅ 서버와 연결되었습니다.');
-      } else if (m && m.type === 'learning_ack') {
+      // [제거] if (m && m.type === 'meta_ack') { ... }
+      if (m && m.type === 'learning_ack') {
         if (m.status === 'accepted') {
-          setServerFeedback('✅ 학습 데이터가 성공적으로 저장되었습니다.');
+          // [제거] setServerFeedback('✅ 데이터 제공 완료! 재촬영이 가능합니다.');
+          setShowSubmissionModal(false);
           setIsRecordingCompleted(true);
-          setShowSubmissionModal(true);
         } else {
-          setServerFeedback(`❌ 저장 실패: ${m.reason || '알 수 없는 오류'}`);
+          // [제거] setServerFeedback(`❌ 제공 실패: ${m.reason || '알 수 없는 오류'}`);
+          setShowSubmissionModal(false);
+          setIsRecordingCompleted(true);
         }
         setIsBusy(false);
         setCountdownText("");
@@ -106,8 +99,7 @@ const StudyDataPage = () => {
     };
   }, []);
 
-  // [추가] WebSocket 연결 생명주기 (SignDetailPage.jsx 로직)
-  // [수정] isWebcamOn (useWebcam 훅의 상태)에 의존
+  // [수정] WebSocket 연결 생명주기 (서버 피드백 제거)
   useEffect(() => {
     if (word && isWebcamOn) {
       wsConnect();
@@ -118,7 +110,7 @@ const StudyDataPage = () => {
             wsSendMeta({ word_pk: wordId, word_name: word.word });
           } catch (e) {
             console.error('sendMeta 호출 오류:', e);
-            setServerFeedback(`sendMeta error: ${e.message}`);
+            // [제거] setServerFeedback(`sendMeta error: ${e.message}`);
           }
         }
       });
@@ -130,33 +122,32 @@ const StudyDataPage = () => {
       wsDisconnect();
       setWsStatus(wsGetStatus());
     }
-  }, [word, wordId, isWebcamOn]); // [수정] isWebcamOn 의존
+  }, [word, wordId, isWebcamOn]);
 
-  // [수정] handlePrevious: (UI 로직 유지)
+  // [수정] handlePrevious (서버 피드백 제거)
   const handlePrevious = () => {
     if (currentStep === 2) {
       setCountdownText("");
       setIsRecordingCompleted(false);
       setShowSubmissionModal(false);
       setIsBusy(false);
-      setServerFeedback('');
-
-      stopWebcam(); // [수정] useWebcam의 stopWebcam 호출
+      // [제거] setServerFeedback('');
+      stopWebcam();
       setCurrentStep(1);
     } else {
       navigate('/main');
     }
   };
 
-  // [유지] handleNext: (UI 로직 유지)
+  // [유지] handleNext
   const handleNext = async () => {
     if (currentStep === 1) {
       setCurrentStep(2);
-      await startWebcam(); // [수정] useWebcam의 startWebcam 호출
+      await startWebcam();
     }
   };
 
-  // [추가] 프레임 캡처 및 전송 로직 (SignDetailPage.jsx 동일)
+  // [유지] 프레임 캡처 로직
   const FPS = 30;
   const INTERVAL = 1000 / FPS;
 
@@ -174,7 +165,6 @@ const StudyDataPage = () => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     try {
-      // [수정] webcamRef는 useWebcam 훅에서 온 것
       const vw = webcamRef.current.videoWidth || 640;
       const vh = webcamRef.current.videoHeight || 480;
       if (canvas.width !== vw || canvas.height !== vh) {
@@ -191,62 +181,76 @@ const StudyDataPage = () => {
         }
       }, 'image/jpeg', 0.95);
     } catch (e) { console.error('captureAndSendFrame error:', e); }
-  }, [webcamRef, INTERVAL]); // [수정] useWebcam의 webcamRef 의존
+  }, [webcamRef, INTERVAL]);
 
-  // [추가] '녹화 시작하기' 버튼 핸들러 (SignDetailPage.jsx 로직)
+  // [수정] '녹화/재촬영' 버튼 핸들러 (서버 피드백 제거)
   const handleStartRecordingClick = async () => {
     if (wsStatus !== 'Connected' || isBusy) return;
 
+    try {
+      wsSendMeta({ word_pk: wordId, word_name: word.word });
+    } catch (e) {
+      console.error('sendMeta (for retake) 호출 오류:', e);
+      // [제거] setServerFeedback(`sendMeta error: ${e.message}`);
+      return;
+    }
+
     setIsBusy(true);
-    setServerFeedback('준비...');
+    // [제거] setServerFeedback('준비...');
     setIsRecordingCompleted(false);
 
-    // 1. 3초 카운트다운
     setCountdownText("3"); await sleep(1000);
     setCountdownText("2"); await sleep(1000);
     setCountdownText("1"); await sleep(1000);
 
-    // 2. 5초 녹화(스트리밍) 시작
     setCountdownText("START");
-    setServerFeedback("녹화 중... (5초)");
+    // [제거] setServerFeedback("녹화 중... (5초)");
 
     lastSentRef.current = 0;
     debugFrameCountRef.current = 0;
     isRecordingRef.current = true;
     recordingRef.current = requestAnimationFrame(captureAndSendFrame);
 
-    await sleep(5000); // 5초 대기
+    await sleep(5000);
 
-    // 3. 5초 후 중지
     isRecordingRef.current = false;
     if (recordingRef.current) {
       cancelAnimationFrame(recordingRef.current);
       recordingRef.current = null;
     }
     lastSentRef.current = 0;
-    setCountdownText("녹화 완료");
 
-    // 4. 'save_learning' 전송
-    setServerFeedback('녹화 완료. 저장 요청 중...');
-    wsSendSaveLearning();
+    setCountdownText("");
+    // [제거] setServerFeedback("녹화 완료. 모달을 확인하세요.");
+
+    setIsBusy(false);
+    setIsRecordingCompleted(true);
+    setShowSubmissionModal(true);
   };
 
-  // [수정] handleRetake: (UI 로직 유지)
+  // [수정] handleRetake: 'X' 버튼(onClose)을 위한 함수 (서버 피드백 제거)
   const handleRetake = async () => {
     setShowSubmissionModal(false);
+    setIsRecordingCompleted(true);
     setCountdownText("");
-    setIsRecordingCompleted(false);
-    setServerFeedback('');
+    // [제거] setServerFeedback('재촬영이 가능합니다.');
     setIsBusy(false);
   };
 
-  // [유지] handleSubmit
+  // [유지] handleSubmit: '메인으로' 버튼(onSubmit)을 위한 함수
   const handleSubmit = () => {
     setShowSubmissionModal(false);
+    stopWebcam();
     navigate('/main');
   };
 
-  // [추가] 언마운트 시 프레임 캡처 정리
+  // [수정] handleProvideData: '데이터 제공' 버튼(onRetake)을 위한 함수 (서버 피드백 제거)
+  const handleProvideData = () => {
+    // [제거] setServerFeedback('데이터 제공 요청 중...');
+    wsSendSaveLearning();
+  };
+
+  // [유지] 언마운트 시 프레임 캡처 정리
   useEffect(() => {
     return () => {
       if (recordingRef.current) {
@@ -256,8 +260,7 @@ const StudyDataPage = () => {
     }
   }, []);
 
-  // ▼▼▼▼▼ [추가] 오류 수정을 위한 로딩/가드 코드 ▼▼▼▼▼
-  // (로딩 및 !word 가드 코드는 원본과 동일)
+  // [유지] 로딩 및 가드 코드
   if (isLoading) {
     return (
         <div className={styles.studyDataPage}>
@@ -268,7 +271,6 @@ const StudyDataPage = () => {
         </div>
     );
   }
-
   if (!word) {
     return (
         <div className={styles.studyDataPage}>
@@ -279,10 +281,8 @@ const StudyDataPage = () => {
         </div>
     );
   }
-  // ▲▲▲▲▲ [추가] 오류 수정을 위한 로딩/가드 코드 ▲▲▲▲▲
 
-
-  // [수정] JSX 렌더링 (UI 구조 유지, MediaPipe 제거)
+  // [수정] JSX 렌더링 (서버 피드백 제거)
   return (
       <div className={styles.studyDataPage}>
         {/* (페이지 제목, 툴팁 - UI 유지) */}
@@ -293,9 +293,9 @@ const StudyDataPage = () => {
           제출된 영상은 더 나은 서비스를 위해 수어 AI 모델 학습에 이용됩니다.
         </div>
 
-        {/* (단어 정보 - UI 유지) */}
+        {/* (단어 정보 - UI 유지, word.word로 수정) */}
         <div className={styles.wordInfoSection}>
-          <div className={styles.wordTitle}>{word.wordName || '단어'}</div>
+          <div className={styles.wordTitle}>{word.word || '단어'}</div>
           <div className={styles.wordDescription}>{word.description || '설명 없음'}</div>
         </div>
 
@@ -304,7 +304,7 @@ const StudyDataPage = () => {
             <div className={styles.stepOneContent}>
               <VideoPlayer
                   videoUrl={word.videoUrl}
-                  title={word.wordName}
+                  title={word.word}
                   width={400}
                   height={300}
                   onEnded={(e) => e.currentTarget.play()}
@@ -315,6 +315,7 @@ const StudyDataPage = () => {
             <div className={styles.stepTwoContent}>
               <div className={styles.contentContainer}>
                 <div className={styles.webcamSection}>
+                  {/* (웹캠 비디오 부분 UI 유지) */}
                   <div className={styles.mainVideoCard}>
                     <div className={styles.mainWebcam}>
                       {isWebcamOn ? (
@@ -327,14 +328,12 @@ const StudyDataPage = () => {
                                 muted
                                 data-word-id={wordId}
                             />
-
                           </>
                       ) : (
                           <div className={styles.webcamPlaceholder}>
                             <span>웹캠을 연결하는 중...</span>
                           </div>
                       )}
-                      {/* [수정] countdownText로 조건 변경 */}
                       {countdownText === 'START' && (
                           <div className={styles.recordingIndicator}>
                             <div className={styles.recordingDot}></div>
@@ -352,51 +351,54 @@ const StudyDataPage = () => {
                 <div className={styles.guideSection}>
                   <div className={styles.questionSection}>
                     <h2 className={styles.questionText}>
-                      '{word.wordName || '단어'}'를<br/>수어로 표현해 보세요
+                      '{word.word || '단어'}'를<br/>수어로 표현해 보세요
                     </h2>
                   </div>
 
-                  {/* [수정] 상태별 안내 (새 상태변수 기준으로 로직 교체) */}
+                  {/* ▼▼▼▼▼ [수정] 상태별 안내 (서버 피드백 제거) ▼▼▼▼▼ */}
                   <div className={styles.statusSection}>
                     {webcamError ? (
                         <div className={styles.errorDisplay}>
                           <div className={styles.errorIcon}>⚠️</div>
-                          {/* [수정] useWebcam의 에러 메시지 사용 */}
                           <p className={styles.errorText}>{webcamError || '웹캠 권한을 허용해주세요'}</p>
                         </div>
+
+                    ) : countdownText ? (
+                        <div className={styles.countdownDisplay}>
+                          <div className={styles.countdownNumber}>{countdownText}</div>
+                          <p className={styles.countdownText}>
+                            {countdownText === "START" ? "녹화가 시작되었습니다!" : "초 뒤 영상을 촬영합니다"}
+                          </p>
+                        </div>
+
                     ) : isRecordingCompleted ? (
                         <div className={styles.completedDisplay}>
                           <div className={styles.completedIcon}>✅</div>
                           <p className={styles.completedText}>녹화가 완료되었습니다</p>
-                          {serverFeedback && <p className={styles.readyText} style={{fontSize: '0.9rem', marginTop: '5px'}}>{serverFeedback}</p>}
+                          {/* [제거] {serverFeedback && <p>...</p>} */}
+
+                          <button
+                              className={styles.recordButton}
+                              style={{ marginTop: '20px', width: '100%', backgroundColor: '#f0ad4e' }}
+                              onClick={handleStartRecordingClick}
+                              disabled={isBusy || wsStatus !== 'Connected' || !isWebcamOn}
+                          >
+                            재촬영하기
+                          </button>
                         </div>
-                    ) : countdownText ? (
-                        <div className={styles.countdownDisplay}>
-                          <div className={styles.countdownNumber}>{countdownText}</div>
-                          {/* ▼▼▼▼▼ 오타 수정 ▼▼▼▼▼ */}
-                          <p className={styles.countdownText}>
-                            {countdownText === "START" ? "녹화가 시작되었습니다!" : (countdownText === "녹화 완료" ? "서버에 전송 중..." : "초 뒤 영상을 촬영합니다")}
-                          </p>
-                          {/* ▲▲▲▲▲ 오타 수정 ▲▲▲▲▲ */}
-                        </div>
+
                     ) : !isWebcamOn ? (
                         <div className={styles.waitingDisplay}>
                           <div className={styles.waitingIcon}>🤟</div>
                           <p className={styles.waitingText}>웹캠 권한 허용을 기다리는 중...</p>
                         </div>
+
                     ) : (
-                        // [수정] 준비 완료 상태 (UI 유지)
                         <div className={styles.readyDisplay}>
                           <div className={styles.readyIcon}>✅</div>
                           <p className={styles.readyText}>웹캠 연결 완료!</p>
 
-                          {/*/!* ▼▼▼▼▼ 오타 수정 ▼▼▼▼▼ *!/*/}
-                          {/*<p className={styles.readyText} style={{fontSize: '0.9rem', color: '#555', marginTop: '5px'}}>*/}
-                          {/*  서버 상태: <strong>{wsStatus}</strong>*/}
-                          {/*</p>*/}
-                          {/*/!* ▲▲▲▲▲ 오타 수정 ▲▲▲▲▲ *!/*/}
-
-                          {/*{serverFeedback && <p className={styles.readyText} style={{fontSize: '0.9rem', color: 'blue', marginTop: '5px'}}>{serverFeedback}</p>}*/}
+                          {/* [제거] 서버 상태 및 피드백 */}
 
                           <button
                               className={styles.recordButton}
@@ -409,6 +411,7 @@ const StudyDataPage = () => {
                         </div>
                     )}
                   </div>
+                  {/* ▲▲▲▲▲ [수정] 상태별 안내 완료 ▲▲▲▲▲ */}
                 </div>
               </div>
             </div>
@@ -432,15 +435,15 @@ const StudyDataPage = () => {
           )}
         </div>
 
-        {/* [추가] 프레임 캡처용 숨겨진 캔버스 */}
+        {/* [유지] 프레임 캡처용 숨겨진 캔버스 */}
         <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
 
-        {/* (모달 UI 유지) */}
+        {/* [유지] 모달 핸들러 매핑 */}
         <DataSubmissionModal
             isOpen={showSubmissionModal}
-            onClose={() => setShowSubmissionModal(false)}
-            onRetake={handleRetake}
-            onSubmit={handleSubmit}
+            onClose={handleRetake}       // 'X' 버튼 클릭 시 -> 재촬영
+            onRetake={handleProvideData} // '데이터 제공' 버튼 클릭 시 -> wsSendSaveLearning
+            onSubmit={handleSubmit}     // '메인으로' 버튼 클릭 시 -> 메인으로 이동
         />
       </div>
   );
