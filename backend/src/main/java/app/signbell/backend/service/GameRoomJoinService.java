@@ -97,8 +97,14 @@ public class GameRoomJoinService {
 
         // 5. 방 상태 확인 (신규 입장은 WAITING만 가능)
         if (room.getStatus() != GameRoomStatus.WAITING) {
-            log.warn("이미 시작된 방입니다. gameRoomId={}, status={}", gameRoomId, room.getStatus());
-            throw new BusinessException(ErrorCode.ROOM_ALREADY_STARTED);
+            log.warn("입장 불가능한 방 상태입니다. gameRoomId={}, status={}", gameRoomId, room.getStatus());
+            
+            // 방 상태에 따라 다른 에러 메시지 반환
+            if (room.getStatus() == GameRoomStatus.FINISHED) {
+                throw new BusinessException(ErrorCode.ROOM_ALREADY_FINISHED);
+            } else {
+                throw new BusinessException(ErrorCode.ROOM_ALREADY_STARTED);
+            }
         }
 
         // 6. 방장이 아닌 경우: 다른 방에 참여 중인지 확인

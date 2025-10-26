@@ -250,11 +250,25 @@ const QuizWaitingRoom = () => {
   const handleError = useCallback((data) => {
     console.error('📥 에러:', data);
 
+    // 게임 페이지로 이동 중이면 에러 무시
+    if (isNavigatingToGameRef.current) {
+      console.log('⏭️ 게임 페이지로 이동 중이므로 에러 무시');
+      return;
+    }
+
+    // 이미 종료된 방 에러 처리
+    if (data.error === 'ROOM_ALREADY_FINISHED' || (data.message && data.message.includes('이미 종료된 방'))) {
+      console.warn('⚠️ 이미 종료된 방입니다.');
+
+      // WebSocket 연결만 정리 (페이지 이동은 모달 닫을 때)
+      cleanupOnly();
+
+      showError('이 방은 이미 종료되었습니다.\n새로운 방을 만들어주세요.');
+      return;
+    }
+
+    // 이미 시작된 방 에러 처리
     if (data.error === 'ROOM_ALREADY_STARTED' || (data.message && data.message.includes('이미 시작된 방'))) {
-      if (isNavigatingToGameRef.current) {
-        console.log('⏭️ 게임 페이지로 이동 중이므로 에러 무시');
-        return;
-      }
       console.warn('⚠️ 이미 시작된 방입니다.');
 
       // WebSocket 연결만 정리 (페이지 이동은 모달 닫을 때)
@@ -264,6 +278,7 @@ const QuizWaitingRoom = () => {
       return;
     }
 
+    // 기타 에러 처리
     showError(data.message || data.detail || '오류가 발생했습니다.');
   }, [showError, cleanupOnly, isNavigatingToGameRef]);
 
@@ -448,10 +463,11 @@ const QuizWaitingRoom = () => {
 
     setShowErrorAlert(false);
 
-    // 로그인 필요, 사용자 정보 로드 실패, 이미 시작된 방 등의 경우 메인으로 이동
+    // 로그인 필요, 사용자 정보 로드 실패, 방 종료/시작 등의 경우 메인으로 이동
     if (
       errorMessage.includes('로그인이 필요합니다') ||
       errorMessage.includes('사용자 정보를 불러오는데 실패했습니다') ||
+      errorMessage.includes('이미 종료되었습니다') ||
       errorMessage.includes('이미 게임이 시작되었습니다')
     ) {
       console.log('✅ 메인 페이지로 이동');
