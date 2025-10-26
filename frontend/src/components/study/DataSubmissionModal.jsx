@@ -6,22 +6,9 @@
  */
 
 import styles from './DataSubmissionModal.module.scss';
-import Confetti from 'react-confetti';
-import { useState, useEffect } from 'react';
 
 // 창 크기를 감지하는 간단한 커스텀 훅
-function useWindowSize() {
-  const [size, setSize] = useState([
-    typeof window !== 'undefined' ? window.innerWidth : 0,
-    typeof window !== 'undefined' ? window.innerHeight : 0,
-  ]);
-  useEffect(() => {
-    const handleResize = () => setSize([window.innerWidth, window.innerHeight]);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-  return size;
-}
+
 
 const DataSubmissionModal = ({
                                isOpen,
@@ -31,7 +18,6 @@ const DataSubmissionModal = ({
                                isSaving,    // [추가] '제공 중' 로딩 상태
                                saveSuccess  // [추가] '제공 완료' 성공 상태
                              }) => {
-  const [width, height] = useWindowSize(); // 폭죽을 위한 전체 화면 크기
 
   if (!isOpen) return null;
 
@@ -49,15 +35,8 @@ const DataSubmissionModal = ({
   // 성공 화면 컴포넌트
   const successScreen = (
       <>
-        {/* 폭죽 효과 */}
-        <Confetti
-            width={width}
-            height={height}
-            recycle={false} // 한 번만 터지고 멈춤
-            numberOfPieces={200}
-        />
         <div className={styles.completionStatus}>
-          <div className={styles.completionIcon} style={{backgroundColor: '#5cb85c', fontSize: '40px'}}>🎉</div>
+          <div className={styles.completionDataIcon}>🎉</div>
           <h3 className={styles.completionMessage} style={{marginTop: '20px'}}>
             감사합니다.
           </h3>
@@ -87,6 +66,7 @@ const DataSubmissionModal = ({
   );
 
   return (
+
       <>
         {/* [수정] 로딩 중(isSaving)에는 오버레이 클릭으로 닫히지 않도록 함
         [수정] 성공 시(saveSuccess)에는 오버레이 클릭으로 닫히도록 함 (onClose)
@@ -128,10 +108,9 @@ const DataSubmissionModal = ({
             ) : saveSuccess ? (
                 <button
                     className={styles.submitButton}
-                    onClick={onClose}
-                    style={{flex: 1, backgroundColor: '#5cb85c'}} // 초록색 버튼
+                    onClick={onSubmit}
                 >
-                  닫기
+                  메인으로
                 </button>
             ) : (
                 <>

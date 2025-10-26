@@ -91,6 +91,22 @@
         box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
         flex-shrink: 0;
       }
+      .completionDataIcon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #ffcc50 0%, #ffcc80 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: bold;
+        margin: 0 0 20px 0;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        flex-shrink: 0;
+      }
+
+
 
       .completionMessage {
         color: var(--text-color);
