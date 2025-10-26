@@ -2,7 +2,7 @@
  * @개요 수어 연습 영상 데이터 제공 페이지 (useWebcam + WS 전송)
  * @작성자 신동준 (sdj3959)
  * @최종수정 백승현
- * @최종수정일 2025-10-26
+ * @최종수정일 2025-10-26 (로딩 가드 주석 해제)
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -45,9 +45,11 @@ const StudyDataPage = () => {
   } = useWebcam();
 
   const [wsStatus, setWsStatus] = useState(wsGetStatus());
-  // [제거] const [serverFeedback, setServerFeedback] = useState('');
   const [isBusy, setIsBusy] = useState(false);
   const [countdownText, setCountdownText] = useState("");
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const canvasRef = useRef(null);
   const recordingRef = useRef(null);
@@ -72,24 +74,23 @@ const StudyDataPage = () => {
     if (wordId) loadWordData();
   }, [wordId]);
 
-  // [수정] WebSocket 상태 및 메시지 리스너 (서버 피드백 제거)
+  // [수정] WebSocket 메시지 리스너 (스피너/성공 상태 제어)
   useEffect(() => {
     const offStatus = wsOnStatus((s) => setWsStatus(s));
 
     const offMsg = wsOnMessage((m) => {
-      // [제거] if (m && m.type === 'meta_ack') { ... }
       if (m && m.type === 'learning_ack') {
+        setIsSaving(false); // 스피너 중지
         if (m.status === 'accepted') {
-          // [제거] setServerFeedback('✅ 데이터 제공 완료! 재촬영이 가능합니다.');
-          setShowSubmissionModal(false);
-          setIsRecordingCompleted(true);
+          setSaveSuccess(true); // 성공 상태 (폭죽!)
         } else {
-          // [제거] setServerFeedback(`❌ 제공 실패: ${m.reason || '알 수 없는 오류'}`);
+          setSaveSuccess(false);
+          alert('데이터 제공에 실패했습니다. 다시 시도해주세요.');
           setShowSubmissionModal(false);
           setIsRecordingCompleted(true);
+          setIsBusy(false);
+          setCountdownText("");
         }
-        setIsBusy(false);
-        setCountdownText("");
       }
     });
 
@@ -99,7 +100,7 @@ const StudyDataPage = () => {
     };
   }, []);
 
-  // [수정] WebSocket 연결 생명주기 (서버 피드백 제거)
+  // [유지] WebSocket 연결 생명주기
   useEffect(() => {
     if (word && isWebcamOn) {
       wsConnect();
@@ -110,7 +111,6 @@ const StudyDataPage = () => {
             wsSendMeta({ word_pk: wordId, word_name: word.word });
           } catch (e) {
             console.error('sendMeta 호출 오류:', e);
-            // [제거] setServerFeedback(`sendMeta error: ${e.message}`);
           }
         }
       });
@@ -124,14 +124,13 @@ const StudyDataPage = () => {
     }
   }, [word, wordId, isWebcamOn]);
 
-  // [수정] handlePrevious (서버 피드백 제거)
+  // [유지] handlePrevious
   const handlePrevious = () => {
     if (currentStep === 2) {
       setCountdownText("");
       setIsRecordingCompleted(false);
       setShowSubmissionModal(false);
       setIsBusy(false);
-      // [제거] setServerFeedback('');
       stopWebcam();
       setCurrentStep(1);
     } else {
@@ -183,7 +182,7 @@ const StudyDataPage = () => {
     } catch (e) { console.error('captureAndSendFrame error:', e); }
   }, [webcamRef, INTERVAL]);
 
-  // [수정] '녹화/재촬영' 버튼 핸들러 (서버 피드백 제거)
+  // [수정] '녹화/재촬영' 버튼 핸들러 (모달 상태 초기화)
   const handleStartRecordingClick = async () => {
     if (wsStatus !== 'Connected' || isBusy) return;
 
@@ -191,20 +190,19 @@ const StudyDataPage = () => {
       wsSendMeta({ word_pk: wordId, word_name: word.word });
     } catch (e) {
       console.error('sendMeta (for retake) 호출 오류:', e);
-      // [제거] setServerFeedback(`sendMeta error: ${e.message}`);
       return;
     }
 
     setIsBusy(true);
-    // [제거] setServerFeedback('준비...');
     setIsRecordingCompleted(false);
+    setSaveSuccess(false);
+    setIsSaving(false);
 
     setCountdownText("3"); await sleep(1000);
     setCountdownText("2"); await sleep(1000);
     setCountdownText("1"); await sleep(1000);
 
     setCountdownText("START");
-    // [제거] setServerFeedback("녹화 중... (5초)");
 
     lastSentRef.current = 0;
     debugFrameCountRef.current = 0;
@@ -221,32 +219,35 @@ const StudyDataPage = () => {
     lastSentRef.current = 0;
 
     setCountdownText("");
-    // [제거] setServerFeedback("녹화 완료. 모달을 확인하세요.");
 
     setIsBusy(false);
     setIsRecordingCompleted(true);
-    setShowSubmissionModal(true);
+    setShowSubmissionModal(true); // [유지] 모달 띄우기
   };
 
-  // [수정] handleRetake: 'X' 버튼(onClose)을 위한 함수 (서버 피드백 제거)
+  // [수정] handleRetake: 'X' 버튼(onClose) 또는 '닫기' 버튼용 (모달 상태 초기화)
   const handleRetake = async () => {
     setShowSubmissionModal(false);
-    setIsRecordingCompleted(true);
+    setIsRecordingCompleted(true); // "재촬영하기" 버튼 표시
     setCountdownText("");
-    // [제거] setServerFeedback('재촬영이 가능합니다.');
     setIsBusy(false);
+    setIsSaving(false);
+    setSaveSuccess(false);
   };
 
-  // [유지] handleSubmit: '메인으로' 버튼(onSubmit)을 위한 함수
+  // [수정] handleSubmit: '메인으로' 버튼(onSubmit)용 (모달 상태 초기화)
   const handleSubmit = () => {
     setShowSubmissionModal(false);
     stopWebcam();
     navigate('/main');
+    setIsSaving(false);
+    setSaveSuccess(false);
   };
 
-  // [수정] handleProvideData: '데이터 제공' 버튼(onRetake)을 위한 함수 (서버 피드백 제거)
+  // [수정] handleProvideData: '데이터 제공' 버튼(onRetake)용 (스피너 시작)
   const handleProvideData = () => {
-    // [제거] setServerFeedback('데이터 제공 요청 중...');
+    setIsSaving(true); // [추가] 스피너 시작
+    setSaveSuccess(false);
     wsSendSaveLearning();
   };
 
@@ -260,6 +261,7 @@ const StudyDataPage = () => {
     }
   }, []);
 
+  // --- ▼▼▼ [수정] 주석 처리된 코드 복원 ▼▼▼ ---
   // [유지] 로딩 및 가드 코드
   if (isLoading) {
     return (
@@ -281,8 +283,9 @@ const StudyDataPage = () => {
         </div>
     );
   }
+  // --- ▲▲▲ [수정] 주석 처리된 코드 복원 ▲▲▲ ---
 
-  // [수정] JSX 렌더링 (서버 피드백 제거)
+  // [수정] JSX 렌더링 (서버 피드백 제거, 모달에 props 전달)
   return (
       <div className={styles.studyDataPage}>
         {/* (페이지 제목, 툴팁 - UI 유지) */}
@@ -293,7 +296,7 @@ const StudyDataPage = () => {
           제출된 영상은 더 나은 서비스를 위해 수어 AI 모델 학습에 이용됩니다.
         </div>
 
-        {/* (단어 정보 - UI 유지, word.word로 수정) */}
+        {/* (단어 정보 - UI 유지) */}
         <div className={styles.wordInfoSection}>
           <div className={styles.wordTitle}>{word.word || '단어'}</div>
           <div className={styles.wordDescription}>{word.description || '설명 없음'}</div>
@@ -355,7 +358,7 @@ const StudyDataPage = () => {
                     </h2>
                   </div>
 
-                  {/* ▼▼▼▼▼ [수정] 상태별 안내 (서버 피드백 제거) ▼▼▼▼▼ */}
+                  {/* [유지] 상태별 안내 (서버 피드백 제거됨) */}
                   <div className={styles.statusSection}>
                     {webcamError ? (
                         <div className={styles.errorDisplay}>
@@ -375,8 +378,6 @@ const StudyDataPage = () => {
                         <div className={styles.completedDisplay}>
                           <div className={styles.completedIcon}>✅</div>
                           <p className={styles.completedText}>녹화가 완료되었습니다</p>
-                          {/* [제거] {serverFeedback && <p>...</p>} */}
-
                           <button
                               className={styles.recordButton}
                               style={{ marginTop: '20px', width: '100%', backgroundColor: '#f0ad4e' }}
@@ -397,9 +398,6 @@ const StudyDataPage = () => {
                         <div className={styles.readyDisplay}>
                           <div className={styles.readyIcon}>✅</div>
                           <p className={styles.readyText}>웹캠 연결 완료!</p>
-
-                          {/* [제거] 서버 상태 및 피드백 */}
-
                           <button
                               className={styles.recordButton}
                               style={{ marginTop: '20px', width: '100%' }}
@@ -411,7 +409,6 @@ const StudyDataPage = () => {
                         </div>
                     )}
                   </div>
-                  {/* ▲▲▲▲▲ [수정] 상태별 안내 완료 ▲▲▲▲▲ */}
                 </div>
               </div>
             </div>
@@ -438,13 +435,16 @@ const StudyDataPage = () => {
         {/* [유지] 프레임 캡처용 숨겨진 캔버스 */}
         <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
 
-        {/* [유지] 모달 핸들러 매핑 */}
+        {/* --- ▼▼▼ [수정] 모달에 isSaving, saveSuccess props 전달 ▼▼▼ --- */}
         <DataSubmissionModal
             isOpen={showSubmissionModal}
             onClose={handleRetake}       // 'X' 버튼 클릭 시 -> 재촬영
             onRetake={handleProvideData} // '데이터 제공' 버튼 클릭 시 -> wsSendSaveLearning
             onSubmit={handleSubmit}     // '메인으로' 버튼 클릭 시 -> 메인으로 이동
+            isSaving={isSaving}         // [추가] 로딩 상태
+            saveSuccess={saveSuccess}   // [추가] 성공 상태
         />
+        {/* --- ▲▲▲ [수정] 모달에 isSaving, saveSuccess props 전달 ▲▲▲ --- */}
       </div>
   );
 };
