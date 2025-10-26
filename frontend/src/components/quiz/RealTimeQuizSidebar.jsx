@@ -219,7 +219,6 @@ const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
 
   // 방 번호로 방 입장 - WebSocket 세션 체크 후 입장
   const handleRoomSearchSubmit = async (roomNumber) => {
-    console.log('방 검색:', roomNumber);
     // TODO: 방 번호로 방 검색 API 연동 필요
 
     // 기본 입력 검증
@@ -290,17 +289,12 @@ const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
   const handleCreateRoomSubmit = async (roomTitle) => {
     // TODO: 방 생성 API 연동 필요
     // ✅ 2025-10-21 완료 (강관주)
-
-    console.log('방 생성:', roomTitle);
-
     setCreateRoomLoading(true);
     setCreateRoomError(null);
 
     try {
       // API 호출
       const result = await RoomService.createRoom(roomTitle);
-
-      console.log('방 생성 성공:', result);
 
       // 방 생성 후 퀴즈 대기방으로 2초 후 이동
       setTimeout(() => {
@@ -397,7 +391,6 @@ const RealTimeQuizSidebar = ({ onClose, isOpen, onTabChange }) => {
       }
 
       // 모든 조건 통과 → 입장 허용
-      console.log(`방 ${roomId} 참여`);
       navigate(`/quiz/waiting/${roomId}`);
       onClose();
     } catch (err) {

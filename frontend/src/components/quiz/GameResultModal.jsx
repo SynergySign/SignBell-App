@@ -31,7 +31,8 @@ const GameResultModal = ({ isOpen, onReturnToRoom, rankings = [] }) => {
 
   return (
     <>
-      <div className={styles.modalOverlay}></div>
+      {/* 모달 외부 클릭 방지 */}
+      <div className={styles.modalOverlay} onClick={(e) => e.stopPropagation()}></div>
       <div className={styles.gameResultModal}>
         <div className={styles.modalHeader}>
           <h2 className={styles.modalTitle}>게임 결과</h2>

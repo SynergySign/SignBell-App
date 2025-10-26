@@ -69,35 +69,36 @@ public class GameRoomJoinService {
                     return new BusinessException(ErrorCode.ROOM_NOT_FOUND);
                 });
 
-        // 2. 방 상태 확인 (WAITING만 입장 가능)
-        if (room.getStatus() != GameRoomStatus.WAITING) {
-            log.warn("이미 시작된 방입니다. gameRoomId={}, status={}", gameRoomId, room.getStatus());
-            throw new BusinessException(ErrorCode.ROOM_ALREADY_STARTED);
-        }
-
-        // 3. 사용자 조회
+        // 2. 사용자 조회
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> {
                     log.error("사용자를 찾을 수 없습니다. userId={}", userId);
                     return new BusinessException(ErrorCode.USER_NOT_FOUND);
                 });
 
-        // 4. 방장 여부 확인
+        // 3. 방장 여부 확인
         boolean isHost = room.getHost().getId().equals(userId);
 
-        // 5. 이미 이 방에 참가했는지 확인
+        // 4. 이미 이 방에 참가했는지 확인 (재입장 허용)
         boolean alreadyInThisRoom = participantRepository.existsByParticipantAndGameRoom(user, room);
 
         if (alreadyInThisRoom) {
-            log.info("이미 이 방에 참가한 사용자입니다. userId={}, roomId={}", userId, gameRoomId);
+            log.info("이미 이 방에 참가한 사용자입니다. 현재 방 정보를 반환합니다. userId={}, roomId={}, status={}", 
+                    userId, gameRoomId, room.getStatus());
 
-            // 현재 방 상태 반환
+            // 현재 방 상태 반환 (게임 종료 후 대기실 복귀 시에도 사용)
             List<GameParticipant> allParticipants = participantRepository.findByGameRoom_Id(gameRoomId);
             List<ParticipantResponse> participantResponses = allParticipants.stream()
                     .map(ParticipantResponse::from)
                     .toList();
 
             return JoinRoomResponse.of(room, participantResponses);
+        }
+
+        // 5. 방 상태 확인 (신규 입장은 WAITING만 가능)
+        if (room.getStatus() != GameRoomStatus.WAITING) {
+            log.warn("이미 시작된 방입니다. gameRoomId={}, status={}", gameRoomId, room.getStatus());
+            throw new BusinessException(ErrorCode.ROOM_ALREADY_STARTED);
         }
 
         // 6. 방장이 아닌 경우: 다른 방에 참여 중인지 확인

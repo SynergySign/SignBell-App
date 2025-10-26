@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import styles from '../../pages/quiz/QuizGamePage.module.scss';
 
 /**
@@ -10,7 +11,31 @@ const QuizMainVideo = ({
   currentChallengerInfo,
   remoteStreams,
   remoteVideosRef,
+  stream,  // 내 스트림 추가
 }) => {
+  // 내 차례일 때 내 스트림 연결
+  useEffect(() => {
+    if (gamePhase === 'myTurn' && mainVideoRef.current && stream) {
+      mainVideoRef.current.srcObject = stream;
+    }
+  }, [gamePhase, stream, mainVideoRef]);
+
+  // 다른 사람 차례일 때 원격 스트림 연결
+  useEffect(() => {
+    if (
+      gamePhase === 'solving' &&
+      currentChallengerInfo.id &&
+      remoteStreams[currentChallengerInfo.id]
+    ) {
+      const videoElement = remoteVideosRef.current[currentChallengerInfo.id];
+      const remoteStream = remoteStreams[currentChallengerInfo.id];
+
+      if (videoElement && remoteStream) {
+        videoElement.srcObject = remoteStream;
+      }
+    }
+  }, [gamePhase, currentChallengerInfo.id, remoteStreams, remoteVideosRef]);
+
   const renderVideo = () => {
     if (gamePhase === 'myTurn') {
       return (
@@ -20,6 +45,7 @@ const QuizMainVideo = ({
           playsInline
           muted
           className={styles.webcamVideo}
+          onError={(e) => console.error('비디오 오류:', e)}
         />
       );
     } else if (
@@ -37,6 +63,7 @@ const QuizMainVideo = ({
           autoPlay
           playsInline
           className={styles.webcamVideo}
+          onError={(e) => console.error('원격 비디오 오류:', e)}
         />
       );
     } else {

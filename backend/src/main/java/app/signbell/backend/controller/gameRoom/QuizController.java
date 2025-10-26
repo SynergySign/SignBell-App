@@ -110,14 +110,16 @@ public class QuizController {
             }
             userId = Long.valueOf(accessor.getUser().getName());
 
-            log.info("정답 제출 - userId: {}, roomId: {}, questionNumber: {}, answer: {}",
-                    userId, gameRoomId, request.getQuestionNumber(), request.getUserAnswer());
+            log.info("정답 제출 - userId: {}, roomId: {}, questionNumber: {}, answer: {}, confidence: {}",
+                    userId, gameRoomId, request.getQuestionNumber(), request.getUserAnswer(), 
+                    request.getConfidenceScore());
 
             quizService.submitAnswer(
                     gameRoomId,
                     userId,
                     request.getQuestionNumber(),
-                    request.getUserAnswer()
+                    request.getUserAnswer(),
+                    request.getConfidenceScore()
             );
         } catch (BusinessException e) {
             log.warn("정답 제출 실패 - userId: {}, roomId: {}, error: {}", 

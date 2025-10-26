@@ -241,6 +241,14 @@ class WebSocketService {
           case 'NEXT_QUESTION':
             this.handleMessage('quiz:question', message);
             break;
+          case 'QUIZ_FINISHED':
+            console.log('🏁 게임 종료 이벤트 수신:', message);
+            this.handleMessage('quiz:result', message);
+            break;
+          case 'RETURN_TO_WAITING_ROOM':
+            console.log('🚪 대기실 복귀 이벤트 수신:', message);
+            this.handleMessage('quiz:return', message);
+            break;
           default:
             this.handleMessage('quiz:event', message);
         }

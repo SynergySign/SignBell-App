@@ -14,7 +14,7 @@ export const useQuizGame = () => {
   const [challengeOrder, setChallengeOrder] = useState(null);
   const [gamePhase, setGamePhase] = useState('challenge');
   const [solvingTimer, setSolvingTimer] = useState(5);
-  const [signingTimer, setSigningTimer] = useState(10);
+  const [signingTimer, setSigningTimer] = useState(5);
   const [isWaitingResult, setIsWaitingResult] = useState(false);
   const [resultMessage, setResultMessage] = useState('');
   const [players, setPlayers] = useState([]);
@@ -23,6 +23,8 @@ export const useQuizGame = () => {
     nickname: '대기중',
     score: 0
   });
+
+  const [answerResult, setAnswerResult] = useState(null);  // 정답 결과 정보
 
   const [toast, setToast] = useState({
     isOpen: false,
@@ -76,6 +78,7 @@ export const useQuizGame = () => {
     resultMessage,
     players,
     currentChallengerInfo,
+    answerResult,
     toast,
 
     // Setters
@@ -94,6 +97,7 @@ export const useQuizGame = () => {
     setResultMessage,
     setPlayers,
     setCurrentChallengerInfo,
+    setAnswerResult,
 
     // Actions
     showToast,
@@ -115,6 +119,7 @@ export const useQuizGame = () => {
     resultMessage,
     players,
     currentChallengerInfo,
+    answerResult,
     toast,
     showToast,
     closeToast,
