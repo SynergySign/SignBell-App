@@ -320,14 +320,14 @@ const StudyDataPage = () => {
                       {isWebcamOn ? (
                           <>
                             <video
-                                ref={webcamRef} // [수정] useWebcam의 ref
+                                ref={webcamRef}
                                 className={styles.webcamVideo}
                                 autoPlay
                                 playsInline
                                 muted
                                 data-word-id={wordId}
                             />
-                            {/* [제거] MediaPipe <canvas> 요소 완전 제거 */}
+
                           </>
                       ) : (
                           <div className={styles.webcamPlaceholder}>
@@ -390,13 +390,13 @@ const StudyDataPage = () => {
                           <div className={styles.readyIcon}>✅</div>
                           <p className={styles.readyText}>웹캠 연결 완료!</p>
 
-                          {/* ▼▼▼▼▼ 오타 수정 ▼▼▼▼▼ */}
-                          <p className={styles.readyText} style={{fontSize: '0.9rem', color: '#555', marginTop: '5px'}}>
-                            서버 상태: <strong>{wsStatus}</strong>
-                          </p>
-                          {/* ▲▲▲▲▲ 오타 수정 ▲▲▲▲▲ */}
+                          {/*/!* ▼▼▼▼▼ 오타 수정 ▼▼▼▼▼ *!/*/}
+                          {/*<p className={styles.readyText} style={{fontSize: '0.9rem', color: '#555', marginTop: '5px'}}>*/}
+                          {/*  서버 상태: <strong>{wsStatus}</strong>*/}
+                          {/*</p>*/}
+                          {/*/!* ▲▲▲▲▲ 오타 수정 ▲▲▲▲▲ *!/*/}
 
-                          {serverFeedback && <p className={styles.readyText} style={{fontSize: '0.9rem', color: 'blue', marginTop: '5px'}}>{serverFeedback}</p>}
+                          {/*{serverFeedback && <p className={styles.readyText} style={{fontSize: '0.9rem', color: 'blue', marginTop: '5px'}}>{serverFeedback}</p>}*/}
 
                           <button
                               className={styles.recordButton}

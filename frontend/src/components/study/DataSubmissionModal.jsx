@@ -44,8 +44,8 @@ const DataSubmissionModal = ({ isOpen, onClose, onRetake, onSubmit }) => {
 
           {/* 선택 안내 메시지 */}
           <div className={styles.selectionGuide}>
-            <p>영상 제공을 원하지 않으시면 재촬영을,</p>
-            <p>영상을 제출하려면 메인으로 버튼을 클릭해주세요.</p>
+            <p>수어 번역 AI 모델 개발에 도움을 주시려면 데이터 제공 버튼</p>
+            <p>메인화면으로 가시려면 메인으로 버튼을 눌러주세요!</p>
           </div>
 
           {/* 보상 안내 */}
@@ -61,7 +61,7 @@ const DataSubmissionModal = ({ isOpen, onClose, onRetake, onSubmit }) => {
             className={styles.retakeButton}
             onClick={onRetake}
           >
-            재촬영
+            데이터 제공
           </button>
           <button 
             className={styles.submitButton}
