@@ -8,14 +8,24 @@
 .main-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  
+  @media (min-width: 1025px) {
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  @media (max-width: 1024px) {
+    min-height: 100vh;
+  }
 
   .main-content {
     flex: 1;
     display: flex;
     justify-content: center;
     align-items: center;
-    overflow: hidden;
+    
+    @media (min-width: 1025px) {
+      overflow: hidden;
+    }
   }
 }
