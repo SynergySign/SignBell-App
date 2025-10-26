@@ -3,8 +3,10 @@ package app.signbell.backend.service;
 import app.signbell.backend.config.UserSessionRegistry;
 import app.signbell.backend.dto.common.ApiResponse;
 import app.signbell.backend.dto.response.ParticipantEventResponse;
+import app.signbell.backend.entity.User;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
+import app.signbell.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -34,6 +36,7 @@ public class WebSocketSessionService {
     private final GameRoomLeaveService leaveService;
     private final SimpMessagingTemplate messagingTemplate;
     private final UserSessionRegistry userSessionRegistry;
+    private final UserRepository userRepository;
 
     /**
      * 세션 연결 해제 처리
@@ -183,6 +186,43 @@ public class WebSocketSessionService {
 
             // 같은 방의 다른 참가자들에게 퇴장 알림 브로드캐스트
             broadcastLeaveEvent(roomId, eventResp);
+
+            // 게임 중 현재 도전자가 퇴장하여 다음 도전자가 있는 경우
+            if (eventResp.getNextChallengerId() != null) {
+                log.info("게임 중 도전자 퇴장 - 다음 도전자에게 알림 전송: nextChallengerId={}", 
+                        eventResp.getNextChallengerId());
+                
+                try {
+                    // 다음 도전자 정보 조회
+                    Long nextChallengerId = eventResp.getNextChallengerId();
+                    User nextUser = userRepository.findById(nextChallengerId)
+                            .orElse(null);
+                    
+                    if (nextUser != null) {
+                        // 다음 도전자 이벤트 생성
+                        java.util.Map<String, Object> nextChallengerData = new java.util.HashMap<>();
+                        nextChallengerData.put("userId", nextUser.getId());
+                        nextChallengerData.put("nickname", nextUser.getNickname());
+                        nextChallengerData.put("profileImage", nextUser.getProfileImageUrl());
+                        
+                        // 다음 도전자 알림 브로드캐스트
+                        messagingTemplate.convertAndSend(
+                                "/topic/room/" + roomId + "/quiz/challenger",
+                                ApiResponse.success(
+                                        "다음 도전자 차례입니다.",
+                                        nextChallengerData
+                                )
+                        );
+                        
+                        log.info("✅ 다음 도전자 알림 전송 완료 - nextChallengerId: {}, nickname: {}", 
+                                nextChallengerId, nextUser.getNickname());
+                    } else {
+                        log.warn("⚠️ 다음 도전자 정보를 찾을 수 없습니다 - nextChallengerId: {}", nextChallengerId);
+                    }
+                } catch (Exception e) {
+                    log.error("❌ 다음 도전자 알림 전송 실패", e);
+                }
+            }
 
             log.info("DISCONNECT로 인한 자동 퇴장 처리 완료 - userId: {}, roomId: {}", userId, roomId);
 

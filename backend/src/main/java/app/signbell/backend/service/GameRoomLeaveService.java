@@ -4,6 +4,7 @@ import app.signbell.backend.dto.response.ParticipantEventResponse;
 import app.signbell.backend.dto.response.ParticipantResponse;
 import app.signbell.backend.entity.GameParticipant;
 import app.signbell.backend.entity.GameRoom;
+import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.repository.GameParticipantRepository;
@@ -213,28 +214,39 @@ public class GameRoomLeaveService {
         //    GameRoom 엔티티의 currentParticipants 값을 1 감소
         room.decrementParticipants();
 
-        // 3. 게임 진행 중이면 캐시에서 해당 유저 제거
-        if (room.getStatus() == app.signbell.backend.entity.GameRoomStatus.IN_PROGRESS) {
-            handleGameInProgressLeave(gameRoomId, userId);
+        // 3. 게임 진행 중이면 캐시에서 해당 유저 제거 및 다음 도전자 확인
+        Long nextChallengerId = null;
+        log.info("🔍 방 상태 확인 - roomId: {}, status: {}", gameRoomId, room.getStatus());
+        
+        if (room.getStatus() == GameRoomStatus.IN_PROGRESS) {
+            log.info("🎮 게임 진행 중 - 다음 도전자 확인 시작");
+            nextChallengerId = handleGameInProgressLeave(gameRoomId, userId);
+            log.info("🎮 다음 도전자 확인 완료 - nextChallengerId: {}", nextChallengerId);
+        } else {
+            log.info("⏸️ 게임 진행 중 아님 - 다음 도전자 확인 생략");
         }
 
         // 4. 업데이트된 게임방 정보 저장
         gameRoomRepository.save(room);
 
         // 5. 퇴장 완료 로그 기록 (현재 남은 참가자 수 포함)
-        log.info("User {} left room {}. currentParticipants={}",
-                userId, gameRoomId, room.getCurrentParticipants());
+        log.info("User {} left room {}. currentParticipants={}, nextChallengerId={}",
+                userId, gameRoomId, room.getCurrentParticipants(), nextChallengerId);
 
         // 6. 참가자 퇴장 이벤트 응답 객체 생성 및 반환
         //    이 객체는 주로 WebSocket을 통해 같은 방의 다른 참가자들에게 브로드캐스트됨
         //    다른 참가자들은 이 정보로 "누가 나갔는지", "현재 몇 명이 남았는지" 알 수 있음
-        return ParticipantEventResponse.builder()
+        ParticipantEventResponse response = ParticipantEventResponse.builder()
                 .eventType("PARTICIPANT_LEFT")
                 .participant(participantResponse)
                 .currentParticipants(room.getCurrentParticipants())
                 .gameRoomId(room.getId())
                 .roomClosed(false)
+                .nextChallengerId(nextChallengerId)
                 .build();
+        
+        log.info("📤 PARTICIPANT_LEFT 이벤트 생성 완료 - nextChallengerId: {}", response.getNextChallengerId());
+        return response;
     }
 
     /**
@@ -247,8 +259,9 @@ public class GameRoomLeaveService {
      * 
      * @param roomId 게임방 ID
      * @param userId 퇴장한 사용자 ID
+     * @return 다음 도전자 정보 (없으면 null)
      */
-    private void handleGameInProgressLeave(Long roomId, Long userId) {
+    private Long handleGameInProgressLeave(Long roomId, Long userId) {
         try {
             QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
             
@@ -256,32 +269,40 @@ public class GameRoomLeaveService {
             roomState.removeUserScore(userId);
             log.info("게임 중 퇴장 - 캐시에서 점수 제거: userId={}, roomId={}", userId, roomId);
             
+            Long nextChallengerId = null;
+            
             // 2. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거 및 차례 확인
             for (int questionNumber = 1; questionNumber <= 8; questionNumber++) {
                 // 현재 도전 차례인지 확인
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
                 boolean wasCurrentChallenger = userId.equals(currentChallenger);
                 
-                // 도전 순서에서 제거
-                roomState.removeChallenger(questionNumber, userId);
-                
-                // 도전 차례였다면 다음 도전자에게 넘김
+                // 도전 차례였다면 다음 도전자를 먼저 확인 (제거 전에!)
                 if (wasCurrentChallenger) {
+                    // 다음 도전자 확인 (제거하기 전에 큐에서 조회)
                     Long nextChallenger = roomState.getNextChallenger(questionNumber);
                     if (nextChallenger != null) {
                         log.info("게임 중 퇴장 - 다음 도전자로 변경: question={}, 퇴장userId={}, 다음userId={}", 
                                 questionNumber, userId, nextChallenger);
+                        nextChallengerId = nextChallenger;
                     } else {
                         log.info("게임 중 퇴장 - 남은 도전자 없음: question={}, 퇴장userId={}", 
                                 questionNumber, userId);
                     }
+                } else {
+                    // 현재 도전자가 아니면 그냥 제거만
+                    roomState.removeChallenger(questionNumber, userId);
                 }
             }
             
-            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}", userId, roomId);
+            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}, nextChallengerId={}", 
+                    userId, roomId, nextChallengerId);
+            
+            return nextChallengerId;
             
         } catch (Exception e) {
             log.error("게임 중 퇴장 캐시 처리 실패 - userId={}, roomId={}", userId, roomId, e);
+            return null;
         }
     }
 }
