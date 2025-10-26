@@ -8,12 +8,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { useWebcamStore } from '../../store/webcam/webcamStore'; // [병합] '내 브랜치'의 Zustand 스토어 유지
-import { useJanus } from '../../contexts/JanusContext'; // [병합] '내 브랜치'의 Janus Context 유지
+import { useWebcamStore } from '../../store/webcam/webcamStore';
+import { useJanus } from '../../contexts/JanusContext';
 import { useAuthStore } from '../../store/auth/authStore';
+import { useRoomExit } from '../../hooks/useRoomExit';
 import styles from './QuizWaitingRoom.module.scss';
 import websocketService from '../../services/websocket/websocketService.js';
-import AlertModal from '../../components/ui/AlertModal.jsx'; // [병합] 'dev'의 AlertModal 가져오기
+import AlertModal from '../../components/ui/AlertModal.jsx';
 
 const QuizWaitingRoom = () => {
     const { roomId } = useParams();
@@ -141,11 +142,11 @@ const QuizWaitingRoom = () => {
     useEffect(() => {
         if (location.state?.returnFromGame) {
             console.log('🔄 게임에서 복귀 감지, 웹캠 상태:', { isWebcamOn, hasStream: !!stream });
-            
+
             // 🔥 중요: 모든 remote streams 강제 초기화
             console.log('🧹 게임 복귀 - Remote streams 강제 초기화');
             setRemoteStreams({});
-            
+
             // Remote feeds 정리
             if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
                 console.log('🧹 Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
@@ -160,17 +161,17 @@ const QuizWaitingRoom = () => {
                 });
                 remoteFeedsRef.current = {};
             }
-            
+
             // UserID to FeedID 매핑 초기화
             if (userIdToFeedIdRef.current) {
                 userIdToFeedIdRef.current = {};
             }
-            
+
             // Janus 연결 상태 초기화
             setIsJanusConnected(false);
-            
+
             console.log('✅ 게임 복귀 정리 완료 - WebSocket 재연결을 통해 참가자 정보 받음');
-            
+
             // location.state 초기화 (중복 처리 방지)
             window.history.replaceState({}, document.title);
         }
@@ -188,9 +189,9 @@ const QuizWaitingRoom = () => {
                     console.error('❌ 비디오 재생 실패:', err);
                 });
             } else {
-                console.log('⏳ 로컬 비디오 대기 중:', { 
-                    hasRef: !!videoRef.current, 
-                    hasStream: !!stream 
+                console.log('⏳ 로컬 비디오 대기 중:', {
+                    hasRef: !!videoRef.current,
+                    hasStream: !!stream
                 });
                 // ref가 없으면 다시 시도
                 if (!videoRef.current && stream) {
@@ -198,7 +199,7 @@ const QuizWaitingRoom = () => {
                 }
             }
         };
-        
+
         connectVideo();
     }, [stream]);
 
@@ -600,25 +601,25 @@ const QuizWaitingRoom = () => {
                 break;
 
             case 'PARTICIPANT_READY_UPDATED':
-            {
-                console.log('✅ 준비 상태 변경:', eventData);
+                {
+                    console.log('✅ 준비 상태 변경:', eventData);
 
-                const updatedReady =
-                    eventData.isReady !== undefined
-                        ? eventData.isReady
-                        : eventData.ready !== undefined
-                            ? eventData.ready
-                            : false;
+                    const updatedReady =
+                        eventData.isReady !== undefined
+                            ? eventData.isReady
+                            : eventData.ready !== undefined
+                                ? eventData.ready
+                                : false;
 
-                setParticipants(prev =>
-                    prev.map(p =>
-                        p.userId === eventData.userId
-                            ? { ...p, isReady: updatedReady }
-                            : p
-                    )
-                );
-                break;
-            }
+                    setParticipants(prev =>
+                        prev.map(p =>
+                            p.userId === eventData.userId
+                                ? { ...p, isReady: updatedReady }
+                                : p
+                        )
+                    );
+                    break;
+                }
 
             // [병합] 'dev'의 ROOM_CLOSED 이벤트 케이스 추가
             case 'ROOM_CLOSED':
@@ -746,57 +747,30 @@ const QuizWaitingRoom = () => {
         }
     };
 
-    // [병합] 'dev'의 cleanupAndExit 함수 (방 나가기 공통 처리)
-    // (단, '내 브랜치'의 Context/Store를 사용하도록 수정)
-    const cleanupAndExit = async () => {
-        try {
-            console.log('🚪 방 나가기 처리 시작 (Merged)');
-
-            // 1. Janus WebRTC 정리 (Context 사용)
-            if (janusRef.current) {
-                try {
-                    janusRef.current.destroy();
-                    janusRef.current = null;
-                    pluginHandleRef.current = null;
-                    remoteFeedsRef.current = {};
-                    userIdToFeedIdRef.current = {};
-                    setIsJanusConnected(false);
-                    setRemoteStreams({}); // Context의 스트림 초기화
-                    console.log('✅ Janus 정리 완료');
-                } catch (error) {
-                    console.error('Janus 정리 실패:', error);
-                }
-            }
-
-            // 2. 웹캠 정리 (useWebcamStore 사용)
-            if (isWebcamOn) {
-                stopWebcam(); // '내 브랜치'의 스토어 함수 호출
-                console.log('✅ 웹캠 정리 완료 (via store)');
-            }
-
-            // 3. WebSocket 연결 해제
-            websocketService.disconnect();
-            console.log('✅ WebSocket 연결 해제 완료 (서버가 자동으로 퇴장 처리)');
-
-            // 4. 메인 페이지로 이동
-            navigate('/main');
-        } catch (error) {
-            console.error('❌ 방 나가기 실패:', error);
-            navigate('/main'); // 실패 시에도 강제 이동
-        }
-    };
+    // 퇴장 훅 사용 (공통 퇴장 로직)
+    const { cleanupAndExit } = useRoomExit({
+        janusRef,
+        pluginHandleRef,
+        remoteFeedsRef,
+        userIdToFeedIdRef,
+        setRemoteStreams,
+        setIsJanusConnected,
+        stopWebcam,
+        isWebcamOn,
+        navigateTo: '/main',
+    });
 
     // 나가기 버튼 클릭
     const handleExit = () => {
         setShowExitModal(true);
     };
 
-    // [병합] 'dev'의 confirmExit (cleanupAndExit 호출)
+    // 나가기 확인
     const confirmExit = () => {
         cleanupAndExit();
     };
 
-    // [병합] 'dev'의 방 종료 알림 닫기 핸들러
+    // 방 종료 알림 닫기 핸들러
     const handleRoomClosedAlertClose = () => {
         cleanupAndExit(); // 모달 닫을 때도 cleanup
     };
@@ -855,8 +829,8 @@ const QuizWaitingRoom = () => {
                             style={{ backgroundColor: getWebcamStatusColor(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off') }}
                         ></div>
                         <span className={styles.webcamStatusText}>
-              {getWebcamStatusText(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off')}
-            </span>
+                            {getWebcamStatusText(isWebcamOn ? 'on' : webcamError ? 'denied' : 'off')}
+                        </span>
                     </div>
                 </div>
 
@@ -866,7 +840,7 @@ const QuizWaitingRoom = () => {
                         className={`${styles.actionButton} ${isHost
                             ? styles.startButton
                             : (isReady ? styles.readyActive : styles.readyInactive)
-                        } ${!isWebcamOn || (isHost && !allReady) ? styles.disabled : ''}`}
+                            } ${!isWebcamOn || (isHost && !allReady) ? styles.disabled : ''}`}
                         onClick={
                             isWebcamOn
                                 ? (isHost
@@ -929,16 +903,16 @@ const QuizWaitingRoom = () => {
                             </div>
 
                             <div className={styles.participantInfo}>
-                <span className={styles.nickname}>
-                  {participant.nickname}{participant.userId === myUserId ? ' (나)' : ''}
-                </span>
+                                <span className={styles.nickname}>
+                                    {participant.nickname}{participant.userId === myUserId ? ' (나)' : ''}
+                                </span>
                                 <span className={styles.score}>{participant.score}점</span>
                             </div>
 
                             {!participant.isHost && (
                                 <div
                                     className={`${styles.readyBadge} ${participant.isReady ? styles.ready : styles.notReady
-                                    }`}
+                                        }`}
                                 >
                                     {participant.isReady ? 'READY' : 'NOT READY'}
                                 </div>

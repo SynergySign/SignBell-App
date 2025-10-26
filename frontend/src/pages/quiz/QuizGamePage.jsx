@@ -20,6 +20,7 @@ import { useJanus } from '../../contexts/JanusContext';
 import { useAuthStore } from '../../store/auth/authStore';
 import { useQuizGame } from '../../hooks/useQuizGame';
 import { useQuizWebSocket } from '../../hooks/useQuizWebSocket';
+import { useRoomExit } from '../../hooks/useRoomExit';
 import websocketService from '../../services/websocket/websocketService';
 import * as quizFastApi from '../../services/quiz/quizFastApiWebSocket';
 import styles from './QuizGamePage.module.scss';
@@ -778,9 +779,49 @@ const QuizGamePage = () => {
     }
   }, [gameState.players, gameState.challengersCount, gameState.showToast, gameState.setHasChallenged, gameState.setPlayers, sendChallenge]);
 
-  // 나가기
+  // 웹캠 스토어에서 stopWebcam 가져오기
+  const stopWebcam = useWebcamStore(state => state.stopWebcam);
+
+  // 퇴장 훅 사용 (공통 퇴장 로직)
+  const { cleanupAndExit } = useRoomExit({
+    janusRef,
+    pluginHandleRef,
+    remoteFeedsRef,
+    userIdToFeedIdRef,
+    setRemoteStreams,
+    setIsJanusConnected,
+    stopWebcam,
+    isWebcamOn,
+    navigateTo: '/main',
+    onBeforeExit: async () => {
+      // 게임 전용 정리 작업
+      console.log('🎮 게임 전용 리소스 정리 시작');
+      
+      // 1. 녹화 중단
+      if (isRecordingRef.current) {
+        isRecordingRef.current = false;
+        if (recordingRef.current) {
+          cancelAnimationFrame(recordingRef.current);
+          recordingRef.current = null;
+        }
+        console.log('✅ 녹화 중단 완료');
+      }
+      
+      // 2. FastAPI WebSocket 연결 해제
+      try {
+        quizFastApi.disconnect();
+        fastApiConnectedRef.current = false;
+        metaSentRef.current = false;
+        console.log('✅ FastAPI 연결 해제 완료');
+      } catch (error) {
+        console.error('❌ FastAPI 연결 해제 실패:', error);
+      }
+    }
+  });
+
+  // 나가기 버튼 핸들러
   const handleExit = () => setShowExitModal(true);
-  const confirmExit = () => navigate('/main');
+  const confirmExit = () => cleanupAndExit();
   
   const handleReturnToRoom = async () => {
     console.log('🚪 대기실로 돌아가기 요청');
