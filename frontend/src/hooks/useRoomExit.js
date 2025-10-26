@@ -115,13 +115,17 @@ export const useRoomExit = ({
         console.error('❌ WebSocket 해제 실패:', error);
       }
       
-      // 4. 페이지 이동
-      navigate(navigateTo);
+      // 4. 페이지 이동 (navigateTo가 있을 때만)
+      if (navigateTo) {
+        navigate(navigateTo);
+      }
       
     } catch (error) {
       console.error('❌ 방 나가기 실패:', error);
-      // 실패 시에도 강제 이동
-      navigate(navigateTo);
+      // 실패 시에도 강제 이동 (navigateTo가 있을 때만)
+      if (navigateTo) {
+        navigate(navigateTo);
+      }
     }
   }, [
     janusRef,

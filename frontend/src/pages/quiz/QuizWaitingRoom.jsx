@@ -22,6 +22,7 @@ import WaitingRoomParticipantsGrid from '../../components/quiz/WaitingRoomPartic
 import WaitingRoomDebugPanel from '../../components/quiz/WaitingRoomDebugPanel';
 import WaitingRoomExitModal from '../../components/quiz/WaitingRoomExitModal';
 import AlertModal from '../../components/ui/AlertModal';
+import websocketService from '../../services/websocket/websocketService';
 import styles from './QuizWaitingRoom.module.scss';
 
 const QuizWaitingRoom = () => {
@@ -39,9 +40,12 @@ const QuizWaitingRoom = () => {
     participants,
     showExitModal,
     showRoomClosedAlert,
+    showErrorAlert,
+    errorMessage,
     allReady,
     setShowExitModal,
     setShowRoomClosedAlert,
+    setShowErrorAlert,
     setAllReady,
     updateRoomInfo,
     addParticipant,
@@ -50,6 +54,7 @@ const QuizWaitingRoom = () => {
     updateMyWebcamStatus,
     setInitialParticipants,
     setParticipants,
+    showError,
   } = useWaitingRoom();
 
   // 웹캠 관리
@@ -73,6 +78,7 @@ const QuizWaitingRoom = () => {
 
   // Refs
   const videoRef = useRef(null);
+  const isNavigatingToGameRef = useRef(false);
 
   // WebSocket 이벤트 핸들러
   const handleRoomJoin = useCallback((data) => {
@@ -83,15 +89,14 @@ const QuizWaitingRoom = () => {
 
       if (!myUserId) {
         console.error('❌ myUserId가 없습니다.');
-        alert('사용자 정보를 불러오는데 실패했습니다.');
-        navigate('/main');
+        showError('사용자 정보를 불러오는데 실패했습니다.');
         return;
       }
 
       setInitialParticipants(roomData.participants, myUserId, isWebcamOn);
       updateRoomInfo(roomData);
     }
-  }, [myUserId, isWebcamOn, navigate, setInitialParticipants, updateRoomInfo]);
+  }, [myUserId, isWebcamOn, setInitialParticipants, updateRoomInfo, showError]);
 
   const handleParticipantEvent = useCallback((data) => {
     console.log('📥 참가자 이벤트:', data);
@@ -162,13 +167,85 @@ const QuizWaitingRoom = () => {
       navigate(`/quiz/game/${roomId}`, { state: stateToPass });
     } else {
       console.error('❌ 게임 시작 실패:', data.message);
-      alert(data.message || '게임 시작에 실패했습니다.');
+      showError(data.message || '게임 시작에 실패했습니다.');
     }
-  }, [participants, myUserId, roomId, navigate]);
+  }, [participants, myUserId, roomId, navigate, showError]);
 
   const handleRoomClosed = useCallback(() => {
     setShowRoomClosedAlert(true);
   }, [setShowRoomClosedAlert]);
+
+  // 퇴장 훅 (handleError에서 사용하므로 먼저 정의)
+  const { cleanupAndExit } = useRoomExit({
+    janusRef,
+    pluginHandleRef,
+    remoteFeedsRef,
+    userIdToFeedIdRef,
+    setRemoteStreams,
+    setIsJanusConnected,
+    stopWebcam,
+    isWebcamOn,
+    navigateTo: '/main',
+  });
+
+  // 연결만 정리하는 함수 (페이지 이동 없음)
+  const cleanupOnly = useCallback(async () => {
+    try {
+      console.log('🧹 연결 정리 시작 (페이지 이동 없음)');
+
+      // Janus WebRTC 정리
+      if (janusRef.current) {
+        try {
+          if (remoteFeedsRef.current) {
+            Object.values(remoteFeedsRef.current).forEach(feed => {
+              try {
+                if (feed && typeof feed.detach === 'function') {
+                  feed.detach();
+                }
+              } catch (error) {
+                console.error('❌ Remote feed detach 실패:', error);
+              }
+            });
+            remoteFeedsRef.current = {};
+          }
+
+          if (pluginHandleRef.current) {
+            pluginHandleRef.current.detach();
+            pluginHandleRef.current = null;
+          }
+
+          janusRef.current.destroy();
+          janusRef.current = null;
+        } catch (error) {
+          console.error('❌ Janus 정리 실패:', error);
+        }
+      }
+
+      // 상태 초기화
+      if (userIdToFeedIdRef.current) {
+        userIdToFeedIdRef.current = {};
+      }
+      setRemoteStreams({});
+      setIsJanusConnected(false);
+
+      // 웹캠 정리
+      if (isWebcamOn) {
+        stopWebcam();
+      }
+
+      // WebSocket 연결 해제
+      try {
+        websocketService.disconnect();
+        console.log('✅ WebSocket 연결 해제 완료');
+      } catch (error) {
+        console.error('❌ WebSocket 해제 실패:', error);
+      }
+
+      console.log('✅ 연결 정리 완료');
+    } catch (error) {
+      console.error('❌ 연결 정리 실패:', error);
+    }
+  }, [janusRef, pluginHandleRef, remoteFeedsRef, userIdToFeedIdRef, setRemoteStreams, setIsJanusConnected, isWebcamOn, stopWebcam]);
 
   const handleError = useCallback((data) => {
     console.error('📥 에러:', data);
@@ -179,21 +256,25 @@ const QuizWaitingRoom = () => {
         return;
       }
       console.warn('⚠️ 이미 시작된 방입니다.');
-      alert('이 방은 이미 게임이 시작되었습니다.\n새로운 방을 만들어주세요.');
-      navigate('/main');
+
+      // WebSocket 연결만 정리 (페이지 이동은 모달 닫을 때)
+      cleanupOnly();
+
+      showError('이 방은 이미 게임이 시작되었습니다.\n새로운 방을 만들어주세요.');
       return;
     }
 
-    alert(data.message || data.detail || '오류가 발생했습니다.');
-  }, [navigate]);
+    showError(data.message || data.detail || '오류가 발생했습니다.');
+  }, [showError, cleanupOnly, isNavigatingToGameRef]);
 
   // WebSocket 연결
-  const { sendReady, sendStartGame, isNavigatingToGameRef } = useWaitingRoomWebSocket({
+  const { sendReady, sendStartGame } = useWaitingRoomWebSocket({
     roomId,
     myUserId,
     isAuthenticated,
     hasCheckedAuth,
     isWebcamOn,
+    isNavigatingToGameRef,
     onRoomJoin: handleRoomJoin,
     onParticipantEvent: handleParticipantEvent,
     onGameStart: handleGameStart,
@@ -226,10 +307,9 @@ const QuizWaitingRoom = () => {
     }
 
     if (!isAuthenticated || !myUserId) {
-      alert('로그인이 필요합니다.');
-      navigate('/main');
+      showError('로그인이 필요합니다.');
     }
-  }, [hasCheckedAuth, isAuthenticated, myUserId, navigate]);
+  }, [hasCheckedAuth, isAuthenticated, myUserId, showError]);
 
   // 게임에서 돌아올 때 처리
   useEffect(() => {
@@ -305,8 +385,9 @@ const QuizWaitingRoom = () => {
       await startWebcam();
     } catch (error) {
       console.error('웹캠 권한 거부:', error);
+      showError('웹캠 권한이 거부되었습니다.\n브라우저 설정에서 웹캠 권한을 허용해주세요.');
     }
-  }, [startWebcam]);
+  }, [startWebcam, showError]);
 
   // 웹캠 토글
   const handleWebcamToggle = useCallback(() => {
@@ -347,19 +428,6 @@ const QuizWaitingRoom = () => {
     }
   }, [isHost, handleStartGame, handleReadyToggle]);
 
-  // 퇴장 훅
-  const { cleanupAndExit } = useRoomExit({
-    janusRef,
-    pluginHandleRef,
-    remoteFeedsRef,
-    userIdToFeedIdRef,
-    setRemoteStreams,
-    setIsJanusConnected,
-    stopWebcam,
-    isWebcamOn,
-    navigateTo: '/main',
-  });
-
   // 나가기
   const handleExit = useCallback(() => {
     setShowExitModal(true);
@@ -372,6 +440,26 @@ const QuizWaitingRoom = () => {
   const handleRoomClosedAlertClose = useCallback(() => {
     cleanupAndExit();
   }, [cleanupAndExit]);
+
+  // 에러 모달 닫기 (특정 에러는 메인으로 이동)
+  const handleErrorAlertClose = useCallback(() => {
+    console.log('🔔 에러 모달 닫기 호출됨');
+    console.log('📝 에러 메시지:', errorMessage);
+
+    setShowErrorAlert(false);
+
+    // 로그인 필요, 사용자 정보 로드 실패, 이미 시작된 방 등의 경우 메인으로 이동
+    if (
+      errorMessage.includes('로그인이 필요합니다') ||
+      errorMessage.includes('사용자 정보를 불러오는데 실패했습니다') ||
+      errorMessage.includes('이미 게임이 시작되었습니다')
+    ) {
+      console.log('✅ 메인 페이지로 이동');
+      navigate('/main');
+    } else {
+      console.log('⏭️ 현재 페이지 유지');
+    }
+  }, [setShowErrorAlert, errorMessage, navigate]);
 
   // 디버그 핸들러
   const handleToggleHost = useCallback(() => {
@@ -440,6 +528,15 @@ const QuizWaitingRoom = () => {
         title="방 종료"
         message="방장이 나가서 방이 종료되었습니다."
         type="warning"
+      />
+
+      {/* 에러 알림 모달 */}
+      <AlertModal
+        isOpen={showErrorAlert}
+        onClose={handleErrorAlertClose}
+        title="알림"
+        message={errorMessage}
+        type="error"
       />
     </div>
   );

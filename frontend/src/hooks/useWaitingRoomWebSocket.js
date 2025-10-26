@@ -13,13 +13,13 @@ export const useWaitingRoomWebSocket = ({
   isAuthenticated,
   hasCheckedAuth,
   isWebcamOn,
+  isNavigatingToGameRef,
   onRoomJoin,
   onParticipantEvent,
   onGameStart,
   onRoomClosed,
   onError,
 }) => {
-  const isNavigatingToGameRef = useRef(false);
   const hasJoinedRef = useRef(false); // 🆕 중복 입장 방지
   
   // 🆕 콜백 함수들을 ref로 저장 (무한 루프 방지)
@@ -120,6 +120,5 @@ export const useWaitingRoomWebSocket = ({
   return {
     sendReady,
     sendStartGame,
-    isNavigatingToGameRef,
   };
 };

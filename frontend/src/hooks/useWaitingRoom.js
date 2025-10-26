@@ -23,6 +23,8 @@ export const useWaitingRoom = () => {
   // 모달 상태
   const [showExitModal, setShowExitModal] = useState(false);
   const [showRoomClosedAlert, setShowRoomClosedAlert] = useState(false);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   // 준비 상태
   const [allReady, setAllReady] = useState(false);
@@ -106,16 +108,25 @@ export const useWaitingRoom = () => {
     setParticipants(formattedParticipants);
   }, []);
 
+  // 에러 표시
+  const showError = useCallback((message) => {
+    setErrorMessage(message);
+    setShowErrorAlert(true);
+  }, []);
+
   return {
     roomInfo,
     participants,
     showExitModal,
     showRoomClosedAlert,
+    showErrorAlert,
+    errorMessage,
     allReady,
     setRoomInfo,
     setParticipants,
     setShowExitModal,
     setShowRoomClosedAlert,
+    setShowErrorAlert,
     setAllReady,
     updateRoomInfo,
     addParticipant,
@@ -123,5 +134,6 @@ export const useWaitingRoom = () => {
     updateParticipantReady,
     updateMyWebcamStatus,
     setInitialParticipants,
+    showError,
   };
 };
