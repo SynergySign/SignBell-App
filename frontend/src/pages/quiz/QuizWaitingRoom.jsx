@@ -117,15 +117,44 @@ const QuizWaitingRoom = () => {
         break;
       }
 
-      case 'PARTICIPANT_LEFT':
+      case 'PARTICIPANT_LEFT': {
+        const leftUserId = eventData.participant.userId;
         console.log('👋 참가자 퇴장:', eventData.participant);
+        
         if (eventData.roomClosed) {
           console.log('🚪 방장이 나가 방이 종료됨');
           setShowRoomClosedAlert(true);
           return;
         }
-        removeParticipant(eventData.participant.userId);
+        
+        // Janus feed 정리
+        const feedId = userIdToFeedIdRef.current[leftUserId];
+        if (feedId && remoteFeedsRef.current[feedId]) {
+          console.log(`🧹 Janus feed 정리: userId=${leftUserId}, feedId=${feedId}`);
+          try {
+            remoteFeedsRef.current[feedId].detach();
+            delete remoteFeedsRef.current[feedId];
+          } catch (error) {
+            console.error('❌ Janus feed detach 실패:', error);
+          }
+        }
+        
+        // UserID to FeedID 매핑 제거
+        if (userIdToFeedIdRef.current[leftUserId]) {
+          delete userIdToFeedIdRef.current[leftUserId];
+        }
+        
+        // Remote stream 제거
+        setRemoteStreams(prev => {
+          const newStreams = { ...prev };
+          delete newStreams[leftUserId];
+          return newStreams;
+        });
+        
+        // 참가자 목록에서 제거
+        removeParticipant(leftUserId);
         break;
+      }
 
       case 'PARTICIPANT_READY_UPDATED': {
         console.log('✅ 준비 상태 변경:', eventData);

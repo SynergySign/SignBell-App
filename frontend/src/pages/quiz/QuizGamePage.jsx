@@ -255,11 +255,11 @@ const QuizGamePage = () => {
 
       // 점수 업데이트
       gameState.setPlayers(prev =>
-          prev.map(player =>
-              player.id === result.userId
-                  ? { ...player, score: result.totalScore }
-                  : player
-          )
+        prev.map(player =>
+          player.id === result.userId
+            ? { ...player, score: result.totalScore }
+            : player
+        )
       );
 
       // 결과 정보 저장 (화면에 표시용)
@@ -334,9 +334,145 @@ const QuizGamePage = () => {
     }
   }, [gameState.showToast]);
 
+  const handleParticipantLeft = useCallback((data) => {
+    console.log('📥 참가자 퇴장 이벤트 수신:', JSON.stringify(data, null, 2));
+
+    if (data.success && data.data) {
+      const eventData = data.data;
+
+      if (eventData.eventType === 'PARTICIPANT_LEFT') {
+        const leftUserId = eventData.participant?.userId;
+        const leftNickname = eventData.participant?.nickname;
+        const nextChallengerId = eventData.nextChallengerId;
+
+        console.log(`👋 참가자 퇴장 상세:`, {
+          leftUserId,
+          leftNickname,
+          nextChallengerId,
+          currentChallengerInfo: gameState.currentChallengerInfo,
+          currentPlayers: gameState.players.map(p => ({ id: p.id, nickname: p.nickname }))
+        });
+
+        // 1. 현재 도전자가 퇴장했는지 확인
+        const wasCurrentChallenger = gameState.currentChallengerInfo?.id === leftUserId;
+
+        // 2. 다음 도전자 정보 미리 조회 (참가자 제거 전에!)
+        let nextPlayerInfo = null;
+        if (wasCurrentChallenger && nextChallengerId) {
+          const currentPlayers = gameState.players;
+          nextPlayerInfo = currentPlayers.find(p => p.id === nextChallengerId);
+          console.log(`🔍 다음 도전자 정보 조회: `, nextPlayerInfo);
+        }
+
+        // 3. 참가자 목록에서 완전히 제거
+        gameState.setPlayers(prev => prev.filter(p => p.id !== leftUserId));
+
+        // 4. 현재 도전자가 퇴장한 경우 처리
+        if (wasCurrentChallenger) {
+          console.log('⚠️ 현재 도전자가 퇴장했습니다');
+
+          // 녹화 중이었다면 중단
+          if (isRecordingRef.current) {
+            isRecordingRef.current = false;
+            if (recordingRef.current) {
+              cancelAnimationFrame(recordingRef.current);
+              recordingRef.current = null;
+            }
+            console.log('🔴 녹화 중단 - 도전자 퇴장');
+          }
+
+          // 대기 상태 초기화
+          gameState.setIsWaitingResult(false);
+
+          // 다음 도전자가 있으면 수동으로 전환
+          if (nextPlayerInfo) {
+            console.log(`🔄 다음 도전자로 전환: ${nextPlayerInfo.nickname}`);
+
+            gameState.setCurrentChallengerInfo({
+              id: nextPlayerInfo.id,
+              nickname: nextPlayerInfo.nickname,
+              profileImage: nextPlayerInfo.profileImage || '/default-profile.png',
+              score: nextPlayerInfo.score
+            });
+
+            const myInfo = gameState.players.find(p => p.isMe);
+
+            if (myInfo && myInfo.id === nextChallengerId) {
+              gameState.setGamePhase('myTurn');
+              gameState.setSolvingTimer(5);
+              gameState.setSigningTimer(5);
+              gameState.showToast('내 차례! 준비하세요!', 'info');
+            } else {
+              gameState.setGamePhase('solving');
+              gameState.showToast(`${nextPlayerInfo.nickname}의 차례입니다.`, 'info');
+            }
+
+            // 현재 도전자 표시 업데이트
+            gameState.setPlayers(prev => prev.map(player => ({
+              ...player,
+              isCurrentPlayer: player.id === nextChallengerId
+            })));
+          } else {
+            console.log('⏳ 다음 도전자 없음 - 다음 문제 대기 중...');
+            gameState.setGamePhase('challenge');
+          }
+        }
+
+        // 5. Remote stream 정리
+        if (remoteFeedsRef.current) {
+          const feedId = userIdToFeedIdRef.current[leftUserId];
+          if (feedId && remoteFeedsRef.current[feedId]) {
+            try {
+              remoteFeedsRef.current[feedId].detach();
+              delete remoteFeedsRef.current[feedId];
+              console.log(`✅ Remote feed 정리 완료 - userId: ${leftUserId}, feedId: ${feedId}`);
+            } catch (error) {
+              console.error('❌ Remote feed detach 실패:', error);
+            }
+          }
+        }
+
+        // 6. Remote stream 상태 업데이트
+        setRemoteStreams(prev => {
+          const newStreams = { ...prev };
+          delete newStreams[leftUserId];
+          return newStreams;
+        });
+
+        // 7. UserID to FeedID 매핑 제거
+        if (userIdToFeedIdRef.current[leftUserId]) {
+          delete userIdToFeedIdRef.current[leftUserId];
+        }
+
+        // 8. 토스트 알림
+        gameState.showToast(`${leftNickname}님이 퇴장했습니다`, 'info');
+
+        // 9. 방 종료 확인
+        if (eventData.roomClosed) {
+          console.log('🚪 방장이 나가서 방이 종료됨');
+          gameState.showToast('방장이 나가서 게임이 종료되었습니다', 'warning');
+
+          // 녹화 중단
+          if (isRecordingRef.current) {
+            isRecordingRef.current = false;
+            if (recordingRef.current) {
+              cancelAnimationFrame(recordingRef.current);
+              recordingRef.current = null;
+            }
+          }
+
+          // 3초 후 메인으로 이동
+          setTimeout(() => {
+            navigate('/main');
+          }, 3000);
+        }
+      }
+    }
+  }, [gameState, remoteFeedsRef, userIdToFeedIdRef, setRemoteStreams, navigate, isRecordingRef, recordingRef]);
+
   const handleError = useCallback((data) => {
     console.error('게임 에러:', data);
-    
+
     // 진행 중인 녹화 중단
     if (isRecordingRef.current) {
       isRecordingRef.current = false;
@@ -368,6 +504,7 @@ const QuizGamePage = () => {
     onAnswerResult: handleAnswerResult,
     onGameEnd: handleGameEnd,
     onChallengeTimeout: handleChallengeTimeout,
+    onParticipantLeft: handleParticipantLeft,
     onError: handleError,
   });
 
@@ -509,12 +646,12 @@ const QuizGamePage = () => {
     }
 
     startWebcam()
-        .then(() => {
-          webcamInitializedRef.current = true;
-        })
-        .catch(() => {
-          webcamInitializedRef.current = true;
-        });
+      .then(() => {
+        webcamInitializedRef.current = true;
+      })
+      .catch(() => {
+        webcamInitializedRef.current = true;
+      });
   }, [isWebcamOn, startWebcam]);
 
   // 메인 비디오 스트림 연결은 QuizMainVideo 컴포넌트에서 처리
@@ -626,7 +763,7 @@ const QuizGamePage = () => {
                     console.log(`👋 Publisher 퇴장 - feedId: ${leavingFeedId}`);
 
                     const leavingUserId = Object.keys(userIdToFeedIdRef.current).find(
-                        (uid) => userIdToFeedIdRef.current[uid] === leavingFeedId
+                      (uid) => userIdToFeedIdRef.current[uid] === leavingFeedId
                     );
 
                     if (remoteFeedsRef.current[leavingFeedId]) {
@@ -733,7 +870,7 @@ const QuizGamePage = () => {
           streamActive: remoteStream?.active
         });
 
-        if (videoElement && remoteStream) {
+        if (videoElement && remoteStream && videoElement.srcObject !== remoteStream) {
           videoElement.srcObject = remoteStream;
           console.log(`✅ 스트림 연결 완료 - userId: ${userId}`);
         }
@@ -741,7 +878,7 @@ const QuizGamePage = () => {
     }, 100);
 
     return () => clearTimeout(timer);
-  }, [remoteStreams, gameState.gamePhase, gameState.currentChallengerInfo]);
+  }, [remoteStreams]); // gamePhase와 currentChallengerInfo 제거 - 불필요한 리렌더링 방지
 
   // 토스트 자동 닫기
   useEffect(() => {
@@ -767,9 +904,9 @@ const QuizGamePage = () => {
 
     gameState.setHasChallenged(true);
     gameState.setPlayers(prev =>
-        prev.map(player =>
-            player.isMe ? { ...player, hasChallenged: true } : player
-        )
+      prev.map(player =>
+        player.isMe ? { ...player, hasChallenged: true } : player
+      )
     );
 
     try {
@@ -796,7 +933,7 @@ const QuizGamePage = () => {
     onBeforeExit: async () => {
       // 게임 전용 정리 작업
       console.log('🎮 게임 전용 리소스 정리 시작');
-      
+
       // 1. 녹화 중단
       if (isRecordingRef.current) {
         isRecordingRef.current = false;
@@ -806,7 +943,7 @@ const QuizGamePage = () => {
         }
         console.log('✅ 녹화 중단 완료');
       }
-      
+
       // 2. FastAPI WebSocket 연결 해제
       try {
         quizFastApi.disconnect();
@@ -822,13 +959,33 @@ const QuizGamePage = () => {
   // 나가기 버튼 핸들러
   const handleExit = () => setShowExitModal(true);
   const confirmExit = () => cleanupAndExit();
-  
+
   const handleReturnToRoom = async () => {
     console.log('🚪 대기실로 돌아가기 요청');
-    
+
+    // 0. 녹화 중단
+    if (isRecordingRef.current) {
+      isRecordingRef.current = false;
+      if (recordingRef.current) {
+        cancelAnimationFrame(recordingRef.current);
+        recordingRef.current = null;
+      }
+      console.log('✅ 녹화 중단 완료');
+    }
+
+    // 0-1. FastAPI WebSocket 연결 해제
+    try {
+      quizFastApi.disconnect();
+      fastApiConnectedRef.current = false;
+      metaSentRef.current = false;
+      console.log('✅ FastAPI 연결 해제 완료');
+    } catch (error) {
+      console.error('❌ FastAPI 연결 해제 실패:', error);
+    }
+
     // 1. WebRTC 연결 완전 정리
     console.log('🧹 대기실 복귀 - WebRTC 연결 완전 정리 시작');
-    
+
     // 1-1. Remote feeds 정리
     if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
       console.log('⚠️ Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
@@ -844,7 +1001,7 @@ const QuizGamePage = () => {
       });
       remoteFeedsRef.current = {};
     }
-    
+
     // 1-2. Publisher (내 플러그인 핸들) 정리 - Janus 방 떠나기
     if (pluginHandleRef.current) {
       console.log('🔌 Publisher plugin - Janus 방 떠나기');
@@ -852,7 +1009,7 @@ const QuizGamePage = () => {
         // 🆕 Janus 방을 명시적으로 떠나기 (Promise로 처리)
         await new Promise((resolve) => {
           const leave = { request: 'leave' };
-          pluginHandleRef.current.send({ 
+          pluginHandleRef.current.send({
             message: leave,
             success: () => {
               console.log('✅ Janus 방 떠나기 성공');
@@ -863,11 +1020,11 @@ const QuizGamePage = () => {
               resolve(); // 실패해도 계속 진행
             }
           });
-          
+
           // 타임아웃 (500ms 후 강제 진행)
           setTimeout(resolve, 500);
         });
-        
+
         // detach
         pluginHandleRef.current.detach();
         pluginHandleRef.current = null;
@@ -876,7 +1033,7 @@ const QuizGamePage = () => {
         pluginHandleRef.current = null;
       }
     }
-    
+
     // 1-3. Janus 연결 종료
     if (janusRef.current) {
       console.log('🔌 Janus 연결 종료');
@@ -887,16 +1044,16 @@ const QuizGamePage = () => {
       }
       janusRef.current = null;
     }
-    
+
     // 1-4. 상태 초기화
     setRemoteStreams({});
     setIsJanusConnected(false);
     if (userIdToFeedIdRef.current) {
       userIdToFeedIdRef.current = {};
     }
-    
+
     console.log('✅ 대기실 복귀 - WebRTC 연결 완전 정리 완료');
-    
+
     // 2. 바로 대기실로 이동 (WebSocket 재연결을 통해 참가자 정보 받음)
     console.log('🚪 대기실 페이지로 즉시 이동');
     navigate(`/quiz/waiting/${roomId}`, {
@@ -908,80 +1065,80 @@ const QuizGamePage = () => {
   };
 
   return (
-      <div className={styles.quizGamePage}>
-        <QuizHeader
-            roomId={roomId}
+    <div className={styles.quizGamePage}>
+      <QuizHeader
+        roomId={roomId}
+        isWebcamOn={isWebcamOn}
+        onToggleWebcam={toggleWebcam}
+        onExit={handleExit}
+      />
+
+      <main className={styles.gameContent}>
+        <QuizQuestion
+          currentQuestion={gameState.currentQuestion}
+          totalQuestions={gameState.totalQuestions}
+          word={gameState.currentWord || '문제를 불러오는 중...'}
+        />
+
+        <div className={styles.mainContentRow}>
+          <QuizMainVideo
+            gamePhase={gameState.gamePhase}
             isWebcamOn={isWebcamOn}
-            onToggleWebcam={toggleWebcam}
-            onExit={handleExit}
-        />
-
-        <main className={styles.gameContent}>
-          <QuizQuestion
-              currentQuestion={gameState.currentQuestion}
-              totalQuestions={gameState.totalQuestions}
-              word={gameState.currentWord || '문제를 불러오는 중...'}
+            mainVideoRef={mainVideoRef}
+            currentChallengerInfo={gameState.currentChallengerInfo}
+            remoteStreams={remoteStreams}
+            remoteVideosRef={remoteVideosRef}
+            stream={stream}
           />
 
-          <div className={styles.mainContentRow}>
-            <QuizMainVideo
-                gamePhase={gameState.gamePhase}
-                isWebcamOn={isWebcamOn}
-                mainVideoRef={mainVideoRef}
-                currentChallengerInfo={gameState.currentChallengerInfo}
-                remoteStreams={remoteStreams}
-                remoteVideosRef={remoteVideosRef}
-                stream={stream}
-            />
-
-            <QuizGameState
-                gamePhase={gameState.gamePhase}
-                timer={gameState.timer}
-                challengersCount={gameState.challengersCount}
-                maxChallengers={4}
-                hasChallenged={gameState.hasChallenged}
-                challengeOrder={gameState.challengeOrder}
-                onChallenge={handleChallenge}
-                currentChallengerInfo={gameState.currentChallengerInfo}
-                solvingTimer={gameState.solvingTimer}
-                signingTimer={gameState.signingTimer}
-                isWaitingResult={gameState.isWaitingResult}
-                resultMessage={gameState.resultMessage}
-                answerResult={gameState.answerResult}
-            />
-          </div>
-
-          <QuizPlayerGrid
-              players={gameState.players}
-              gamePhase={gameState.gamePhase}
-              isWebcamOn={isWebcamOn}
-              stream={stream}
-              remoteStreams={remoteStreams}
-              remoteVideosRef={remoteVideosRef}
+          <QuizGameState
+            gamePhase={gameState.gamePhase}
+            timer={gameState.timer}
+            challengersCount={gameState.challengersCount}
+            maxChallengers={4}
+            hasChallenged={gameState.hasChallenged}
+            challengeOrder={gameState.challengeOrder}
+            onChallenge={handleChallenge}
+            currentChallengerInfo={gameState.currentChallengerInfo}
+            solvingTimer={gameState.solvingTimer}
+            signingTimer={gameState.signingTimer}
+            isWaitingResult={gameState.isWaitingResult}
+            resultMessage={gameState.resultMessage}
+            answerResult={gameState.answerResult}
           />
-        </main>
+        </div>
 
-        <QuizExitModal
-            isOpen={showExitModal}
-            onCancel={() => setShowExitModal(false)}
-            onConfirm={confirmExit}
+        <QuizPlayerGrid
+          players={gameState.players}
+          gamePhase={gameState.gamePhase}
+          isWebcamOn={isWebcamOn}
+          stream={stream}
+          remoteStreams={remoteStreams}
+          remoteVideosRef={remoteVideosRef}
         />
+      </main>
 
-        <Toast
-            isOpen={gameState.toast.isOpen}
-            message={gameState.toast.message}
-            type={gameState.toast.type}
-        />
+      <QuizExitModal
+        isOpen={showExitModal}
+        onCancel={() => setShowExitModal(false)}
+        onConfirm={confirmExit}
+      />
 
-        <GameResultModal
-            isOpen={showResultModal}
-            onReturnToRoom={handleReturnToRoom}
-            rankings={rankings}
-        />
+      <Toast
+        isOpen={gameState.toast.isOpen}
+        message={gameState.toast.message}
+        type={gameState.toast.type}
+      />
 
-        {/* 숨겨진 캔버스 - 프레임 캡처용 */}
-        <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
-      </div>
+      <GameResultModal
+        isOpen={showResultModal}
+        onReturnToRoom={handleReturnToRoom}
+        rankings={rankings}
+      />
+
+      {/* 숨겨진 캔버스 - 프레임 캡처용 */}
+      <canvas ref={canvasRef} style={{ display: 'none' }} width={640} height={480} />
+    </div>
   );
 };
 
