@@ -41,18 +41,21 @@ public class GameRoomLeaveService {
     private final GameRoomRepository gameRoomRepository;
     private final WebSocketSessionService sessionService;
     private final QuizStateCache quizStateCache;
+    private final QuizService quizService;
 
 
     public GameRoomLeaveService(
             GameParticipantRepository participantRepository,
             GameRoomRepository gameRoomRepository,
-            @Lazy WebSocketSessionService sessionService, // <- 여기에 @Lazy 추가
-            QuizStateCache quizStateCache
+            @Lazy WebSocketSessionService sessionService,
+            QuizStateCache quizStateCache,
+            @Lazy QuizService quizService
     ) {
         this.participantRepository = participantRepository;
         this.gameRoomRepository = gameRoomRepository;
         this.sessionService = sessionService;
         this.quizStateCache = quizStateCache;
+        this.quizService = quizService;
     }
 
     /**
@@ -250,12 +253,12 @@ public class GameRoomLeaveService {
     }
 
     /**
-     * 게임 진행 중 참가자 퇴장 시 캐시 처리
+     * 게임 진행 중 참가자 퇴장 시 처리
      * 
      * 처리 내용:
-     * 1. 캐시에서 해당 유저의 점수 제거
-     * 2. 모든 문제에서 해당 유저의 도전 순서 제거
-     * 3. 현재 도전 차례였던 경우 다음 도전자에게 넘김
+     * 1. QuizService.handleParticipantLeft 호출하여 타이머 재시작 처리
+     * 2. 캐시에서 해당 유저의 점수 제거
+     * 3. 모든 문제에서 해당 유저의 도전 순서 제거
      * 
      * @param roomId 게임방 ID
      * @param userId 퇴장한 사용자 ID
@@ -263,31 +266,33 @@ public class GameRoomLeaveService {
      */
     private Long handleGameInProgressLeave(Long roomId, Long userId) {
         try {
+            log.info("🎮 게임 진행 중 퇴장 처리 시작 - roomId: {}, userId: {}", roomId, userId);
+            
+            // 1. QuizService에 퇴장 처리 위임 (타이머 재시작 포함)
+            quizService.handleParticipantLeft(roomId, userId);
+            log.info("✅ QuizService.handleParticipantLeft 호출 완료 - roomId: {}, userId: {}", roomId, userId);
+            
             QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
             
-            // 1. 캐시에서 점수 제거
+            // 2. 캐시에서 점수 제거
             roomState.removeUserScore(userId);
             log.info("게임 중 퇴장 - 캐시에서 점수 제거: userId={}, roomId={}", userId, roomId);
             
             Long nextChallengerId = null;
             
-            // 2. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거 및 차례 확인
+            // 3. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거
             for (int questionNumber = 1; questionNumber <= 8; questionNumber++) {
                 // 현재 도전 차례인지 확인
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
                 boolean wasCurrentChallenger = userId.equals(currentChallenger);
                 
-                // 도전 차례였다면 다음 도전자를 먼저 확인 (제거 전에!)
                 if (wasCurrentChallenger) {
-                    // 다음 도전자 확인 (제거하기 전에 큐에서 조회)
-                    Long nextChallenger = roomState.getNextChallenger(questionNumber);
-                    if (nextChallenger != null) {
-                        log.info("게임 중 퇴장 - 다음 도전자로 변경: question={}, 퇴장userId={}, 다음userId={}", 
-                                questionNumber, userId, nextChallenger);
+                    // 현재 도전자였다면 다음 도전자 ID 저장 (이미 QuizService에서 처리됨)
+                    Long nextChallenger = roomState.getCurrentChallenger(questionNumber);
+                    if (nextChallenger != null && !nextChallenger.equals(userId)) {
                         nextChallengerId = nextChallenger;
-                    } else {
-                        log.info("게임 중 퇴장 - 남은 도전자 없음: question={}, 퇴장userId={}", 
-                                questionNumber, userId);
+                        log.info("게임 중 퇴장 - 다음 도전자 확인: question={}, 퇴장userId={}, 다음userId={}", 
+                                questionNumber, userId, nextChallenger);
                     }
                 } else {
                     // 현재 도전자가 아니면 그냥 제거만
@@ -301,7 +306,7 @@ public class GameRoomLeaveService {
             return nextChallengerId;
             
         } catch (Exception e) {
-            log.error("게임 중 퇴장 캐시 처리 실패 - userId={}, roomId={}", userId, roomId, e);
+            log.error("게임 중 퇴장 처리 실패 - userId={}, roomId={}", userId, roomId, e);
             return null;
         }
     }
