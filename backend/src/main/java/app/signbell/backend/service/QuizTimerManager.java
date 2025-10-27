@@ -73,6 +73,11 @@ public class QuizTimerManager {
     ) {
         String key = buildKey(roomId, questionNumber, timerType);
         
+        log.info("타이머 시작 - roomId: {}, question: {}, type: {}, duration: {}초", 
+            roomId, questionNumber, timerType, tasks.size() - 1);
+        log.debug("타이머 상태 - key: {}, 스케줄링할 작업 수: {}, 현재 활성 타이머 수: {}", 
+            key, tasks.size(), activeTimers.size());
+        
         // 기존 타이머가 있으면 자동 취소
         cancelTimer(roomId, questionNumber, timerType);
         
@@ -91,7 +96,9 @@ public class QuizTimerManager {
         // 활성 타이머 맵에 저장
         activeTimers.put(key, futures);
         
-        log.info("타이머 스케줄링 완료 - key: {}, tasks: {}", key, tasks.size());
+        log.info("타이머 스케줄링 완료 - roomId: {}, question: {}, type: {}, tasks: {}", 
+            roomId, questionNumber, timerType, tasks.size());
+        log.debug("타이머 상태 - 스케줄링 후 활성 타이머 수: {}", activeTimers.size());
     }
     
     /**
@@ -107,6 +114,11 @@ public class QuizTimerManager {
     public void cancelTimer(Long roomId, Integer questionNumber, String timerType) {
         try {
             String key = buildKey(roomId, questionNumber, timerType);
+            
+            log.info("타이머 취소 시작 - roomId: {}, question: {}, type: {}", 
+                roomId, questionNumber, timerType);
+            log.debug("타이머 상태 - key: {}, 취소 전 활성 타이머 수: {}", key, activeTimers.size());
+            
             List<ScheduledFuture<?>> futures = activeTimers.remove(key);
             
             if (futures != null) {
@@ -137,10 +149,13 @@ public class QuizTimerManager {
                     }
                 }
                 
-                log.info("타이머 취소 완료 - key: {}, 성공: {}, 실패: {}, 이미완료: {}, 전체: {}", 
-                    key, cancelledCount, failedCount, alreadyDoneCount, futures.size());
+                log.info("타이머 취소 완료 - roomId: {}, question: {}, type: {}, 성공: {}, 실패: {}, 이미완료: {}, 전체: {}", 
+                    roomId, questionNumber, timerType, cancelledCount, failedCount, alreadyDoneCount, futures.size());
+                log.debug("타이머 상태 - 취소 후 활성 타이머 수: {}", activeTimers.size());
             } else {
-                log.debug("취소할 타이머 없음 - key: {}", key);
+                log.info("타이머 취소 - 취소할 타이머 없음 - roomId: {}, question: {}, type: {}", 
+                    roomId, questionNumber, timerType);
+                log.debug("타이머 상태 - key: {}, 활성 타이머 수: {}", key, activeTimers.size());
             }
         } catch (Exception e) {
             log.error("타이머 취소 중 예외 발생 - roomId: {}, question: {}, type: {}", 
@@ -159,6 +174,7 @@ public class QuizTimerManager {
      */
     public void cancelAllTimersForQuestion(Long roomId, Integer questionNumber) {
         log.info("문제의 모든 타이머 취소 시작 - roomId: {}, question: {}", roomId, questionNumber);
+        log.debug("타이머 상태 - 취소 전 활성 타이머 수: {}", activeTimers.size());
         
         // PREPARE 타이머 취소
         cancelTimer(roomId, questionNumber, "PREPARE");
@@ -167,6 +183,7 @@ public class QuizTimerManager {
         cancelTimer(roomId, questionNumber, "SIGNING");
         
         log.info("문제의 모든 타이머 취소 완료 - roomId: {}, question: {}", roomId, questionNumber);
+        log.debug("타이머 상태 - 취소 후 활성 타이머 수: {}", activeTimers.size());
     }
     
     /**
@@ -179,8 +196,10 @@ public class QuizTimerManager {
      */
     public void cleanupRoom(Long roomId) {
         log.info("방 타이머 정리 시작 - roomId: {}", roomId);
+        log.debug("타이머 상태 - 정리 전 활성 타이머 수: {}", activeTimers.size());
         
         int removedCount = 0;
+        int cancelledTaskCount = 0;
         String roomPrefix = roomId + ":";
         
         // roomId로 시작하는 모든 타이머 키를 찾아서 제거
@@ -191,18 +210,24 @@ public class QuizTimerManager {
                 
                 if (futures != null) {
                     // 모든 스케줄링된 작업 취소
+                    int tasksCancelled = 0;
                     for (ScheduledFuture<?> future : futures) {
                         if (!future.isDone() && !future.isCancelled()) {
                             future.cancel(false);
+                            tasksCancelled++;
                         }
                     }
+                    cancelledTaskCount += tasksCancelled;
                     removedCount++;
-                    log.debug("타이머 제거 - key: {}, tasks: {}", key, futures.size());
+                    log.debug("타이머 제거 - key: {}, 전체 작업: {}, 취소된 작업: {}", 
+                        key, futures.size(), tasksCancelled);
                 }
             }
         }
         
-        log.info("방 타이머 정리 완료 - roomId: {}, 제거된 타이머: {}", roomId, removedCount);
+        log.info("방 타이머 정리 완료 - roomId: {}, 제거된 타이머: {}, 취소된 작업: {}", 
+            roomId, removedCount, cancelledTaskCount);
+        log.debug("타이머 상태 - 정리 후 활성 타이머 수: {}", activeTimers.size());
     }
     
     /**

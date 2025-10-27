@@ -34,6 +34,7 @@ public class QuizStateCache {
         private final Map<Integer, Map<Long, Integer>> challengerOrders = new ConcurrentHashMap<>();
         private final Map<Long, Integer> userScores = new ConcurrentHashMap<>();
         private Integer currentQuestionNumber;
+        private final Map<Integer, Boolean> inResultPhase = new ConcurrentHashMap<>();
 
         // 퀴즈 단어 ID 저장
         public void setQuizWordId(Integer questionNumber, Long quizWordId) {
@@ -171,6 +172,20 @@ public class QuizStateCache {
         // 현재 문제 번호 설정
         public void setCurrentQuestionNumber(Integer questionNumber) {
             this.currentQuestionNumber = questionNumber;
+        }
+
+        // 결과 표시 단계 설정
+        public void setInResultPhase(Integer questionNumber, boolean inResult) {
+            if (inResult) {
+                inResultPhase.put(questionNumber, true);
+            } else {
+                inResultPhase.remove(questionNumber);
+            }
+        }
+
+        // 결과 표시 단계 확인
+        public boolean isInResultPhase(Integer questionNumber) {
+            return inResultPhase.getOrDefault(questionNumber, false);
         }
     }
 }
