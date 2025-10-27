@@ -72,6 +72,9 @@ const QuizGamePage = () => {
   const [showExitModal, setShowExitModal] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [rankings, setRankings] = useState([]);
+  
+  // 방 제목
+  const [roomTitle, setRoomTitle] = useState('방 제목');
 
   // WebSocket 이벤트 핸들러
   const handleNewQuestion = useCallback((data) => {
@@ -606,12 +609,22 @@ const QuizGamePage = () => {
 
   // 초기화
   useEffect(() => {
+    console.log('🔍 [QuizGame] location.state 확인:', location.state);
+    
     if (location.state) {
-      const { totalQuestions, firstQuestion, firstWord, participants, myUserId: myId } = location.state;
+      const { totalQuestions, firstQuestion, firstWord, participants, myUserId: myId, roomTitle: title } = location.state;
+
+      console.log('🔍 [QuizGame] 받은 roomTitle:', title);
 
       if (totalQuestions) gameState.setTotalQuestions(totalQuestions);
       if (firstQuestion) gameState.setCurrentQuestion(firstQuestion);
       if (firstWord) gameState.setCurrentWord(firstWord);
+      if (title) {
+        console.log('✅ [QuizGame] roomTitle 설정:', title);
+        setRoomTitle(title);
+      } else {
+        console.warn('⚠️ [QuizGame] roomTitle이 없습니다!');
+      }
 
       if (participants && participants.length > 0) {
         let actualMyUserId = myUserId || myId;
@@ -1068,6 +1081,7 @@ const QuizGamePage = () => {
     <div className={styles.quizGamePage}>
       <QuizHeader
         roomId={roomId}
+        roomTitle={roomTitle}
         isWebcamOn={isWebcamOn}
         onToggleWebcam={toggleWebcam}
         onExit={handleExit}

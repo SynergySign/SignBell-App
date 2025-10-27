@@ -179,6 +179,8 @@ const QuizWaitingRoom = () => {
     if (data.success) {
       const gameData = data.data;
       console.log('✅ 게임 시작 - 게임 페이지로 이동');
+      console.log('🔍 roomInfo 확인:', roomInfo);
+      console.log('🔍 roomInfo.gameTitle:', roomInfo?.gameTitle);
 
       isNavigatingToGameRef.current = true;
 
@@ -190,8 +192,11 @@ const QuizWaitingRoom = () => {
         firstQuestion: gameData?.questionNumber || 1,
         firstWord: gameData?.wordTitle || '문제',
         participants: participantsToPass,
-        myUserId: myUserIdToPass
+        myUserId: myUserIdToPass,
+        roomTitle: roomInfo?.gameTitle || '방 제목'
       };
+
+      console.log('📦 전달할 state:', stateToPass);
 
       navigate(`/quiz/game/${roomId}`, { state: stateToPass });
     } else {
