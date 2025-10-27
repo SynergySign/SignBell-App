@@ -42,6 +42,7 @@ public class GameRoomLeaveService {
     private final WebSocketSessionService sessionService;
     private final QuizStateCache quizStateCache;
     private final QuizService quizService;
+    private final QuizTimerManager timerManager;
 
 
     public GameRoomLeaveService(
@@ -49,13 +50,15 @@ public class GameRoomLeaveService {
             GameRoomRepository gameRoomRepository,
             @Lazy WebSocketSessionService sessionService,
             QuizStateCache quizStateCache,
-            @Lazy QuizService quizService
+            @Lazy QuizService quizService,
+            QuizTimerManager timerManager
     ) {
         this.participantRepository = participantRepository;
         this.gameRoomRepository = gameRoomRepository;
         this.sessionService = sessionService;
         this.quizStateCache = quizStateCache;
         this.quizService = quizService;
+        this.timerManager = timerManager;
     }
 
     /**
@@ -129,12 +132,13 @@ public class GameRoomLeaveService {
      * 방장 퇴장 시 방 종료 처리
      *
      * 동작 과정:
-     * 1. 방장 제외한 다른 참가자들의 userId 목록 조회
-     * 2. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
-     * 3. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
-     * 4. 업데이트된 방 정보 저장
-     * 5. 남은 참가자들의 세션 정리 (WebSocketSessionService에 위임)
-     * 6. 방 종료 이벤트 응답 생성 및 반환
+     * 1. 모든 타이머 즉시 취소 (PREPARE, SIGNING 타이머)
+     * 2. 방장 제외한 다른 참가자들의 userId 목록 조회
+     * 3. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
+     * 4. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
+     * 5. 업데이트된 방 정보 저장
+     * 6. 남은 참가자들의 세션 정리 (WebSocketSessionService에 위임)
+     * 7. 방 종료 이벤트 응답 생성 및 반환
      *
      * @param room 종료할 게임방
      * @param hostResponse 퇴장하는 방장의 정보
@@ -145,7 +149,16 @@ public class GameRoomLeaveService {
 
         log.info("방장 퇴장 감지 - 방 종료 처리 시작. roomId: {}", roomId);
 
-        // 1. 방장 제외한 다른 참가자들의 userId 목록 조회
+        // 1. 모든 타이머 즉시 취소
+        try {
+            timerManager.cleanupRoom(roomId);
+            log.info("✅ 타이머 정리 완료 - roomId: {}", roomId);
+        } catch (Exception e) {
+            log.error("❌ 타이머 정리 실패 - roomId: {}", roomId, e);
+            // 타이머 정리 실패해도 방 종료는 계속 진행
+        }
+
+        // 2. 방장 제외한 다른 참가자들의 userId 목록 조회
         List<Long> otherParticipantUserIds = participantRepository
                 .findByGameRoom_Id(roomId)
                 .stream()
@@ -155,17 +168,26 @@ public class GameRoomLeaveService {
 
         log.info("방 종료 대상 참가자 수: {}", otherParticipantUserIds.size());
 
-        // 2. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
+        // 3. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
         int deletedCount = participantRepository.deleteAllByGameRoom(room);
         log.info("방 종료 시 제거된 참가자 수: {}", deletedCount);
 
-        // 3. 방 종료 처리
+        // 4. 방 종료 처리
         room.closeRoom();
 
-        // 4. 업데이트된 방 정보 저장
+        // 5. 퀴즈 상태 캐시 정리
+        try {
+            quizStateCache.clearRoomState(roomId);
+            log.info("✅ 퀴즈 상태 캐시 정리 완료 - roomId: {}", roomId);
+        } catch (Exception e) {
+            log.error("❌ 퀴즈 상태 캐시 정리 실패 - roomId: {}", roomId, e);
+            // 캐시 정리 실패해도 방 종료는 계속 진행
+        }
+
+        // 6. 업데이트된 방 정보 저장
         gameRoomRepository.save(room);
 
-        // 5. 남은 참가자들의 세션 정리
+        // 7. 남은 참가자들의 세션 정리
         //    트랜잭션이 커밋되기 전이지만, 이미 DB에서 삭제되었으므로
         //    세션 정리는 바로 수행해도 안전합니다.
         if (!otherParticipantUserIds.isEmpty()) {
@@ -175,7 +197,7 @@ public class GameRoomLeaveService {
         log.info("방장 퇴장으로 방 종료 완료 - roomId: {}, 제거된 참가자 수: {}",
                 roomId, deletedCount);
 
-        // 6. 방 종료 이벤트 응답 객체 생성 및 반환
+        // 8. 방 종료 이벤트 응답 객체 생성 및 반환
         return ParticipantEventResponse.builder()
                 .eventType("ROOM_CLOSED")
                 .participant(hostResponse)
