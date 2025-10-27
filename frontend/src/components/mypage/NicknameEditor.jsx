@@ -10,10 +10,12 @@
 import { useState } from 'react';
 import styles from './NicknameEditor.module.scss';
 
-const NicknameEditor = ({ onNicknameUpdate }) => {
+const NicknameEditor = ({ initialNickname, onNicknameUpdate }) => {
   // TODO: 사용자 프로필 API 연동 필요
-  const [originalNickname] = useState('사용자'); // 원본 닉네임 저장
-  const [nickname, setNickname] = useState('사용자');
+  // const [originalNickname] = useState('사용자'); // 원본 닉네임 저장
+  const [originalNickname] = useState(initialNickname); // 원본 닉네임 저장
+  // const [nickname, setNickname] = useState('사용자');
+  const [nickname, setNickname] = useState(initialNickname);
   const [error, setError] = useState('');
 
   const validateNickname = (value) => {

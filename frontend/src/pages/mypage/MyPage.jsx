@@ -14,10 +14,12 @@ import TermsSection from '../../components/mypage/TermsSection';
 import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
 import styles from './MyPage.module.scss';
+import {useAuthStore} from "../../store/auth/authStore.js";
 
 const MyPage = () => {
   const navigate = useNavigate();
-  
+  const user = useAuthStore((state) => state.user);
+  console.log("MyPage: User:", user);
   // TODO: 사용자 약관 동의 상태 API 연동 필요
   // API 호출 예시: const { data } = await getUserTermsStatus();
   // 응답 형식: { required: true, optional: false }
@@ -34,7 +36,7 @@ const MyPage = () => {
   });
 
   // 닉네임 업데이트를 위한 key (리렌더링 트리거)
-  const [nicknameKey, setNicknameKey] = useState(0);
+  // const [nicknameKey, setNicknameKey] = useState(0);
 
   const handleViewTerms = (termsType) => {
     if (termsType === 'required') {
@@ -64,7 +66,7 @@ const MyPage = () => {
     });
     
     // 컴포넌트 리렌더링을 위한 key 업데이트
-    setNicknameKey(prev => prev + 1);
+    // setNicknameKey(prev => prev + 1);
   };
 
   const handleEditTerms = () => {
@@ -86,16 +88,23 @@ const MyPage = () => {
     });
   };
 
+  // user 정보가 없을 경우
+  if (!user) {
+    return <div>사용자 정보를 불러오는 중입니다...</div>;
+  }
   return (
     <div className={styles.myPage}>
       <div className={styles.mainContent}>
         <div className={styles.container}>
           <h1 className={styles.pageTitle}>마이페이지</h1>
           
-          <ProfileImageEditor />
+          <ProfileImageEditor
+            initialImageUrl={user.profileImageUrl}
+          />
           
           <NicknameEditor 
-            key={nicknameKey}
+            // key={nicknameKey}
+            initialNickname={user.nickname}
             onNicknameUpdate={handleNicknameUpdate}
           />
           

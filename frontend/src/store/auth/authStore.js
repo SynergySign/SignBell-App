@@ -77,7 +77,15 @@ export const useAuthStore = create(
           const res = await AuthService.me();
           console.log('fetchMe response:', res);
           if (res?.data?.success) {
-            const userData = res.data.data;
+            // const userData = res.data.data;
+            let userData = res.data.data;
+
+            // Mixed Content 경고 해결: http를 https로 강제 변경
+            if (userData?.profileImageUrl) {
+              const secureImageUrl = userData.profileImageUrl.replace(/^http:\/\//i, 'https://');
+              userData = { ...userData, profileImageUrl: secureImageUrl };
+            }
+
             console.log('Setting user data:', userData);
             set({ user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true });
           } else {

@@ -11,9 +11,10 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faCamera } from '@fortawesome/free-solid-svg-icons';
 import styles from './ProfileImageEditor.module.scss';
 
-const ProfileImageEditor = () => {
+const ProfileImageEditor = ({initialImageUrl}) => {
   // TODO: 사용자 프로필 API 연동 필요
-  const [profileImage, setProfileImage] = useState(null);
+  // const [profileImage, setProfileImage] = useState(null);
+  const [profileImage, setProfileImage] = useState(initialImageUrl || null);
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef(null);
 
