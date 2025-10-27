@@ -56,7 +56,7 @@ const MirrorModeSection = ({ word }) => {
         className={styles.mirrorModeToggle}
         onClick={toggleExpanded}
       >
-        <span>거울 모드로 연습하기</span>
+        <span>카메라로 연습하기</span>
         <span className={`${styles.toggleIcon} ${isExpanded ? styles.expanded : ''}`}>
           ▼
         </span>

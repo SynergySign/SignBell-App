@@ -391,7 +391,7 @@
     z-index: 10;
 
     .previous-button,
-    .next-button {
+    .next-button, {
       border: none;
       border-radius: 8px;
       padding: 12px 24px;
@@ -432,7 +432,38 @@
       }
     }
   }
+  .record-button {
+
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: -0.2px;
+    min-width: 120px;
+    pointer-events: auto;
+
+    &:hover {
+      transform: translateY(-2px);
+    }
+    &:active {
+      transform: scale(0.98);
+    }
+
+    background-color: var(--secondary-color);
+    color: var(--white-color);
+    box-shadow: 0 2px 8px rgba(144, 202, 249, 0.3);
+    &:hover {
+      box-shadow: 0 4px 12px rgba(144, 202, 249, 0.4);
+    }
+  }
 }
+
+
+
+
 
 // 애니메이션
 @keyframes spin {
