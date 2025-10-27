@@ -514,10 +514,14 @@ public class QuizService {
                 log.info("✅ 방 상태 변경 완료 - roomId: {}, nextRound: {}, status: WAITING",
                                 roomId, gameRoom.getCurrentRound());
 
-                // 6. 캐시를 정리합니다.
+                // 6. 모든 타이머를 정리합니다.
+                timerManager.cleanupRoom(roomId);
+                log.info("🧹 타이머 정리 완료 - roomId: {}", roomId);
+
+                // 7. 캐시를 정리합니다.
                 quizStateCache.clearRoomState(roomId);
 
-                // 7. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
+                // 8. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
                 // 방 상태가 이미 WAITING으로 변경된 후에 전송하므로,
                 // 클라이언트가 즉시 대기실로 이동해도 문제없음
                 messagingTemplate.convertAndSend(

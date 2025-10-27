@@ -170,6 +170,42 @@ public class QuizTimerManager {
     }
     
     /**
+     * 방의 모든 타이머 정리
+     * 
+     * 지정된 방의 모든 타이머를 제거합니다.
+     * 게임 종료 시 또는 방 삭제 시 사용됩니다.
+     * 
+     * @param roomId 방 ID
+     */
+    public void cleanupRoom(Long roomId) {
+        log.info("방 타이머 정리 시작 - roomId: {}", roomId);
+        
+        int removedCount = 0;
+        String roomPrefix = roomId + ":";
+        
+        // roomId로 시작하는 모든 타이머 키를 찾아서 제거
+        for (Map.Entry<String, List<ScheduledFuture<?>>> entry : activeTimers.entrySet()) {
+            String key = entry.getKey();
+            if (key.startsWith(roomPrefix)) {
+                List<ScheduledFuture<?>> futures = activeTimers.remove(key);
+                
+                if (futures != null) {
+                    // 모든 스케줄링된 작업 취소
+                    for (ScheduledFuture<?> future : futures) {
+                        if (!future.isDone() && !future.isCancelled()) {
+                            future.cancel(false);
+                        }
+                    }
+                    removedCount++;
+                    log.debug("타이머 제거 - key: {}, tasks: {}", key, futures.size());
+                }
+            }
+        }
+        
+        log.info("방 타이머 정리 완료 - roomId: {}, 제거된 타이머: {}", roomId, removedCount);
+    }
+    
+    /**
      * 타이머 키 생성
      * 
      * @param roomId 방 ID
