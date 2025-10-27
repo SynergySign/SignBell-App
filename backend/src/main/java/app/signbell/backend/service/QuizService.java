@@ -43,6 +43,9 @@ public class QuizService {
         private final QuizTimerManager timerManager;
         
         private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
+        
+        // 동시 퇴장 처리를 위한 동기화 객체
+        private final Object participantLeftLock = new Object();
 
         @Transactional
         public GameStartResponse startGame(Long roomId, Long userId) {
@@ -975,75 +978,82 @@ public class QuizService {
          * 참가자가 게임 중 퇴장할 때 호출됩니다.
          * 현재 도전자가 퇴장한 경우, 진행 중인 타이머를 취소하고 다음 도전자에게 차례를 넘깁니다.
          * 
+         * 동시 퇴장 처리를 위해 synchronized 블록을 사용하여 순차적으로 처리합니다.
+         * 
          * @param roomId 게임방 ID
          * @param userId 퇴장한 사용자 ID
+         * 
+         * @author 강관주 (Kanggwanju)
+         * @since 2025-10-27
          */
         @Transactional
         public void handleParticipantLeft(Long roomId, Long userId) {
-                QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
-                
-                // 현재 진행 중인 문제 번호 확인
-                Integer currentQuestion = roomState.getCurrentQuestionNumber();
-                
-                if (currentQuestion == null) {
-                        // 게임이 시작되지 않았거나 종료됨
-                        log.debug("게임 진행 중이 아님 - 타이머 재시작 스킵 - roomId: {}, userId: {}", 
-                                roomId, userId);
-                        return;
-                }
-                
-                // 현재 도전자인지 확인
-                Long currentChallenger = roomState.getCurrentChallenger(currentQuestion);
-                
-                if (currentChallenger != null && currentChallenger.equals(userId)) {
-                        log.info("현재 도전자 퇴장 - userId: {}, question: {}", userId, currentQuestion);
+                synchronized (participantLeftLock) {
+                        QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
                         
-                        // 진행 중인 타이머 취소
-                        timerManager.cancelAllTimersForQuestion(roomId, currentQuestion);
+                        // 현재 진행 중인 문제 번호 확인
+                        Integer currentQuestion = roomState.getCurrentQuestionNumber();
                         
-                        // 다음 도전자 확인
-                        Long nextChallenger = roomState.getNextChallenger(currentQuestion);
-                        
-                        if (nextChallenger != null) {
-                                // 다음 도전자에게 차례 넘김 (타이머 초기화)
-                                log.info("다음 도전자에게 차례 넘김 - nextChallenger: {}, question: {}", 
-                                        nextChallenger, currentQuestion);
-                                
-                                // 도전자 정보 조회
-                                User challenger = userRepository.findById(nextChallenger)
-                                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-                                
-                                // 다음 도전자 알림
-                                messagingTemplate.convertAndSend(
-                                        "/topic/room/" + roomId + "/quiz",
-                                        ApiResponse.success("다음 도전자 차례",
-                                                NextChallengerResponse.builder()
-                                                        .userId(nextChallenger)
-                                                        .nickname(challenger.getNickname())
-                                                        .profileImage(challenger.getProfileImageUrl())
-                                                        .questionNumber(currentQuestion)
-                                                        .build()));
-                                
-                                // 새로운 준비 타이머 시작 (5초)
-                                startPrepareTimer(roomId, currentQuestion, nextChallenger);
-                                
-                                // 5초 후 수어 타이머 시작
-                                scheduler.schedule(
-                                        () -> startSigningTimer(roomId, currentQuestion, nextChallenger),
-                                        5,
-                                        TimeUnit.SECONDS
-                                );
-                        } else {
-                                // 다음 도전자 없음 - 다음 문제로 이동
-                                log.info("다음 도전자 없음 - 다음 문제로 이동 - roomId: {}, question: {}", 
-                                        roomId, currentQuestion);
-                                
-                                transactionService.moveToNextQuestion(roomId, currentQuestion);
+                        if (currentQuestion == null) {
+                                // 게임이 시작되지 않았거나 종료됨
+                                log.debug("게임 진행 중이 아님 - 타이머 재시작 스킵 - roomId: {}, userId: {}", 
+                                        roomId, userId);
+                                return;
                         }
-                } else {
-                        // 현재 도전자가 아닌 경우 - 타이머 재시작 불필요
-                        log.debug("현재 도전자가 아닌 참가자 퇴장 - userId: {}, currentChallenger: {}", 
-                                userId, currentChallenger);
+                        
+                        // 현재 도전자인지 확인
+                        Long currentChallenger = roomState.getCurrentChallenger(currentQuestion);
+                        
+                        if (currentChallenger != null && currentChallenger.equals(userId)) {
+                                log.info("현재 도전자 퇴장 - userId: {}, question: {}", userId, currentQuestion);
+                                
+                                // 진행 중인 타이머 취소
+                                timerManager.cancelAllTimersForQuestion(roomId, currentQuestion);
+                                
+                                // 다음 도전자 확인
+                                Long nextChallenger = roomState.getNextChallenger(currentQuestion);
+                                
+                                if (nextChallenger != null) {
+                                        // 다음 도전자에게 차례 넘김 (타이머 초기화)
+                                        log.info("다음 도전자에게 차례 넘김 - nextChallenger: {}, question: {}", 
+                                                nextChallenger, currentQuestion);
+                                        
+                                        // 도전자 정보 조회
+                                        User challenger = userRepository.findById(nextChallenger)
+                                                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                                        
+                                        // 다음 도전자 알림
+                                        messagingTemplate.convertAndSend(
+                                                "/topic/room/" + roomId + "/quiz",
+                                                ApiResponse.success("다음 도전자 차례",
+                                                        NextChallengerResponse.builder()
+                                                                .userId(nextChallenger)
+                                                                .nickname(challenger.getNickname())
+                                                                .profileImage(challenger.getProfileImageUrl())
+                                                                .questionNumber(currentQuestion)
+                                                                .build()));
+                                        
+                                        // 새로운 준비 타이머 시작 (5초)
+                                        startPrepareTimer(roomId, currentQuestion, nextChallenger);
+                                        
+                                        // 5초 후 수어 타이머 시작
+                                        scheduler.schedule(
+                                                () -> startSigningTimer(roomId, currentQuestion, nextChallenger),
+                                                5,
+                                                TimeUnit.SECONDS
+                                        );
+                                } else {
+                                        // 다음 도전자 없음 - 다음 문제로 이동
+                                        log.info("다음 도전자 없음 - 다음 문제로 이동 - roomId: {}, question: {}", 
+                                                roomId, currentQuestion);
+                                        
+                                        transactionService.moveToNextQuestion(roomId, currentQuestion);
+                                }
+                        } else {
+                                // 현재 도전자가 아닌 경우 - 타이머 재시작 불필요
+                                log.debug("현재 도전자가 아닌 참가자 퇴장 - userId: {}, currentChallenger: {}", 
+                                        userId, currentChallenger);
+                        }
                 }
         }
 }
