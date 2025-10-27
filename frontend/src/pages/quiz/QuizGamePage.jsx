@@ -736,6 +736,15 @@ const QuizGamePage = () => {
     }
   }, [gameState.gamePhase, gameState.currentWord, gameState.currentQuestion, fastApiStatus]);
 
+  // 🚫 새 탭에서 직접 URL 입력 방지
+  useEffect(() => {
+    // location.state가 없으면 새 탭에서 직접 URL을 입력한 것으로 간주
+    if (!location.state) {
+      alert('게임 페이지는 대기방에서만 접근할 수 있습니다.\n메인 페이지로 이동합니다.');
+      navigate('/main', { replace: true });
+    }
+  }, []); // 빈 배열로 마운트 시 한 번만 실행
+
   // 초기화
   useEffect(() => {
     console.log('🔍 [QuizGame] location.state 확인:', location.state);
