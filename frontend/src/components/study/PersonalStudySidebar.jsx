@@ -1,13 +1,15 @@
 // src/components/study/PersonalStudySidebar.jsx
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-// [수정] 3개 함수 모두 import
-import { getCategories, listSignEdu, getSignDetail } from '../../services/signEdu/signEdu.js'; //
+import { getCategories, listSignEdu, getSignDetail } from '../../services/signEdu/signEdu.js';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import WordSearchInput from './WordSearchInput';
 import WordCard from './WordCard';
 import WordDetailModal from './WordDetailModal';
 import styles from './PersonalStudySidebar.module.scss';
+
+// [추가] 스켈레톤 최소 노출 시간 (ms)
+const MIN_SKELETON_TIME_MS = 500;
 
 const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
     const [activeTab, setActiveTab] = useState('personal');
@@ -28,42 +30,59 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
 
     const [isDetailLoading, setIsDetailLoading] = useState(false);
 
-    // --- [수정] 단어 목록 로딩 함수 (API 연동) ---
+    // [추가] 새 검색/로딩 시작 시간을 기록하기 위한 Ref
+    const loadStartTimeRef = useRef(null);
+
+    // --- [수정] 단어 목록 로딩 함수 (최소 로딩 시간 보장 로직 추가) ---
     const loadWords = useCallback(async (page = 1, keyword = '', category = '전체', isNewSearch = false) => {
 
         if (isNewSearch) {
             setIsLoading(true);
             setWordList([]);
             setCurrentPage(1);
+            loadStartTimeRef.current = Date.now(); // [추가] 로딩 시작 시간 기록
         } else {
             setIsLoadingMore(true);
         }
 
         try {
             const apiKeyword = keyword.trim();
-            // 키워드 검색 시에는 카테고리를 '전체'로 보내 백엔드가 무시하도록 함
             const apiCategory = apiKeyword ? '전체' : category;
 
-            // [수정] listSignEdu 호출 시 keyword와 category 모두 전달
             const response = await listSignEdu({
                 page: page,
                 size: 20,
                 category: apiCategory,
                 keyword: apiKeyword
-            }); //
+            });
 
-            const newWords = response.words; //
+            const newWords = response.words;
             if (isNewSearch) {
                 setWordList(newWords);
             } else {
                 setWordList(prev => [...prev, ...newWords]);
             }
-            setHasNextPage(response.hasNext); //
+            setHasNextPage(response.hasNext);
         } catch (error) {
             console.error("단어 목록 로딩에 실패했습니다:", error);
         } finally {
             if (isNewSearch) {
-                setIsLoading(false);
+                // [수정] 최소 로딩 시간 보장 로직
+                const startTime = loadStartTimeRef.current;
+                if (startTime) {
+                    const elapsedTime = Date.now() - startTime;
+                    const remainingTime = MIN_SKELETON_TIME_MS - elapsedTime;
+
+                    if (remainingTime > 0) {
+                        // 0.5초가 안 지났으면, 남은 시간 뒤에 로딩 종료
+                        setTimeout(() => setIsLoading(false), remainingTime);
+                    } else {
+                        // 0.5초가 이미 지났으면, 즉시 로딩 종료
+                        setIsLoading(false);
+                    }
+                } else {
+                    setIsLoading(false); // Fallback
+                }
             } else {
                 setIsLoadingMore(false);
             }
@@ -79,7 +98,7 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
             const fetchCategories = async () => {
                 setIsCategoryLoading(true);
                 try {
-                    const apiCategories = await getCategories(); //
+                    const apiCategories = await getCategories();
                     setCategories(['전체', ...apiCategories]);
                 } catch (error) {
                     console.error("카테고리 목록 로딩에 실패했습니다:", error);
@@ -92,53 +111,46 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
         }
     }, [isOpen]);
 
-    // --- [추가] 디바운스 검색을 위한 useEffect ---
+    // --- [수정] 디바운스 검색을 위한 useEffect (로직 단순화) ---
     useEffect(() => {
         const trimmedKeyword = searchKeyword.trim();
 
-        const handler = setTimeout(() => {
-            // 500ms 후...
-            if (trimmedKeyword) {
-                // 검색어가 있으면: 검색 실행
+        // [수정] 검색어가 있을 때만 디바운스 실행
+        if (trimmedKeyword) {
+            const handler = setTimeout(() => {
+                // 500ms 후... 검색어가 여전히 존재하면 검색 실행
                 // console.log(`[디바운스 검색] '${trimmedKeyword}'`); // (디버깅용)
                 setShowCategoryList(false);
                 setSelectedCategory('전체'); // 검색 시 카테고리 초기화
                 loadWords(1, trimmedKeyword, '전체', true);
-            } else if (!showCategoryList) {
-                // 검색어가 없고, 현재 단어 목록을 보고있다면 (즉, 방금 검색어를 지웠다면)
-                // 카테고리 목록으로 되돌림
-                setShowCategoryList(true);
-                setWordList([]);
-                setSelectedCategory('전체');
-                setCurrentPage(1); // 페이지도 초기화
-            }
-            // 검색어도 없고, 이미 카테고리 목록을 보고 있다면(showCategoryList=true) 아무것도 안 함
+            }, 500); // 500ms 지연
 
-        }, 500); // 500ms 지연
+            // 클린업 함수
+            return () => {
+                clearTimeout(handler);
+            };
+        }
+        // [수정] 검색어가 비어있을 때 카테고리 목록으로 되돌리는 'else' 로직 제거
+        // (이 로직은 handleSearchChange로 이동)
 
-        // 클린업 함수: 타이머가 만료되기 전에 searchKeyword가 바뀌면 기존 타이머 취소
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [searchKeyword, loadWords, showCategoryList]); // 의존성 배열
+    }, [searchKeyword, loadWords]); // [수정] 의존성 배열에서 showCategoryList 제거
 
 
-    // --- 무한 스크롤 (이전과 동일, 검색 중에는 작동 X) ---
+    // --- 무한 스크롤 (이전과 동일) ---
     const lastWordElementRef = useCallback(node => {
         if (isLoadingMore) return;
         if (observerRef.current) observerRef.current.disconnect();
         observerRef.current = new IntersectionObserver(entries => {
-            // [수정] !searchKeyword.trim() 조건 확인 (검색 중이 아닐 때만 무한 스크롤)
-            if (entries[0].isIntersecting && hasNextPage && !searchKeyword.trim()) { //
+            if (entries[0].isIntersecting && hasNextPage && !searchKeyword.trim()) {
                 const nextPage = currentPage + 1;
                 setCurrentPage(nextPage);
                 loadWords(nextPage, '', selectedCategory, false);
             }
         });
         if (node) observerRef.current.observe(node);
-    }, [isLoadingMore, hasNextPage, currentPage, searchKeyword, selectedCategory, loadWords]); //
+    }, [isLoadingMore, hasNextPage, currentPage, searchKeyword, selectedCategory, loadWords]);
 
-    // --- (기타 핸들러 동일) ---
+    // --- 핸들러 ---
     const handleTabChange = (tab) => {
         setActiveTab(tab);
         if (onTabChange) {
@@ -146,56 +158,56 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
         }
     };
 
-    // [수정] '검색' 버튼 클릭 핸들러 (이제 즉시 검색용)
     const handleSearch = () => {
         const trimmedKeyword = searchKeyword.trim();
         if (trimmedKeyword) {
-            // console.log(`[즉시 검색] '${trimmedKeyword}'`); // (디버깅용)
             setShowCategoryList(false);
             setSelectedCategory('전체');
             loadWords(1, trimmedKeyword, '전체', true);
         }
-    }; //
+    };
 
     const handleReset = () => {
+        // setSearchKeyword('')만 호출하면,
+        // handleSearchChange가 'value'를 ''로 감지하여 처리합니다.
         setSearchKeyword('');
-        // useEffect가 검색어 비워진 것을 감지하고
-        // 자동으로 카테고리 목록으로 돌려줍니다.
-    }; //
+    };
 
     const handleCategoryClick = (category) => {
         setSelectedCategory(category);
         setShowCategoryList(false);
-        setSearchKeyword('');
+        setSearchKeyword(''); // 이로 인해 useEffect가 실행되지만, 이젠 버그 없음
         loadWords(1, '', category, true);
-    }; //
+    };
 
     const handleBackToCategories = () => {
         setShowCategoryList(true);
         setWordList([]);
         setSearchKeyword('');
-    }; //
+    };
 
-    // [수정] 검색어 변경 핸들러 (state만 변경)
+    // [수정] 검색어 변경 핸들러 (카테고리 복귀 로직 추가)
     const handleSearchChange = (value) => {
         setSearchKeyword(value);
-        // 실제 API 호출은 useEffect (디바운스)가 담당
-    }; //
 
-    // --- [수정] 단어 클릭 핸들러 (이전과 동일) ---
+        // [추가] 사용자가 검색어를 *직접* 지워서 비웠을 때,
+        // (그리고 현재 단어 목록을 보고 있을 때)
+        // 카테고리 목록으로 되돌립니다.
+        if (value.trim() === '' && !showCategoryList) {
+            setShowCategoryList(true);
+            setWordList([]);
+            setSelectedCategory('전체');
+            setCurrentPage(1);
+        }
+    };
+
+    // --- 단어 클릭 핸들러 (이전과 동일) ---
     const handleWordClick = async (word) => {
-        // word는 { signId, wordName }
-        if (isDetailLoading) return; // 중복 클릭 방지
-
+        if (isDetailLoading) return;
         setIsDetailLoading(true);
         try {
-            // API 호출로 { id, word, videoUrl, ... } 상세 정보 가져오기
-            const fullDetails = await getSignDetail(word.signId); //
-
-            // 상세 정보를 state에 저장
+            const fullDetails = await getSignDetail(word.signId);
             setSelectedWord(fullDetails);
-
-            // *데이터 준비 후* 모달 열기
             setIsModalOpen(true);
         } catch (error) {
             console.error("단어 상세 정보 로딩 실패:", error);
@@ -203,12 +215,12 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
         } finally {
             setIsDetailLoading(false);
         }
-    }; //
+    };
 
     const handleModalClose = () => {
         setIsModalOpen(false);
         setSelectedWord(null);
-    }; //
+    };
 
     if (!isOpen) return null;
 
@@ -218,7 +230,6 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
             <div className={styles.sidebarOverlay} onClick={onClose}></div>
             <div className={`${styles.personalStudySidebar} ${isOpen ? styles.open : ''}`}>
                 <div className={styles.sidebarHeader}>
-                    {/* ... 헤더 ... */}
                     <h2 className={styles.sidebarTitle}>개인 학습</h2>
                     <button
                         className={styles.closeButton}
@@ -229,7 +240,6 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
                     </button>
                 </div>
                 <div className={styles.sidebarTabs}>
-                    {/* ... 탭 ... */}
                     <button
                         className={`${styles.tabButton} ${activeTab === 'personal' ? styles.active : ''}`}
                         onClick={() => handleTabChange('personal')}
@@ -245,9 +255,9 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
                 </div>
                 <WordSearchInput
                     searchKeyword={searchKeyword}
-                    onSearchChange={handleSearchChange}
+                    onSearchChange={handleSearchChange} // [수정]
                     onSearch={handleSearch}
-                    onReset={handleReset}
+                    onReset={handleReset} // [수정]
                 />
 
                 {/* 카테고리/단어 목록 영역 */}
@@ -284,7 +294,6 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
                         // 단어 목록
                         <div className={styles.wordList}>
                             <div className={styles.backButton}>
-                                {/* ... 뒤로가기 버튼 ... */}
                                 <button onClick={handleBackToCategories}>
                                     ← 카테고리로 돌아가기
                                 </button>
@@ -309,11 +318,10 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
                                         return (
                                             <WordCard
                                                 key={word.signId}
-                                                word={word} // { signId, wordName } 전달
+                                                word={word}
                                                 onClick={handleWordClick}
                                                 isLast={isLast}
-                                                // [수정] 마지막 요소에만 ref 전달
-                                                lastElementRef={isLast ? lastWordElementRef : null} //
+                                                lastElementRef={isLast ? lastWordElementRef : null}
                                             />
                                         );
                                     })}
@@ -350,7 +358,7 @@ const PersonalStudySidebar = ({ isOpen, onClose, onTabChange }) => {
             <WordDetailModal
                 isOpen={isModalOpen}
                 onClose={handleModalClose}
-                word={selectedWord} // { id, word, videoUrl, ... } 전달
+                word={selectedWord}
             />
         </>
     );
