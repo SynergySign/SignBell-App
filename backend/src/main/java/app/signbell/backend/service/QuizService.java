@@ -15,8 +15,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
@@ -41,6 +40,9 @@ public class QuizService {
         private final QuizStateCache quizStateCache;
         private final SimpMessagingTemplate messagingTemplate;
         private final QuizTransactionService transactionService;
+        private final QuizTimerManager timerManager;
+        
+        private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
 
         @Transactional
         public GameStartResponse startGame(Long roomId, Long userId) {
@@ -802,6 +804,56 @@ public class QuizService {
         }
 
         /**
+         * 타이머 메시지 전송 (검증 포함)
+         * 
+         * 현재 도전자가 여전히 유효한지 확인한 후 타이머 메시지를 전송합니다.
+         * 도전자가 변경되었거나 유효하지 않으면 메시지 전송을 스킵합니다.
+         * 
+         * @param roomId           게임방 ID
+         * @param questionNumber   문제 번호
+         * @param timerType        타이머 타입 (PREPARE, SIGNING)
+         * @param remainingSeconds 남은 시간 (초)
+         * @param challengerUserId 도전자 ID
+         */
+        private void sendTimerUpdate(
+                Long roomId,
+                Integer questionNumber,
+                String timerType,
+                Integer remainingSeconds,
+                Long challengerUserId
+        ) {
+                // 현재 도전자가 여전히 유효한지 확인
+                QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
+                Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
+                
+                // 도전자가 변경되었으면 메시지 전송 스킵
+                if (currentChallenger == null || !currentChallenger.equals(challengerUserId)) {
+                        log.debug("타이머 메시지 전송 스킵 - 도전자 변경됨 - roomId: {}, question: {}, " +
+                                "expectedChallenger: {}, currentChallenger: {}",
+                                roomId, questionNumber, challengerUserId, currentChallenger);
+                        return;
+                }
+                
+                try {
+                        messagingTemplate.convertAndSend(
+                                "/topic/room/" + roomId + "/quiz/timer",
+                                ApiResponse.success("타이머 업데이트",
+                                        TimerUpdateResponse.builder()
+                                                .timerType(timerType)
+                                                .remainingSeconds(remainingSeconds)
+                                                .questionNumber(questionNumber)
+                                                .challengerUserId(challengerUserId)
+                                                .build()));
+                        
+                        log.debug("타이머 메시지 전송 성공 - roomId: {}, question: {}, type: {}, remaining: {}",
+                                roomId, questionNumber, timerType, remainingSeconds);
+                } catch (Exception e) {
+                        log.error("타이머 메시지 전송 실패 - roomId: {}, question: {}, type: {}, remaining: {}",
+                                roomId, questionNumber, timerType, remainingSeconds, e);
+                }
+        }
+
+        /**
          * 도전 신청 타이머 시작 (10초)
          * 
          * 1초마다 남은 시간을 WebSocket으로 전송
@@ -836,71 +888,76 @@ public class QuizService {
         /**
          * 수어 준비 타이머 시작 (5초)
          * 
-         * 1초마다 남은 시간을 WebSocket으로 전송
+         * QuizTimerManager를 사용하여 타이머를 스케줄링합니다.
+         * 1초마다 남은 시간을 WebSocket으로 전송하며, sendTimerUpdate를 통해 검증합니다.
          * 
          * @param roomId           게임방 ID
          * @param questionNumber   문제 번호
          * @param challengerUserId 도전자 ID
+         * 
+         * @author 강관주 (Kanggwanju)
+         * @since 2025-10-27
          */
         private void startPrepareTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
+                List<Runnable> tasks = new ArrayList<>();
+                
+                // 5초부터 0초까지 타이머 작업 생성
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
-                        CompletableFuture.delayedExecutor(5 - i, TimeUnit.SECONDS)
-                                        .execute(() -> {
-                                                try {
-                                                        messagingTemplate.convertAndSend(
-                                                                        "/topic/room/" + roomId + "/quiz/timer",
-                                                                        ApiResponse.success("타이머 업데이트",
-                                                                                        TimerUpdateResponse.builder()
-                                                                                                        .timerType("PREPARE")
-                                                                                                        .remainingSeconds(
-                                                                                                                        remainingSeconds)
-                                                                                                        .questionNumber(questionNumber)
-                                                                                                        .challengerUserId(
-                                                                                                                        challengerUserId)
-                                                                                                        .build()));
-                                                } catch (Exception e) {
-                                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
-                                                                        roomId, remainingSeconds, e);
-                                                }
-                                        });
+                        tasks.add(() -> sendTimerUpdate(
+                                roomId,
+                                questionNumber,
+                                "PREPARE",
+                                remainingSeconds,
+                                challengerUserId
+                        ));
                 }
+                
+                // QuizTimerManager를 사용하여 타이머 스케줄링
+                timerManager.scheduleTimer(roomId, questionNumber, "PREPARE", tasks);
+                
                 log.info("수어 준비 타이머 시작 - roomId: {}, question: {}, challenger: {}",
                                 roomId, questionNumber, challengerUserId);
+                
+                // 5초 후 수어 표현 타이머 시작
+                scheduler.schedule(
+                        () -> startSigningTimer(roomId, questionNumber, challengerUserId),
+                        5,
+                        TimeUnit.SECONDS
+                );
         }
 
         /**
          * 수어 표현 타이머 시작 (5초)
          * 
-         * 1초마다 남은 시간을 WebSocket으로 전송
+         * QuizTimerManager를 사용하여 타이머를 스케줄링합니다.
+         * 1초마다 남은 시간을 WebSocket으로 전송하며, sendTimerUpdate를 통해 검증합니다.
          * 
          * @param roomId           게임방 ID
          * @param questionNumber   문제 번호
          * @param challengerUserId 도전자 ID
+         * 
+         * @author 강관주 (Kanggwanju)
+         * @since 2025-10-27
          */
         private void startSigningTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
+                List<Runnable> tasks = new ArrayList<>();
+                
+                // 5초부터 0초까지 타이머 작업 생성
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
-                        CompletableFuture.delayedExecutor(5 - i, TimeUnit.SECONDS)
-                                        .execute(() -> {
-                                                try {
-                                                        messagingTemplate.convertAndSend(
-                                                                        "/topic/room/" + roomId + "/quiz/timer",
-                                                                        ApiResponse.success("타이머 업데이트",
-                                                                                        TimerUpdateResponse.builder()
-                                                                                                        .timerType("SIGNING")
-                                                                                                        .remainingSeconds(
-                                                                                                                        remainingSeconds)
-                                                                                                        .questionNumber(questionNumber)
-                                                                                                        .challengerUserId(
-                                                                                                                        challengerUserId)
-                                                                                                        .build()));
-                                                } catch (Exception e) {
-                                                        log.error("타이머 전송 중 오류 - roomId: {}, remaining: {}",
-                                                                        roomId, remainingSeconds, e);
-                                                }
-                                        });
+                        tasks.add(() -> sendTimerUpdate(
+                                roomId,
+                                questionNumber,
+                                "SIGNING",
+                                remainingSeconds,
+                                challengerUserId
+                        ));
                 }
+                
+                // QuizTimerManager를 사용하여 타이머 스케줄링
+                timerManager.scheduleTimer(roomId, questionNumber, "SIGNING", tasks);
+                
                 log.info("수어 표현 타이머 시작 - roomId: {}, question: {}, challenger: {}",
                                 roomId, questionNumber, challengerUserId);
         }

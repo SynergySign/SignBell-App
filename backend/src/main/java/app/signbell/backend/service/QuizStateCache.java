@@ -33,6 +33,7 @@ public class QuizStateCache {
         private final Map<Integer, Long> currentChallengers = new ConcurrentHashMap<>();
         private final Map<Integer, Map<Long, Integer>> challengerOrders = new ConcurrentHashMap<>();
         private final Map<Long, Integer> userScores = new ConcurrentHashMap<>();
+        private Integer currentQuestionNumber;
 
         // 퀴즈 단어 ID 저장
         public void setQuizWordId(Integer questionNumber, Long quizWordId) {
@@ -160,6 +161,16 @@ public class QuizStateCache {
         public Long getFirstChallenger(Integer questionNumber) {
             Queue<Long> queue = challengerQueues.get(questionNumber);
             return queue != null ? queue.peek() : null;
+        }
+
+        // 현재 문제 번호 조회
+        public Integer getCurrentQuestionNumber() {
+            return currentQuestionNumber;
+        }
+
+        // 현재 문제 번호 설정
+        public void setCurrentQuestionNumber(Integer questionNumber) {
+            this.currentQuestionNumber = questionNumber;
         }
     }
 }
