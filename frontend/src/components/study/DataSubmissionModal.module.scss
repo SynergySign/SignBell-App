@@ -91,6 +91,22 @@
         box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
         flex-shrink: 0;
       }
+      .completionDataIcon {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #ffcc50 0%, #ffcc80 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+        font-weight: bold;
+        margin: 0 0 20px 0;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+        flex-shrink: 0;
+      }
+
+
 
       .completionMessage {
         color: var(--text-color);
@@ -98,6 +114,17 @@
         font-weight: 600;
         margin: 0;
         letter-spacing: -0.3px;
+      }
+      // 데이터 처리 중 스피너
+      .spinner {
+        width: 60px;
+        height: 60px;
+        border: 6px solid #f0f0f0; /* 연한 회색 배경 */
+        border-top: 6px solid var(--accent-color, #ffcc80); /* 테마 색상 */
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 10px auto 0 auto; /* 위쪽 여백 10px */
+        flex-shrink: 0;
       }
     }
 
@@ -167,20 +194,21 @@
     }
 
     .retakeButton {
+      background-color: var(--accent-color);
+      color: var(--text-color);
+
+
+      &:hover {
+        box-shadow: 0 4px 12px rgba(255, 204, 128, 0.3);
+      }
+    }
+
+    .submitButton {
       background-color: var(--secondary-color);
       color: var(--text-color);
 
       &:hover {
         box-shadow: 0 4px 12px rgba(144, 202, 249, 0.3);
-      }
-    }
-
-    .submitButton {
-      background-color: var(--accent-color);
-      color: var(--text-color);
-
-      &:hover {
-        box-shadow: 0 4px 12px rgba(255, 204, 128, 0.3);
       }
     }
   }
@@ -217,6 +245,11 @@
   60% {
     transform: translateY(-5px);
   }
+}
+// 스피너 애니메이션
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 // 반응형 디자인
