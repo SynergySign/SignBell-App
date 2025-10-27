@@ -22,7 +22,7 @@ const WaitingRoomDebugPanel = ({
         <span>원격 스트림: {remoteStreamsCount}개</span>
         <span>웹캠: {isWebcamOn ? '✅ ON' : '❌ OFF'}</span>
       </div>
-      <button className={styles.testButton} onClick={onToggleHost}>
+      {/*<button className={styles.testButton} onClick={onToggleHost}>
         {isHost ? '참여자로 전환' : '방장으로 전환'}
       </button>
       <button className={styles.testButton} onClick={onToggleReady}>
@@ -30,7 +30,7 @@ const WaitingRoomDebugPanel = ({
       </button>
       <button className={styles.testButton} onClick={onNavigateToGame}>
         게임 시작 (테스트)
-      </button>
+      </button>*/}
     </div>
   );
 };
