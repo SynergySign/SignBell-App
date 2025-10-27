@@ -47,6 +47,7 @@ const WordDetailModal = ({ isOpen, onClose, word }) => {
   }, [isOpen, onClose]);
 
   if (!isOpen || !word) return null;
+  console.log("VideoPlayer로 전달될 URL:", word.videoUrl);
 
   return (
     <>

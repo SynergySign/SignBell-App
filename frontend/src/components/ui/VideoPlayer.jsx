@@ -1,169 +1,79 @@
 /**
- * @개요 영상 플레이어 컴포넌트입니다. 수어 영상을 재생하고 컨트롤 기능을 제공합니다.
+ * @개요 영상 플레이어 컴포넌트입니다. (0.5초 지연 로딩 버전)
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-01-21
- * @최종수정일 2025-01-21
- * @매개변수 {string} props.videoUrl - 영상 URL입니다.
- * @매개변수 {string} props.title - 영상 제목입니다.
- * @매개변수 {number} props.width - 플레이어 너비입니다.
- * @매개변수 {number} props.height - 플레이어 높이입니다.
- * @반환값 {JSX.Element} 영상 플레이어 컴포넌트를 반환합니다.
+ * @최종수정일 2025-01-21 (0.5초 스피너 로직으로 단순화)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import styles from './VideoPlayer.module.scss';
 
-const VideoPlayer = ({ 
-  videoUrl, 
-  title = '수어 영상', 
-  width = 400, 
-  height = 300 
-}) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
+const VideoPlayer = ({
+                       videoUrl,
+                       title = '수어 영상',
+                       width = 400,
+                       height = 300
+                     }) => {
+
+  // [수정] 0.5초간 스피너를 보여주기 위한 loading 상태
   const [isLoading, setIsLoading] = useState(true);
-  const [hasError, setHasError] = useState(false);
-  const videoRef = useRef(null);
 
+  // videoUrl이 바뀔 때마다 0.5초 타이머를 다시 실행합니다.
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    // 1. URL이 바뀌면 무조건 로딩 스피너를 다시 보여줍니다.
+    setIsLoading(true);
 
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
+    // 2. 0.5초(500ms) 후에 로딩 상태를 false로 변경합니다.
+    const timer = setTimeout(() => {
       setIsLoading(false);
-    };
+    }, 500); // 0.5초
 
-    const handleTimeUpdate = () => {
-      setCurrentTime(video.currentTime);
-    };
+    // 3. 컴포넌트가 사라지거나 URL이 다시 바뀌면 기존 타이머를 제거합니다.
+    return () => clearTimeout(timer);
 
-    const handleEnded = () => {
-      setIsPlaying(false);
-    };
-
-    const handleError = () => {
-      setHasError(true);
-      setIsLoading(false);
-    };
-
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('ended', handleEnded);
-    video.addEventListener('error', handleError);
-
-    return () => {
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('ended', handleEnded);
-      video.removeEventListener('error', handleError);
-    };
-  }, [videoUrl]);
-
-  const togglePlay = () => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    if (isPlaying) {
-      video.pause();
-    } else {
-      video.play();
-    }
-    setIsPlaying(!isPlaying);
-  };
-
-  const handleSeek = (e) => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const newTime = (clickX / rect.width) * duration;
-    
-    video.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
-  const formatTime = (time) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  const progressPercentage = duration > 0 ? (currentTime / duration) * 100 : 0;
+  }, [videoUrl]); // videoUrl이 바뀔 때만 이 효과가 실행됩니다.
 
   return (
-    <div 
-      className={styles.videoPlayer} 
-      style={{ width: `${width}px`, height: `${height}px` }}
-    >
-      {hasError ? (
-        // 에러 상태
-        <div className={styles.errorState}>
-          <div className={styles.errorIcon}>⚠️</div>
-          <p className={styles.errorMessage}>영상을 불러올 수 없습니다</p>
-          <span className={styles.errorSubtext}>잠시 후 다시 시도해주세요</span>
-        </div>
-      ) : isLoading ? (
-        // 로딩 상태
-        <div className={styles.loadingState}>
-          <div className={styles.loadingSpinner}></div>
-          <p className={styles.loadingMessage}>영상 로딩 중...</p>
-        </div>
-      ) : (
-        // 영상 플레이어
-        <>
-          <video
-            ref={videoRef}
+      <div
+          // CSS 모듈 클래스 이름은 kebab-case를 사용합니다.
+          className={styles.videoPlayer}
+          style={{ width: `${width}px`, height: `${height}px` }}
+      >
+        {/* 1. 로딩 중일 때 스피너를 보여줍니다. */}
+        {isLoading && (
+            <div className={styles.loadingState}>
+              <div className={styles.loadingSpinner}></div>
+            </div>
+        )}
+
+        {/*
+          2. <video> 태그는 항상 렌더링합니다. (로딩 중에는 숨겨짐)
+             - 브라우저가 스피너를 보는 0.5초 동안 영상을 미리 불러올 수 있습니다.
+             - display: 'none' 대신 visibility를 사용하면 공간을 유지합니다.
+        */}
+        <video
             className={styles.video}
-            src={videoUrl}
-            onClick={togglePlay}
-            preload="metadata"
-          />
-          
-          {/* 플레이 버튼 오버레이 */}
-          {!isPlaying && (
-            <div className={styles.playOverlay} onClick={togglePlay}>
-              <div className={styles.playButton}>
-                ▶
-              </div>
-            </div>
-          )}
-
-          {/* 컨트롤 바 */}
-          <div className={styles.controls}>
-            {/* 진행 바 */}
-            <div className={styles.progressBar} onClick={handleSeek}>
-              <div 
-                className={styles.progressFill}
-                style={{ width: `${progressPercentage}%` }}
-              />
-            </div>
-
-            {/* 컨트롤 버튼들 */}
-            <div className={styles.controlButtons}>
-              <button 
-                className={styles.playPauseButton}
-                onClick={togglePlay}
-              >
-                {isPlaying ? '⏸️' : '▶️'}
-              </button>
-              
-              <div className={styles.timeDisplay}>
-                <span>{formatTime(currentTime)}</span>
-                <span>/</span>
-                <span>{formatTime(duration)}</span>
-              </div>
-
-              <div className={styles.spacer}></div>
-
-              <span className={styles.videoTitle}>{title}</span>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              // 로딩 중일 땐 숨기고, 로딩이 끝나면 보여줍니다.
+              visibility: isLoading ? 'hidden' : 'visible'
+            }}
+            controls // 브라우저 기본 컨트롤러 사용
+            autoPlay
+            muted
+            playsInline
+            // key를 videoUrl로 설정하여 URL이 바뀔 때마다
+            // <video> 태그를 강제로 새로 생성합니다. (가장 중요)
+            key={videoUrl}
+            loop
+        >
+          {/* signEdu.js가 'https://...' URL을 여기에 넣어줍니다. */}
+          <source src={videoUrl} />
+          현재 브라우저는 video 태그를 지원하지 않습니다.
+        </video>
+      </div>
   );
 };
 
