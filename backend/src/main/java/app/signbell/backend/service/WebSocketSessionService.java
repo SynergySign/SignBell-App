@@ -54,13 +54,15 @@ public class WebSocketSessionService {
     public boolean handleSessionDisconnect(Long userId, String sessionId) {
         try {
             // 1. 활성 세션 검증
-            // 비활성(스테일) 세션의 DISCONNECT는 무시하여 중복 처리/오탈을 방지
-            if (!isActiveSession(userId, sessionId)) {
-                log.info("비활성 세션의 DISCONNECT 무시 - userId: {}, sessionId: {}", userId, sessionId);
-                return false;
+            boolean isActive = isActiveSession(userId, sessionId);
+            
+            if (!isActive) {
+                log.info("비활성 세션의 DISCONNECT 감지 - userId: {}, sessionId: {}", userId, sessionId);
+                // 비활성 세션이어도 방 퇴장 처리는 수행해야 함
+                // (방장이 퇴장하면 방 상태를 FINISHED로 변경해야 하기 때문)
             }
 
-            // 2. 방 퇴장 처리
+            // 2. 방 퇴장 처리 (활성/비활성 세션 관계없이 수행)
             handleRoomLeave(userId);
 
             return true;
@@ -180,9 +182,14 @@ public class WebSocketSessionService {
      */
     private void handleRoomLeave(Long userId) {
         try {
+            log.info("🚪 방 퇴장 처리 시작 - userId: {}", userId);
+            
             // 방 퇴장 처리
             ParticipantEventResponse eventResp = leaveService.leaveCurrentRoomByUser(userId);
             Long roomId = eventResp.getGameRoomId();
+            
+            log.info("🚪 방 퇴장 처리 완료 - userId: {}, roomId: {}, eventType: {}, roomClosed: {}", 
+                    userId, roomId, eventResp.getEventType(), eventResp.getRoomClosed());
 
             // 같은 방의 다른 참가자들에게 퇴장 알림 브로드캐스트
             broadcastLeaveEvent(roomId, eventResp);

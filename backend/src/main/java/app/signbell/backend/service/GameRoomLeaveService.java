@@ -173,7 +173,10 @@ public class GameRoomLeaveService {
         log.info("방 종료 시 제거된 참가자 수: {}", deletedCount);
 
         // 4. 방 종료 처리
+        log.info("방 종료 전 상태 - roomId: {}, status: {}", roomId, room.getStatus());
         room.closeRoom();
+        log.info("방 종료 후 상태 - roomId: {}, status: {}, currentParticipants: {}", 
+                roomId, room.getStatus(), room.getCurrentParticipants());
 
         // 5. 퀴즈 상태 캐시 정리
         try {
@@ -185,7 +188,9 @@ public class GameRoomLeaveService {
         }
 
         // 6. 업데이트된 방 정보 저장
-        gameRoomRepository.save(room);
+        GameRoom savedRoom = gameRoomRepository.save(room);
+        log.info("방 정보 저장 완료 - roomId: {}, status: {}, currentParticipants: {}", 
+                savedRoom.getId(), savedRoom.getStatus(), savedRoom.getCurrentParticipants());
 
         // 7. 남은 참가자들의 세션 정리
         //    트랜잭션이 커밋되기 전이지만, 이미 DB에서 삭제되었으므로

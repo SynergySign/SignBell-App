@@ -527,12 +527,18 @@ public class QuizService {
                                 roomId, completedRound, sortedScores.size());
 
                 // 5. 대기실로 복귀합니다. (메시지 전송보다 먼저!)
+                // 단, 방이 이미 FINISHED 상태라면 (방장 퇴장 등) 상태를 변경하지 않습니다.
                 log.info("🔄 방 상태 변경 시작 - roomId: {}, 현재 상태: {}", roomId, gameRoom.getStatus());
-                gameRoom.proceedToNextRound();
-                gameRoom.updateStatus(GameRoomStatus.WAITING);
-                gameRoomRepository.flush(); // 즉시 DB에 반영
-                log.info("✅ 방 상태 변경 완료 - roomId: {}, nextRound: {}, status: WAITING",
-                                roomId, gameRoom.getCurrentRound());
+                
+                if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
+                        log.info("⚠️ 방이 이미 종료됨 (FINISHED) - 상태 변경 스킵 - roomId: {}", roomId);
+                } else {
+                        gameRoom.proceedToNextRound();
+                        gameRoom.updateStatus(GameRoomStatus.WAITING);
+                        gameRoomRepository.flush(); // 즉시 DB에 반영
+                        log.info("✅ 방 상태 변경 완료 - roomId: {}, nextRound: {}, status: WAITING",
+                                        roomId, gameRoom.getCurrentRound());
+                }
 
                 // 6. 모든 타이머를 정리합니다.
                 timerManager.cleanupRoom(roomId);
@@ -542,17 +548,23 @@ public class QuizService {
                 quizStateCache.clearRoomState(roomId);
 
                 // 8. 게임 종료 메시지를 전송합니다. (순위 발표 화면)
-                // 방 상태가 이미 WAITING으로 변경된 후에 전송하므로,
-                // 클라이언트가 즉시 대기실로 이동해도 문제없음
-                messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz",
-                                ApiResponse.success("게임이 종료되었습니다", GameEndResponse.builder()
-                                                .eventType("QUIZ_FINISHED")
-                                                .completedRound(completedRound)
-                                                .nextRound(completedRound + 1)
-                                                .rankings(rankings)
-                                                .showReturnButton(true) // "방으로 돌아가기" 버튼 표시
-                                                .build()));
+                // 단, 방이 FINISHED 상태라면 (방장 퇴장 등) 메시지를 보내지 않습니다.
+                // (이미 방 종료 이벤트가 전송되었기 때문)
+                if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
+                        log.info("⚠️ 방이 종료됨 - 게임 종료 메시지 전송 스킵 - roomId: {}", roomId);
+                } else {
+                        // 방 상태가 이미 WAITING으로 변경된 후에 전송하므로,
+                        // 클라이언트가 즉시 대기실로 이동해도 문제없음
+                        messagingTemplate.convertAndSend(
+                                        "/topic/room/" + roomId + "/quiz",
+                                        ApiResponse.success("게임이 종료되었습니다", GameEndResponse.builder()
+                                                        .eventType("QUIZ_FINISHED")
+                                                        .completedRound(completedRound)
+                                                        .nextRound(completedRound + 1)
+                                                        .rankings(rankings)
+                                                        .showReturnButton(true) // "방으로 돌아가기" 버튼 표시
+                                                        .build()));
+                }
         }
 
         /**
