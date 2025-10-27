@@ -4,7 +4,7 @@ server:
   ssl:
     enabled: true
     key-store: "classpath:keystore.p12"
-    key-store-password: "mariadb"   # 실제 비밀번호로 변경하거나 ENV 사용
+    key-store-password: "signbell1234"   # 실제 비밀번호로 변경하거나 ENV 사용
     key-alias: signbell-alias
     key-store-type: PKCS12
 
