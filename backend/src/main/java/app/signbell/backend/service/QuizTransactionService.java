@@ -32,17 +32,20 @@ public class QuizTransactionService {
     private final QuizStateCache quizStateCache;
     private final SimpMessagingTemplate messagingTemplate;
     private final QuizService quizService;
+    private final QuizTimerManager timerManager;
     
     // 생성자에서 @Lazy로 순환 참조 해결
     public QuizTransactionService(
             QuizWordRepository quizWordRepository,
             QuizStateCache quizStateCache,
             SimpMessagingTemplate messagingTemplate,
-            @org.springframework.context.annotation.Lazy QuizService quizService) {
+            @org.springframework.context.annotation.Lazy QuizService quizService,
+            QuizTimerManager timerManager) {
         this.quizWordRepository = quizWordRepository;
         this.quizStateCache = quizStateCache;
         this.messagingTemplate = messagingTemplate;
         this.quizService = quizService;
+        this.timerManager = timerManager;
     }
 
     /**
@@ -56,6 +59,12 @@ public class QuizTransactionService {
         log.info("🔄 moveToNextQuestion 호출 (새 트랜잭션) - roomId: {}, currentQuestion: {}", 
                 roomId, currentQuestion);
         
+        QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
+        
+        // 이전 문제의 타이머 정리
+        log.info("이전 문제 타이머 정리 - roomId: {}, currentQuestion: {}", roomId, currentQuestion);
+        timerManager.cancelAllTimersForQuestion(roomId, currentQuestion);
+        
         if (currentQuestion >= 8) {
             // 게임 종료
             log.info("마지막 문제 완료 - 게임 종료 - roomId: {}", roomId);
@@ -64,7 +73,6 @@ public class QuizTransactionService {
         }
 
         Integer nextQuestion = currentQuestion + 1;
-        QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
         Long nextQuizWordId = roomState.getQuizWordId(nextQuestion);
 
         if (nextQuizWordId == null) {
@@ -75,6 +83,10 @@ public class QuizTransactionService {
 
         QuizWord nextQuiz = quizWordRepository.findByIdWithSign(nextQuizWordId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.QUIZ_NOT_FOUND));
+
+        // 현재 문제 번호 업데이트
+        roomState.setCurrentQuestionNumber(nextQuestion);
+        log.info("현재 문제 번호 업데이트 - roomId: {}, nextQuestion: {}", roomId, nextQuestion);
 
         log.info("다음 문제 이동 - roomId: {}, nextQuestion: {}, wordTitle: {}",
                 roomId, nextQuestion, nextQuiz.getSign().getTitle());
