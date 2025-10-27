@@ -52,9 +52,37 @@ export const useAuthStore = create(
        * 사용자 상태를 설정
        * @param {object|null} user
        */
-      setUser: (user) => {
+      /*setUser: (user) => {
         console.log('setUser called with:', user);
         set({ user, isAuthenticated: !!user, error: null });
+      },*/
+      setUser: (userData) => {
+        if (!userData) {
+          // userData가 null이면 로그아웃 처리
+          set({ user: null, isAuthenticated: false, error: null });
+          return;
+        }
+
+        set({
+          user: {
+            // 사용자 ID
+            userId: userData.userId,
+            // 닉네임
+            nickname: userData.nickname,
+            // 이메일
+            email: userData.email,
+            // 프로필 이미지 URL
+            profileImageUrl: userData.profileImageUrl,
+            // 토탈 스코어
+            totalScore: userData.totalScore,
+            // 필수 동의 여부 (필드 누락 시 기본값: true)
+            requiredAgree: userData.requiredAgree ?? true,
+            // 🔑 선택 약관 동의 상태 (필드 누락 시 기본값: false)
+            optionalAgree: userData.optionalAgree ?? false,
+          },
+          isAuthenticated: true,
+          error: null,
+        });
       },
 
       /**
@@ -62,7 +90,7 @@ export const useAuthStore = create(
        */
       clear: () => {
         console.log('clear called');
-        set({ ...initialState, hasCheckedAuth: true });
+        set({...initialState, hasCheckedAuth: true});
       },
 
       /**
@@ -72,7 +100,7 @@ export const useAuthStore = create(
        */
       fetchMe: async () => {
         console.log('fetchMe called');
-        set({ loading: true, error: null });
+        set({loading: true, error: null});
         try {
           const res = await AuthService.me();
           console.log('fetchMe response:', res);
@@ -83,19 +111,19 @@ export const useAuthStore = create(
             // Mixed Content 경고 해결: http를 https로 강제 변경
             if (userData?.profileImageUrl) {
               const secureImageUrl = userData.profileImageUrl.replace(/^http:\/\//i, 'https://');
-              userData = { ...userData, profileImageUrl: secureImageUrl };
+              userData = {...userData, profileImageUrl: secureImageUrl};
             }
 
             console.log('Setting user data:', userData);
-            set({ user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true });
+            set({user: userData, isAuthenticated: true, loading: false, hasCheckedAuth: true});
           } else {
             // console.log('No success in response');
-            set({ user: null, isAuthenticated: false, loading: false, hasCheckedAuth: true });
+            set({user: null, isAuthenticated: false, loading: false, hasCheckedAuth: true});
           }
         } catch (error) {
           console.log('fetchMe error:', error);
           // 인증 실패 시 로컬스토리지도 초기화
-          set({ user: null, isAuthenticated: false, error: 'unauthenticated', loading: false, hasCheckedAuth: true });
+          set({user: null, isAuthenticated: false, error: 'unauthenticated', loading: false, hasCheckedAuth: true});
           // localStorage에서 auth 데이터 제거
           try {
             localStorage.removeItem('auth');
@@ -115,9 +143,9 @@ export const useAuthStore = create(
         try {
           const res = await AuthService.me();
           if (res?.data?.success) {
-            set({ user: res.data.data, isAuthenticated: true });
+            set({user: res.data.data, isAuthenticated: true});
           } else {
-            set({ user: null, isAuthenticated: false });
+            set({user: null, isAuthenticated: false});
           }
         } catch {
           // 조용히 실패 무시 (화면 끊김 방지)
@@ -134,7 +162,7 @@ export const useAuthStore = create(
         } catch {
           // ignore
         } finally {
-          set({ ...initialState, hasCheckedAuth: true });
+          set({...initialState, hasCheckedAuth: true});
         }
       },
     }),
@@ -156,6 +184,8 @@ export const useAuthStore = create(
             totalScore: state.user.totalScore,
             // 필수 동의 여부 (앱 플로우 제어용)
             requiredAgree: state.user.requiredAgree, // 🔑 필수 포함
+            // 선택 동의 여부
+            optionalAgree: state.user.optionalAgree,
           }
           : null; // 인증되지 않은 경우 null
         return {

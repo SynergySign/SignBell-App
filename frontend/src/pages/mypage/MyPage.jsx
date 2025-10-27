@@ -6,7 +6,7 @@
  * @반환값 {JSX.Element} 마이페이지 컴포넌트
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ProfileImageEditor from '../../components/mypage/ProfileImageEditor';
 import NicknameEditor from '../../components/mypage/NicknameEditor';
@@ -19,14 +19,31 @@ import {useAuthStore} from "../../store/auth/authStore.js";
 const MyPage = () => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  console.log("MyPage: User:", user);
   // TODO: 사용자 약관 동의 상태 API 연동 필요
   // API 호출 예시: const { data } = await getUserTermsStatus();
   // 응답 형식: { required: true, optional: false }
-  const [termsStatus] = useState({
+  /*const [termsStatus] = useState({
     required: true, // 필수 약관은 항상 true (이미 동의한 상태)
     optional: false, // 선택 약관 동의 상태 (API에서 받아올 값)
+  });*/
+
+  // 🔑 수정 1: useState의 초기값으로 전역 상태 (user)의 값을 사용합니다.
+  // user가 아직 로드되지 않은 경우를 대비해 기본값(false)을 설정합니다.
+  const [termsStatus, setTermsStatus] = useState({ // 💡 setTermsStatus 추가
+    required: user?.requiredAgree ?? true,
+    optional: user?.optionalAgree ?? false, // 🔑 전역 상태의 값을 초기값으로 사용
   });
+
+  // 🔑 수정 2: user 객체가 비동기적으로 로드되거나 변경되었을 때,
+  // 로컬 상태(termsStatus)를 전역 상태와 동기화합니다.
+  useEffect(() => {
+    if (user) {
+      setTermsStatus({
+        required: user.requiredAgree ?? true,
+        optional: user.optionalAgree ?? false,
+      });
+    }
+  }, [user]);
 
   const [modalState, setModalState] = useState({
     isOpen: false,
