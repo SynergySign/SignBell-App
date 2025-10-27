@@ -353,8 +353,16 @@ public class QuizService {
                 CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS)
                                 .execute(() -> {
                                         try {
-                                                // 결과 표시 단계 종료
+                                                // 결과 표시 단계 종료 전에 이미 처리되었는지 확인
                                                 QuizStateCache.GameRoomState state = quizStateCache.getOrCreateRoomState(finalRoomId);
+                                                
+                                                // 이미 결과 표시 단계가 아니면 중복 실행 방지
+                                                if (!state.isInResultPhase(finalQuestionNumber)) {
+                                                        log.warn("결과 표시 단계 중복 실행 방지 - roomId: {}, question: {}", 
+                                                                finalRoomId, finalQuestionNumber);
+                                                        return;
+                                                }
+                                                
                                                 state.setInResultPhase(finalQuestionNumber, false);
                                                 log.debug("결과 표시 단계 종료 - roomId: {}, question: {}", finalRoomId, finalQuestionNumber);
 
