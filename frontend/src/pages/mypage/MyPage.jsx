@@ -20,7 +20,7 @@ const MyPage = () => {
   const navigate = useNavigate();
   // 1. authStore에서 user 정보와 setUser 액션을 가져옵니다.
   const user = useAuthStore((state) => state.user);
-  const setUser = useAuthStore((state) => state.setUser); // 액션은 안정적이므로 별도 호출해도 무방합니다.
+  const setProfile = useAuthStore((state) => state.setProfile); // 액션은 안정적이므로 별도 호출해도 무방합니다.
 
   // termsStatus 로컬 상태는 userData의 값을 기반으로 초기화됩니다.
   const [termsStatus, setTermsStatus] = useState(
@@ -76,8 +76,8 @@ const MyPage = () => {
   };
 
   const handleNicknameUpdate = (updatedUser) => {
-    // 3. 제출(DB 업데이트 성공) 후,
-    setUser(updatedUser); // 전역 상태 업데이트 (이것이 위쪽 useEffect를 트리거하지만, 닉네임이 같아 무한 루프가 발생하지 않음)
+    // updatedUser에는 닉네임과 optionalAgree 등이 포함되어 있습니다.
+    setProfile(updatedUser);
 
     // 로컬 termsStatus도 즉시 갱신하여 화면 깜빡임 없이 반영합니다.
     if (updatedUser) {

@@ -96,8 +96,12 @@ const NicknameEditor = ({ initialNickname, onNicknameUpdate }) => {
       return;
     }
 
-    if (!user?.userId) {
-      console.error('사용자 ID를 찾을 수 없습니다.');
+    // user 객체가 null/undefined일 경우 초기 닉네임을 이용해 userId를 추정하거나,
+    // 현재는 사용자 ID가 없음을 명시적으로 알려주고 함수를 종료합니다.
+    if (!user || !user.userId) { // null 체크를 명확히 합니다.
+      console.error('사용자 ID를 찾을 수 없습니다.'); //
+      // 에러 메시지를 사용자에게 보여줄 수도 있습니다.
+      setError('로그인이 필요하거나 사용자 정보를 불러오는 데 실패했습니다.');
       return;
     }
 

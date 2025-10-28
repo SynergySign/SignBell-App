@@ -85,6 +85,22 @@ export const useAuthStore = create(
         });
       },
 
+      // 2. 닉네임/이미지 등 프로필 정보만 업데이트할 때 사용.
+      // 🔑 [추가] user 상태의 일부 필드만 안전하게 업데이트합니다.
+      setProfile: (profileData) => {
+        set((state) => {
+          // user 객체가 있을 때만 (로그인 상태일 때만) 업데이트를 진행합니다.
+          if (state.user) {
+            return {
+              user: {
+                ...state.user, // 기존 user 정보를 유지 (userId, provider, 토큰 관련 정보 등)
+                ...profileData, // 서버에서 받은 새로운 프로필 정보 (닉네임, optionalAgree 등)로 덮어쓰기
+              },
+            };
+          }
+          return {}; // user가 null이면 아무것도 하지 않음
+        });
+      },
       /**
        * 모든 상태 초기화
        */
