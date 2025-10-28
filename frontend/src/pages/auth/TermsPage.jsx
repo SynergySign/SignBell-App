@@ -27,7 +27,7 @@ const TermsPage = () => {
   const fromMyPage = location.state?.fromMyPage || false;
 
 
-  // 1. ✅ 추가된 로직: 페이지 진입 시 fetchMe()를 호출하고 requiredAgree 상태 확인
+  // 1. 페이지 진입 시 fetchMe()를 호출하고 requiredAgree 상태 확인
   useEffect(() => {
     // 1-1. 사용자 정보가 없으면 fetchMe() 호출
     if (!user) {
@@ -59,11 +59,12 @@ const TermsPage = () => {
     if (user && !fromMyPage) {
       setAgreements({
         required: user.requiredAgree,
-        optional: user.optionalAgree,
+        optional: user.optionalAgree ?? false,
       });
     }
 
   }, [user, navigate, fromMyPage, fetchMe]); // user 객체의 변경을 주시
+
 
   // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
   useEffect(() => {
@@ -71,9 +72,11 @@ const TermsPage = () => {
       setAgreements(prev => ({
         ...prev,
         required: true, // 필수 약관은 항상 true
+        // 마이페이지에서 온 경우에도 user 객체의 optionalAgree 상태를 반영합니다.
+        optional: user?.optionalAgree ?? false,
       }));
     }
-  }, [fromMyPage]);
+  }, [fromMyPage, user]); // user 객체를 의존성 배열에 추가합니다.
   const [modalState, setModalState] = useState({
     isOpen: false,
     title: '',
@@ -179,25 +182,6 @@ const TermsPage = () => {
       setIsSubmitting(false);
     }
   };
-  /*const handleSubmit = () => {
-    if (fromMyPage) {
-      // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
-      // TODO: 약관 동의 상태 업데이트 API 연동 필요
-      console.log('약관 동의 수정', agreements);
-      navigate('/mypage');
-    } else {
-      // 최초 가입 시: 팝업 닫기 페이지로 이동
-      // TODO: API 연동이 필요합니다.
-      console.log('약관 동의 제출', agreements);
-      navigate('/popup-close');
-    }
-  };*/
-
-  /*const handleLogout = () => {
-    // TODO: 로그아웃 확인 모달 표시
-    console.log('로그아웃');
-    navigate('/');
-  };*/
 
   const handleLogout = async () => {
     // TODO: 로그아웃 확인 모달 표시 (현재는 모달 없이 바로 로그아웃 처리)

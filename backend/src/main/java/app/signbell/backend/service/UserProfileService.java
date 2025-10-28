@@ -9,6 +9,7 @@ import app.signbell.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import app.signbell.backend.dto.request.NicknameUpdateRequest;
 
 /**
  * 사용자 프로필 조회/수정을 담당하는 서비스.
@@ -51,6 +52,27 @@ public class UserProfileService {
     public UserProfileResponse getUserProfile(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        return UserProfileResponse.from(user);
+    }
+
+    /**
+     * 사용자 닉네임만 업데이트합니다.
+     *
+     * @param userId 사용자 ID
+     * @param request 닉네임 수정 요청
+     * @return 수정된 사용자 프로필 응답 DTO
+     *
+     * @author [작성자 이름]
+     * @since [작성일]
+     */
+    @Transactional
+    public UserProfileResponse updateNickname(Long userId, NicknameUpdateRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        // 닉네임만 업데이트하는 메서드 호출
+        user.updateNickname(request.getNickname()); // 🔑 User.java에 이 메서드를 추가할 예정
+
         return UserProfileResponse.from(user);
     }
 

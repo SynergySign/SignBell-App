@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import app.signbell.backend.dto.request.NicknameUpdateRequest;
 
 /**
  * 마이페이지 사용자 프로필 조회/수정 컨트롤러.
@@ -100,6 +101,30 @@ public class UserProfileController {
             }
             UserProfileResponse response = userProfileService.updateTermsAgreement(userId, request.getOptionalAgree());
             return ResponseEntity.ok(ApiResponse.success("약관 동의 처리 성공", response));
+        } catch (NumberFormatException e) {
+            log.error("인증된 사용자 ID(subject)를 Long으로 변환 실패: {}", subject, e);
+            throw new BusinessException(ErrorCode.UNAUTHORIZED);
+        }
+    }
+
+    /**
+     * 닉네임만 변경하는 API
+     * PATCH /api/my-page/users/{userId}/nickname
+     */
+    @PatchMapping("/{userId}/nickname") // 🔑 부분 업데이트는 PATCH
+    public ResponseEntity<ApiResponse<UserProfileResponse>> updateNickname(
+            @PathVariable("userId") Long userId,
+            @Valid @RequestBody NicknameUpdateRequest request, // 💡 새로운 DTO 사용
+            @AuthenticationPrincipal String subject
+    ) {
+        try {
+            Long currentUserId = Long.valueOf(subject);
+            if (!userId.equals(currentUserId)) {
+                throw new BusinessException(ErrorCode.FORBIDDEN);
+            }
+            // 💡 닉네임 전용 서비스 메서드 호출
+            UserProfileResponse response = userProfileService.updateNickname(userId, request);
+            return ResponseEntity.ok(ApiResponse.success("닉네임 변경 성공", response));
         } catch (NumberFormatException e) {
             log.error("인증된 사용자 ID(subject)를 Long으로 변환 실패: {}", subject, e);
             throw new BusinessException(ErrorCode.UNAUTHORIZED);

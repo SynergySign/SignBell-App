@@ -38,6 +38,7 @@ import java.util.Optional;
  */
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
@@ -53,7 +54,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
      * - nameAttributeKey를 공급자별로 맞춰 DefaultOAuth2User 구성
      * - getName()은 우리 플랫폼의 User ID를 반환하도록 오버라이드
      */
-    @Override
+    /*@Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
@@ -122,6 +123,124 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
         // ✅ 중요: save() 호출 후 생성된 ID를 가져옴
         User savedUser = userRepository.save(user);
+        Long internalUserId = savedUser.getId(); // 우리 플랫폼의 자동 생성된 User ID
+
+        // ✅ DefaultOAuth2User를 반환하되, getName()을 우리 플랫폼의 userId로 오버라이드
+        return new DefaultOAuth2User(
+                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER")),
+                attributes,
+                resolveNameAttributeKey(registrationId)
+        ) {
+            @Override
+            public String getName() {
+                // 우리 플랫폼의 User ID를 반환 (JWT subject로 사용됨)
+                return String.valueOf(internalUserId);
+            }
+        };
+    }*/
+
+    /**
+     * OAuth2UserRequest를 받아 사용자 정보를 로드하고,
+     * 우리 시스템의 User 엔티티로 변환 또는 업데이트합니다.
+     *
+     * @param userRequest OAuth2 사용자 정보를 포함하는 요청 객체
+     * @return 우리 시스템에서 인증 주체로 사용될 OAuth2User 객체 (getName()은 우리 시스템의 User ID를 반환)
+     * @throws OAuth2AuthenticationException 인증 과정에서 문제가 발생할 경우
+     */
+    @Override
+    public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
+        // 부모의 loadUser 호출: 외부 API에서 사용자 정보(attributes)를 가져옴
+        OAuth2User oAuth2User = super.loadUser(userRequest);
+        String registrationId = userRequest.getClientRegistration().getRegistrationId();
+
+        // 우리 시스템의 User 엔티티 동기화 및 인증 주체 반환
+        return processOAuth2User(registrationId, oAuth2User.getAttributes());
+    }
+
+    // 1. attributes를 파싱하여 우리 시스템에 필요한 User 정보(로그인 제공자, ID, 이메일, 닉네임, 이미지 URL)를 추출
+    private Map<String, Object> extractOAuth2Attributes(String registrationId, Map<String, Object> attributes) {
+        String providerId;
+        String email = null;
+        String nickname;
+        String profileImage = null;
+
+        if ("kakao".equalsIgnoreCase(registrationId)) {
+            // 카카오 응답 구조: 최상위 id, kakao_account(이메일, 프로필), properties(닉네임, 이미지)
+            providerId = String.valueOf(attributes.get("id"));
+
+            @SuppressWarnings("unchecked")
+            Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> profile = (Map<String, Object>) kakaoAccount.get("profile");
+
+            nickname = (String) profile.get("nickname");
+            profileImage = (String) profile.get("profile_image_url");
+
+            Boolean isEmailValid = (Boolean) kakaoAccount.get("is_email_valid");
+            if (isEmailValid != null && isEmailValid) {
+                email = (String) kakaoAccount.get("email");
+            }
+
+        } else {
+            // 미지원 공급자 처리 (현재는 카카오만 지원)
+            throw new OAuth2AuthenticationException("Unsupported registrationId: " + registrationId);
+        }
+
+        return Map.of(
+                "providerId", providerId,
+                "email", email != null ? email : providerId + "@" + registrationId + ".sso", // 이메일이 없는 경우 가짜 이메일 생성
+                "nickname", nickname,
+                "profileImage", profileImage,
+                "registrationId", registrationId
+        );
+    }
+
+    // 2. 공급자 및 ID 기반으로 기존 사용자 또는 신규 사용자 생성
+    private OAuth2User processOAuth2User(String registrationId, Map<String, Object> attributes) {
+        Map<String, Object> parsedAttributes = extractOAuth2Attributes(registrationId, attributes);
+
+        LoginMethod loginProvider = LoginMethod.valueOf(registrationId.toUpperCase());
+        String providerId = (String) parsedAttributes.get("providerId");
+        String email = (String) parsedAttributes.get("email");
+        String nickname = (String) parsedAttributes.get("nickname");
+        String profileImage = (String) parsedAttributes.get("profileImage");
+
+        // findByLoginMethodAndProviderId로 메서드 호출
+        Optional<User> optionalUser = userRepository.findByProviderAndProviderId(loginProvider, providerId);
+
+        User savedUser;
+        if (optionalUser.isPresent()) {
+            // 기존 사용자 업데이트 로직
+            User existingUser = optionalUser.get();
+
+            // 사용자가 마이페이지에서 닉네임을 변경한 경우, 카카오 정보로 덮어쓰지 않도록 보호
+            String finalNickname = existingUser.getNickname();
+
+            // 기존 닉네임이 null/빈 값일 경우 또는 기존 닉네임이 외부 제공자 닉네임과 동일할 경우에만 업데이트
+            if (finalNickname == null || finalNickname.isEmpty() || finalNickname.equals(nickname)) {
+                finalNickname = nickname;
+            }
+
+            existingUser.setNickname(finalNickname); // 닉네임 업데이트 로직 반영
+
+            existingUser.setProfileImageUrl(profileImage); // 프로필 이미지는 항상 최신으로 업데이트
+
+            savedUser = userRepository.save(existingUser); // 업데이트 후 저장
+        } else {
+            // 신규 사용자 생성 로직 (최초 로그인)
+            User newUser = User.builder()
+                    .email(email)
+                    .nickname(nickname)
+                    .profileImageUrl(profileImage)
+                    .provider(loginProvider)
+                    .providerId(providerId)
+                    // agree는 빌더에서 기본값 false로 자동 처리
+                    .build();
+
+            // ✅ 중요: save() 호출 후 생성된 ID를 가져옴
+            savedUser = userRepository.save(newUser);
+        }
+
         Long internalUserId = savedUser.getId(); // 우리 플랫폼의 자동 생성된 User ID
 
         // ✅ DefaultOAuth2User를 반환하되, getName()을 우리 플랫폼의 userId로 오버라이드
