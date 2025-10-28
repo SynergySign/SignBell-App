@@ -3,10 +3,7 @@ package app.signbell.backend.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
-import lombok.AccessLevel;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
@@ -43,6 +40,7 @@ public class User {
     /**
      * 닉네임
      */
+    @Setter
     @Column(nullable = false)
     private String nickname;
 
@@ -55,6 +53,7 @@ public class User {
     /**
      * 프로필 이미지 URL
      */
+    @Setter
     @Column
     private String profileImageUrl;
 
@@ -111,13 +110,6 @@ public class User {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    /*@Builder
-    public User(String nickname, String email, LoginMethod loginMethod) {
-        this.nickname = nickname;
-        this.email = email;
-        this.loginMethod = loginMethod;
-        this.totalScore = 0L; // 빌더 생성 시 기본값 0으로 초기화
-    }*/
     /**
      * User 객체를 빌더 패턴을 사용하여 생성하는 생성자.
      * 사용자 정보를 초기화하며 입력값이 null인 경우 기본값을 설정합니다.
@@ -140,7 +132,6 @@ public class User {
             , LoginMethod provider
             , String providerId
             , String email
-//            , Boolean agree
             , Boolean requiredAgree
             , Boolean optionalAgree
     ) {
