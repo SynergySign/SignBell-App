@@ -11,9 +11,10 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faCamera } from '@fortawesome/free-solid-svg-icons';
 import styles from './ProfileImageEditor.module.scss';
 
-const ProfileImageEditor = () => {
+const ProfileImageEditor = ({initialImageUrl}) => {
   // TODO: 사용자 프로필 API 연동 필요
-  const [profileImage, setProfileImage] = useState(null);
+  // const [profileImage, setProfileImage] = useState(null);
+  const [profileImage, setProfileImage] = useState(initialImageUrl || null);
   const [imageError, setImageError] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -85,14 +86,14 @@ const ProfileImageEditor = () => {
           </div>
         )}
         
-        <button
+        {/* <button
           className={styles.cameraButton}
           onClick={handleImageClick}
           aria-label="프로필 이미지 변경"
           title="프로필 이미지 변경"
         >
           <FontAwesomeIcon icon={faCamera} aria-hidden="true" />
-        </button>
+        </button>*/}
       </div>
 
       <input
