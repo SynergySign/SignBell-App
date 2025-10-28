@@ -11,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -49,9 +48,9 @@ public class QuizService {
         private final SimpMessagingTemplate messagingTemplate;
         private final QuizTransactionService transactionService;
         private final QuizTimerManager timerManager;
-        
+
         private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(10);
-        
+
         // 동시 퇴장 처리를 위한 동기화 객체
         private final Object participantLeftLock = new Object();
 
@@ -85,7 +84,7 @@ public class QuizService {
                 List<QuizWord> allQuizWords = quizWordRepository.findAll();
                 Collections.shuffle(allQuizWords);
                 List<QuizWord> selectedWords = allQuizWords.stream()
-                                .limit(8)
+                                .limit(1)
                                 .collect(Collectors.toList());
 
                 // 5. 캐시 초기화 및 문제 저장
@@ -215,7 +214,8 @@ public class QuizService {
          * 정답 제출 (실제 게임용 - 신뢰도 점수 포함)
          */
         @Transactional
-        public void submitAnswer(Long roomId, Long userId, Integer questionNumber, String answer, Double confidenceScore) {
+        public void submitAnswer(Long roomId, Long userId, Integer questionNumber, String answer,
+                        Double confidenceScore) {
                 // 1. 게임 진행 중인지 확인
                 validateGameInProgress(roomId);
 
@@ -226,23 +226,23 @@ public class QuizService {
 
                 // 3. 도전 차례 확인
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
-                
-                log.info("도전 차례 확인 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}", 
-                        roomId, questionNumber, currentChallenger, userId);
-                
+
+                log.info("도전 차례 확인 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}",
+                                roomId, questionNumber, currentChallenger, userId);
+
                 if (currentChallenger == null) {
-                        log.warn("도전 차례 없음 - roomId: {}, question: {}, userId: {}", 
-                                roomId, questionNumber, userId);
+                        log.warn("도전 차례 없음 - roomId: {}, question: {}, userId: {}",
+                                        roomId, questionNumber, userId);
                         messagingTemplate.convertAndSendToUser(
                                         String.valueOf(userId),
                                         "/queue/errors",
                                         ApiResponse.error("도전 차례가 설정되지 않았습니다"));
                         return;
                 }
-                
+
                 if (!currentChallenger.equals(userId)) {
-                        log.warn("도전 차례 불일치 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}", 
-                                roomId, questionNumber, currentChallenger, userId);
+                        log.warn("도전 차례 불일치 - roomId: {}, question: {}, currentChallenger: {}, submitUserId: {}",
+                                        roomId, questionNumber, currentChallenger, userId);
                         messagingTemplate.convertAndSendToUser(
                                         String.valueOf(userId),
                                         "/queue/errors",
@@ -259,37 +259,38 @@ public class QuizService {
 
                 // 5. FastAPI 인식 결과 확인 및 정답 검증
                 // FastAPI 오류 메시지 감지 (오류:, 랜드마크, 데이터 없음 등)
-                boolean isRecognitionFailed = (answer == null || answer.trim().isEmpty() 
-                        || answer.contains("오류:") 
-                        || answer.contains("랜드마크") 
-                        || answer.contains("데이터 없음")
-                        || (confidenceScore != null && confidenceScore == 0.0));
-                
+                boolean isRecognitionFailed = (answer == null || answer.trim().isEmpty()
+                                || answer.contains("오류:")
+                                || answer.contains("랜드마크")
+                                || answer.contains("데이터 없음")
+                                || (confidenceScore != null && confidenceScore == 0.0));
+
                 boolean isCorrect = false;
                 String failureReason = null;
 
                 if (!isRecognitionFailed) {
                         // 신뢰도 점수 확인 (70% 이상)
                         if (confidenceScore == null || confidenceScore < 0.7) {
-                                failureReason = String.format("신뢰도 부족 (%.1f%%)", 
-                                        confidenceScore != null ? confidenceScore * 100 : 0);
-                                log.info("신뢰도 부족 - userId: {}, question: {}, answer: {}, confidence: {}", 
-                                        userId, questionNumber, answer, confidenceScore);
+                                failureReason = String.format("신뢰도 부족 (%.1f%%)",
+                                                confidenceScore != null ? confidenceScore * 100 : 0);
+                                log.info("신뢰도 부족 - userId: {}, question: {}, answer: {}, confidence: {}",
+                                                userId, questionNumber, answer, confidenceScore);
                         } else {
                                 // 정답 매칭 검증 (DB 단어에 FastAPI 단어가 포함되는지 확인)
                                 isCorrect = isAnswerMatching(correctAnswer, answer);
-                                
+
                                 if (!isCorrect) {
                                         failureReason = String.format("오답 (정답: %s, 인식: %s)", correctAnswer, answer);
                                 }
-                                
-                                log.info("정답 검증 - userId: {}, question: {}, correctAnswer: {}, userAnswer: {}, confidence: {}, isCorrect: {}", 
-                                        userId, questionNumber, correctAnswer, answer, confidenceScore, isCorrect);
+
+                                log.info("정답 검증 - userId: {}, question: {}, correctAnswer: {}, userAnswer: {}, confidence: {}, isCorrect: {}",
+                                                userId, questionNumber, correctAnswer, answer, confidenceScore,
+                                                isCorrect);
                         }
                 } else {
                         failureReason = "수어 인식 실패";
-                        log.info("인식 실패 - userId: {}, question: {}, answer: {}, confidence: {}", 
-                                userId, questionNumber, answer, confidenceScore);
+                        log.info("인식 실패 - userId: {}, question: {}, answer: {}, confidence: {}",
+                                        userId, questionNumber, answer, confidenceScore);
                 }
 
                 Integer order = roomState.getChallengerOrder(questionNumber, userId);
@@ -354,28 +355,31 @@ public class QuizService {
                                 .execute(() -> {
                                         try {
                                                 // 결과 표시 단계 종료 전에 이미 처리되었는지 확인
-                                                QuizStateCache.GameRoomState state = quizStateCache.getOrCreateRoomState(finalRoomId);
-                                                
+                                                QuizStateCache.GameRoomState state = quizStateCache
+                                                                .getOrCreateRoomState(finalRoomId);
+
                                                 // 이미 결과 표시 단계가 아니면 중복 실행 방지
                                                 if (!state.isInResultPhase(finalQuestionNumber)) {
-                                                        log.warn("결과 표시 단계 중복 실행 방지 - roomId: {}, question: {}", 
-                                                                finalRoomId, finalQuestionNumber);
+                                                        log.warn("결과 표시 단계 중복 실행 방지 - roomId: {}, question: {}",
+                                                                        finalRoomId, finalQuestionNumber);
                                                         return;
                                                 }
-                                                
+
                                                 state.setInResultPhase(finalQuestionNumber, false);
-                                                log.debug("결과 표시 단계 종료 - roomId: {}, question: {}", finalRoomId, finalQuestionNumber);
+                                                log.debug("결과 표시 단계 종료 - roomId: {}, question: {}", finalRoomId,
+                                                                finalQuestionNumber);
 
                                                 if (finalIsCorrect) {
                                                         // 정답 시 다음 문제로 이동 (새 트랜잭션)
-                                                        transactionService.moveToNextQuestion(finalRoomId, finalQuestionNumber);
+                                                        transactionService.moveToNextQuestion(finalRoomId,
+                                                                        finalQuestionNumber);
                                                 } else {
                                                         // 오답 또는 인식 실패 시 다음 도전자에게 기회 넘김
                                                         notifyNextChallenger(finalRoomId, finalQuestionNumber);
                                                 }
                                         } catch (Exception e) {
-                                                log.error("정답 처리 후 다음 단계 이동 중 오류 - roomId: {}, question: {}", 
-                                                        finalRoomId, finalQuestionNumber, e);
+                                                log.error("정답 처리 후 다음 단계 이동 중 오류 - roomId: {}, question: {}",
+                                                                finalRoomId, finalQuestionNumber, e);
                                         }
                                 });
         }
@@ -386,7 +390,7 @@ public class QuizService {
          * DB에 저장된 단어(예: "인사,경례")에 FastAPI에서 인식한 단어(예: "인사")가 포함되는지 확인
          * 
          * @param correctAnswer DB에 저장된 정답 (쉼표로 구분된 여러 단어 가능)
-         * @param userAnswer FastAPI에서 인식한 단어
+         * @param userAnswer    FastAPI에서 인식한 단어
          * @return 매칭 여부
          */
         private boolean isAnswerMatching(String correctAnswer, String userAnswer) {
@@ -446,7 +450,7 @@ public class QuizService {
 
                 // 모든 참가자 조회 (시도하지 않은 사람도 포함)
                 List<GameParticipant> allParticipants = gameParticipantRepository.findAllByGameRoom_Id(roomId);
-                
+
                 // 모든 참가자의 점수를 포함 (시도하지 않은 사람은 0점)
                 Map<Long, Integer> allScores = new java.util.HashMap<>();
                 for (GameParticipant participant : allParticipants) {
@@ -480,7 +484,7 @@ public class QuizService {
                 int rank = 1; // 현재 순위
                 Integer previousScore = null; // 이전 사람의 점수
                 int sameRankCount = 0; // 같은 순위의 사람 수
-                
+
                 for (int i = 0; i < sortedScores.size(); i++) {
                         Map.Entry<Long, Integer> entry = sortedScores.get(i);
                         Long userId = entry.getKey();
@@ -537,7 +541,7 @@ public class QuizService {
                 // 5. 대기실로 복귀합니다. (메시지 전송보다 먼저!)
                 // 단, 방이 이미 FINISHED 상태라면 (방장 퇴장 등) 상태를 변경하지 않습니다.
                 log.info("🔄 방 상태 변경 시작 - roomId: {}, 현재 상태: {}", roomId, gameRoom.getStatus());
-                
+
                 if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
                         log.info("⚠️ 방이 이미 종료됨 (FINISHED) - 상태 변경 스킵 - roomId: {}", roomId);
                 } else {
@@ -573,66 +577,6 @@ public class QuizService {
                                                         .showReturnButton(true) // "방으로 돌아가기" 버튼 표시
                                                         .build()));
                 }
-        }
-
-        /**
-         * 방으로 돌아가기 (게임 종료 후)
-         * 
-         * 게임 종료 후 순위 발표 화면에서 "방으로 돌아가기" 버튼 클릭 시 호출
-         * - 최초 입장처럼 전체 방 정보를 다시 전송하여 대기실 화면 렌더링
-         * - 방 상태는 이미 endGame()에서 WAITING으로 변경되어 있어야 함
-         */
-        @Transactional(readOnly = true)
-        public void returnToWaitingRoom(Long roomId, Long userId) {
-                log.info("🚪 returnToWaitingRoom 호출 - userId: {}, roomId: {}", userId, roomId);
-                
-                // 1. 방 존재 확인
-                GameRoom gameRoom = gameRoomRepository.findById(roomId)
-                                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
-
-                log.info("🔍 현재 방 상태 - roomId: {}, status: {}, currentRound: {}", 
-                                roomId, gameRoom.getStatus(), gameRoom.getCurrentRound());
-
-                // 2. 게임 상태 확인
-                if (gameRoom.getStatus() == GameRoomStatus.FINISHED) {
-                        log.warn("❌ 방이 이미 종료됨 - roomId: {}", roomId);
-                        throw new BusinessException(ErrorCode.ROOM_ALREADY_FINISHED);
-                }
-
-                // 3. 참가자 확인
-                gameParticipantRepository.findByGameRoom_IdAndParticipant_Id(roomId, userId)
-                                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPANT_NOT_FOUND));
-
-                log.info("✅ 방으로 돌아가기 검증 완료 - userId: {}, roomId: {}, status: {}",
-                                userId, roomId, gameRoom.getStatus());
-
-                // 3. 전체 참가자 정보 조회 (최초 입장과 동일한 정보)
-                List<GameParticipant> allParticipants = gameParticipantRepository
-                                .findAllByGameRoom_Id(roomId);
-
-                List<app.signbell.backend.dto.response.ParticipantResponse> participantResponses = allParticipants
-                                .stream()
-                                .map(gp -> app.signbell.backend.dto.response.ParticipantResponse.builder()
-                                                .userId(gp.getParticipant().getId())
-                                                .nickname(gp.getParticipant().getNickname())
-                                                .profileImageUrl(gp.getParticipant().getProfileImageUrl())
-                                                .isHost(gp.isHost())
-                                                .isReady(gp.isReady())
-                                                .build())
-                                .collect(java.util.stream.Collectors.toList());
-
-                // 4. 전체 방 정보 생성 (최초 입장과 동일)
-                app.signbell.backend.dto.response.JoinRoomResponse roomInfo = app.signbell.backend.dto.response.JoinRoomResponse
-                                .of(gameRoom, participantResponses);
-
-                // 5. 대기실로 이동 메시지 + 전체 방 정보 브로드캐스트
-                messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz",
-                                ApiResponse.success("대기실로 이동합니다",
-                                                java.util.Map.of(
-                                                                "eventType", "RETURN_TO_WAITING_ROOM",
-                                                                "roomInfo", roomInfo // 전체 방 정보 포함
-                                                )));
         }
 
         /**
@@ -709,8 +653,6 @@ public class QuizService {
                         throw new BusinessException(ErrorCode.GAME_STILL_IN_PROGRESS);
                 }
         }
-
-
 
         /**
          * 도전 신청 타임아웃 스케줄링
@@ -863,45 +805,45 @@ public class QuizService {
          * @param challengerUserId 도전자 ID
          */
         private void sendTimerUpdate(
-                Long roomId,
-                Integer questionNumber,
-                String timerType,
-                Integer remainingSeconds,
-                Long challengerUserId
-        ) {
+                        Long roomId,
+                        Integer questionNumber,
+                        String timerType,
+                        Integer remainingSeconds,
+                        Long challengerUserId) {
                 // 현재 도전자가 여전히 유효한지 확인
                 QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
-                
+
                 log.debug("타이머 상태 - roomId: {}, question: {}, type: {}, remaining: {}초, " +
-                        "expectedChallenger: {}, currentChallenger: {}", 
-                        roomId, questionNumber, timerType, remainingSeconds, 
-                        challengerUserId, currentChallenger);
-                
+                                "expectedChallenger: {}, currentChallenger: {}",
+                                roomId, questionNumber, timerType, remainingSeconds,
+                                challengerUserId, currentChallenger);
+
                 // 도전자가 변경되었으면 메시지 전송 스킵
                 if (currentChallenger == null || !currentChallenger.equals(challengerUserId)) {
                         log.info("타이머 전송 스킵 - 도전자 변경됨 - roomId: {}, question: {}, type: {}, " +
-                                "expectedChallenger: {}, currentChallenger: {}",
-                                roomId, questionNumber, timerType, challengerUserId, currentChallenger);
+                                        "expectedChallenger: {}, currentChallenger: {}",
+                                        roomId, questionNumber, timerType, challengerUserId, currentChallenger);
                         return;
                 }
-                
+
                 try {
                         messagingTemplate.convertAndSend(
-                                "/topic/room/" + roomId + "/quiz/timer",
-                                ApiResponse.success("타이머 업데이트",
-                                        TimerUpdateResponse.builder()
-                                                .timerType(timerType)
-                                                .remainingSeconds(remainingSeconds)
-                                                .questionNumber(questionNumber)
-                                                .challengerUserId(challengerUserId)
-                                                .build()));
-                        
+                                        "/topic/room/" + roomId + "/quiz/timer",
+                                        ApiResponse.success("타이머 업데이트",
+                                                        TimerUpdateResponse.builder()
+                                                                        .timerType(timerType)
+                                                                        .remainingSeconds(remainingSeconds)
+                                                                        .questionNumber(questionNumber)
+                                                                        .challengerUserId(challengerUserId)
+                                                                        .build()));
+
                         log.debug("타이머 메시지 전송 성공 - roomId: {}, question: {}, type: {}, remaining: {}초, challenger: {}",
-                                roomId, questionNumber, timerType, remainingSeconds, challengerUserId);
+                                        roomId, questionNumber, timerType, remainingSeconds, challengerUserId);
                 } catch (Exception e) {
                         log.error("타이머 전송 실패 - roomId: {}, question: {}, type: {}, remaining: {}초, challenger: {}, error: {}",
-                                roomId, questionNumber, timerType, remainingSeconds, challengerUserId, e.getMessage(), e);
+                                        roomId, questionNumber, timerType, remainingSeconds, challengerUserId,
+                                        e.getMessage(), e);
                 }
         }
 
@@ -953,37 +895,35 @@ public class QuizService {
         private void startPrepareTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
                 log.info("타이머 시작 - PREPARE 타이머 - roomId: {}, question: {}, challenger: {}, duration: 5초",
                                 roomId, questionNumber, challengerUserId);
-                
+
                 List<Runnable> tasks = new ArrayList<>();
-                
+
                 // 5초부터 0초까지 타이머 작업 생성
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
                         tasks.add(() -> sendTimerUpdate(
-                                roomId,
-                                questionNumber,
-                                "PREPARE",
-                                remainingSeconds,
-                                challengerUserId
-                        ));
+                                        roomId,
+                                        questionNumber,
+                                        "PREPARE",
+                                        remainingSeconds,
+                                        challengerUserId));
                 }
-                
+
                 // QuizTimerManager를 사용하여 타이머 스케줄링
                 timerManager.scheduleTimer(roomId, questionNumber, "PREPARE", tasks);
-                
+
                 log.debug("타이머 상태 - PREPARE 타이머 스케줄링 완료 - roomId: {}, question: {}, tasks: {}",
                                 roomId, questionNumber, tasks.size());
-                
+
                 // 5초 후 수어 표현 타이머 시작
                 scheduler.schedule(
-                        () -> {
-                                log.debug("타이머 전환 - PREPARE → SIGNING - roomId: {}, question: {}, challenger: {}",
-                                        roomId, questionNumber, challengerUserId);
-                                startSigningTimer(roomId, questionNumber, challengerUserId);
-                        },
-                        5,
-                        TimeUnit.SECONDS
-                );
+                                () -> {
+                                        log.debug("타이머 전환 - PREPARE → SIGNING - roomId: {}, question: {}, challenger: {}",
+                                                        roomId, questionNumber, challengerUserId);
+                                        startSigningTimer(roomId, questionNumber, challengerUserId);
+                                },
+                                5,
+                                TimeUnit.SECONDS);
         }
 
         /**
@@ -1002,24 +942,23 @@ public class QuizService {
         private void startSigningTimer(Long roomId, Integer questionNumber, Long challengerUserId) {
                 log.info("타이머 시작 - SIGNING 타이머 - roomId: {}, question: {}, challenger: {}, duration: 5초",
                                 roomId, questionNumber, challengerUserId);
-                
+
                 List<Runnable> tasks = new ArrayList<>();
-                
+
                 // 5초부터 0초까지 타이머 작업 생성
                 for (int i = 5; i >= 0; i--) {
                         final int remainingSeconds = i;
                         tasks.add(() -> sendTimerUpdate(
-                                roomId,
-                                questionNumber,
-                                "SIGNING",
-                                remainingSeconds,
-                                challengerUserId
-                        ));
+                                        roomId,
+                                        questionNumber,
+                                        "SIGNING",
+                                        remainingSeconds,
+                                        challengerUserId));
                 }
-                
+
                 // QuizTimerManager를 사용하여 타이머 스케줄링
                 timerManager.scheduleTimer(roomId, questionNumber, "SIGNING", tasks);
-                
+
                 log.debug("타이머 상태 - SIGNING 타이머 스케줄링 완료 - roomId: {}, question: {}, tasks: {}",
                                 roomId, questionNumber, tasks.size());
         }
@@ -1046,112 +985,176 @@ public class QuizService {
         @Transactional
         public void handleParticipantLeft(Long roomId, Long userId) {
                 log.info("도전자 퇴장 처리 시작 - roomId: {}, userId: {}", roomId, userId);
-                
+
                 synchronized (participantLeftLock) {
                         QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
-                        
+
                         // 현재 진행 중인 문제 번호 확인
                         Integer currentQuestion = roomState.getCurrentQuestionNumber();
-                        
-                        log.debug("타이머 상태 - 퇴장 처리 - roomId: {}, userId: {}, currentQuestion: {}", 
-                                roomId, userId, currentQuestion);
-                        
+
+                        log.debug("타이머 상태 - 퇴장 처리 - roomId: {}, userId: {}, currentQuestion: {}",
+                                        roomId, userId, currentQuestion);
+
                         if (currentQuestion == null) {
                                 // 게임이 시작되지 않았거나 종료됨
-                                log.info("도전자 퇴장 - 게임 진행 중이 아님 - 타이머 재시작 스킵 - roomId: {}, userId: {}", 
-                                        roomId, userId);
+                                log.info("도전자 퇴장 - 게임 진행 중이 아님 - 타이머 재시작 스킵 - roomId: {}, userId: {}",
+                                                roomId, userId);
                                 return;
                         }
-                        
+
                         // 엣지 케이스 1: 결과 표시 단계에서 퇴장 시 타이머 재시작 스킵
                         if (roomState.isInResultPhase(currentQuestion)) {
-                                log.info("도전자 퇴장 - 결과 표시 단계 - 타이머 재시작 스킵 - roomId: {}, userId: {}, question: {}", 
-                                        roomId, userId, currentQuestion);
+                                log.info("도전자 퇴장 - 결과 표시 단계 - 타이머 재시작 스킵 - roomId: {}, userId: {}, question: {}",
+                                                roomId, userId, currentQuestion);
                                 return;
                         }
-                        
+
                         // 현재 도전자인지 확인
                         Long currentChallenger = roomState.getCurrentChallenger(currentQuestion);
-                        
-                        log.debug("타이머 상태 - 현재 도전자 확인 - roomId: {}, question: {}, currentChallenger: {}, leftUserId: {}", 
-                                roomId, currentQuestion, currentChallenger, userId);
-                        
+
+                        log.debug("타이머 상태 - 현재 도전자 확인 - roomId: {}, question: {}, currentChallenger: {}, leftUserId: {}",
+                                        roomId, currentQuestion, currentChallenger, userId);
+
                         // 엣지 케이스 2: 도전 신청 단계(challenge)에서 퇴장 시 타이머 재시작 스킵
                         // 현재 도전자가 없으면 아직 도전 신청 단계임
                         if (currentChallenger == null) {
-                                log.info("도전자 퇴장 - 도전 신청 단계 - 타이머 재시작 스킵 - roomId: {}, userId: {}, question: {}", 
-                                        roomId, userId, currentQuestion);
+                                log.info("도전자 퇴장 - 도전 신청 단계 - 타이머 재시작 스킵 - roomId: {}, userId: {}, question: {}",
+                                                roomId, userId, currentQuestion);
                                 return;
                         }
-                        
+
                         if (currentChallenger.equals(userId)) {
-                                log.info("도전자 퇴장 - 현재 도전자 퇴장 감지 - roomId: {}, userId: {}, question: {}", 
-                                        roomId, userId, currentQuestion);
-                                
+                                log.info("도전자 퇴장 - 현재 도전자 퇴장 감지 - roomId: {}, userId: {}, question: {}",
+                                                roomId, userId, currentQuestion);
+
                                 // 진행 중인 타이머 취소
                                 log.info("도전자 퇴장 - 타이머 취소 시작 - roomId: {}, question: {}", roomId, currentQuestion);
                                 timerManager.cancelAllTimersForQuestion(roomId, currentQuestion);
-                                
+
                                 // 다음 도전자 확인
                                 Long nextChallenger = roomState.getNextChallenger(currentQuestion);
-                                
-                                log.debug("타이머 상태 - 다음 도전자 확인 - roomId: {}, question: {}, nextChallenger: {}", 
-                                        roomId, currentQuestion, nextChallenger);
-                                
+
+                                log.debug("타이머 상태 - 다음 도전자 확인 - roomId: {}, question: {}, nextChallenger: {}",
+                                                roomId, currentQuestion, nextChallenger);
+
                                 // 엣지 케이스 3: 다음 도전자 없을 시 타이머 재시작 스킵
                                 if (nextChallenger == null) {
                                         // 다음 도전자 없음 - 다음 문제로 이동
-                                        log.info("도전자 퇴장 - 다음 도전자 없음 - 다음 문제로 이동 - roomId: {}, question: {}", 
-                                                roomId, currentQuestion);
-                                        
+                                        log.info("도전자 퇴장 - 다음 도전자 없음 - 다음 문제로 이동 - roomId: {}, question: {}",
+                                                        roomId, currentQuestion);
+
                                         transactionService.moveToNextQuestion(roomId, currentQuestion);
                                         return;
                                 }
-                                
+
                                 // 다음 도전자에게 차례 넘김 (타이머 초기화)
                                 log.info("도전자 퇴장 - 다음 도전자에게 차례 넘김 - roomId: {}, question: {}, " +
-                                        "prevChallenger: {}, nextChallenger: {}", 
-                                        roomId, currentQuestion, userId, nextChallenger);
-                                
+                                                "prevChallenger: {}, nextChallenger: {}",
+                                                roomId, currentQuestion, userId, nextChallenger);
+
                                 // 도전자 정보 조회
                                 User challenger = userRepository.findById(nextChallenger)
-                                        .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
-                                
+                                                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
                                 // 다음 도전자 알림
                                 messagingTemplate.convertAndSend(
-                                        "/topic/room/" + roomId + "/quiz",
-                                        ApiResponse.success("다음 도전자 차례",
-                                                NextChallengerResponse.builder()
-                                                        .userId(nextChallenger)
-                                                        .nickname(challenger.getNickname())
-                                                        .profileImage(challenger.getProfileImageUrl())
-                                                        .questionNumber(currentQuestion)
-                                                        .build()));
-                                
-                                log.info("도전자 퇴장 - 타이머 재시작 - roomId: {}, question: {}, newChallenger: {}", 
-                                        roomId, currentQuestion, nextChallenger);
-                                
+                                                "/topic/room/" + roomId + "/quiz",
+                                                ApiResponse.success("다음 도전자 차례",
+                                                                NextChallengerResponse.builder()
+                                                                                .userId(nextChallenger)
+                                                                                .nickname(challenger.getNickname())
+                                                                                .profileImage(challenger
+                                                                                                .getProfileImageUrl())
+                                                                                .questionNumber(currentQuestion)
+                                                                                .build()));
+
+                                log.info("도전자 퇴장 - 타이머 재시작 - roomId: {}, question: {}, newChallenger: {}",
+                                                roomId, currentQuestion, nextChallenger);
+
                                 // 새로운 준비 타이머 시작 (5초)
                                 startPrepareTimer(roomId, currentQuestion, nextChallenger);
-                                
+
                                 // 5초 후 수어 타이머 시작
                                 scheduler.schedule(
-                                        () -> {
-                                                log.debug("도전자 퇴장 후 타이머 전환 - PREPARE → SIGNING - roomId: {}, question: {}, challenger: {}",
-                                                        roomId, currentQuestion, nextChallenger);
-                                                startSigningTimer(roomId, currentQuestion, nextChallenger);
-                                        },
-                                        5,
-                                        TimeUnit.SECONDS
-                                );
-                                
-                                log.info("도전자 퇴장 처리 완료 - roomId: {}, question: {}, prevChallenger: {}, newChallenger: {}", 
-                                        roomId, currentQuestion, userId, nextChallenger);
+                                                () -> {
+                                                        log.debug("도전자 퇴장 후 타이머 전환 - PREPARE → SIGNING - roomId: {}, question: {}, challenger: {}",
+                                                                        roomId, currentQuestion, nextChallenger);
+                                                        startSigningTimer(roomId, currentQuestion, nextChallenger);
+                                                },
+                                                5,
+                                                TimeUnit.SECONDS);
+
+                                log.info("도전자 퇴장 처리 완료 - roomId: {}, question: {}, prevChallenger: {}, newChallenger: {}",
+                                                roomId, currentQuestion, userId, nextChallenger);
                         } else {
                                 // 현재 도전자가 아닌 경우 - 타이머 재시작 불필요
-                                log.info("도전자 퇴장 - 현재 도전자가 아닌 참가자 퇴장 - roomId: {}, userId: {}, currentChallenger: {}", 
-                                        roomId, userId, currentChallenger);
+                                log.info("도전자 퇴장 - 현재 도전자가 아닌 참가자 퇴장 - roomId: {}, userId: {}, currentChallenger: {}",
+                                                roomId, userId, currentChallenger);
                         }
                 }
+        }
+
+        /**
+         * 방으로 돌아가기 (게임 종료 후)
+         * 
+         * 게임 종료 후 순위 발표 화면에서 "방으로 돌아가기" 버튼 클릭 시 호출
+         * - 방 상태는 이미 endGame()에서 WAITING으로 변경되어 있어야 함
+         * - 방장이 요청한 경우에만 모든 참가자의 레디 상태를 초기화
+         * - 대기실로 돌아가라는 메시지만 전송 (레디 상태 변경 메시지는 전송하지 않음)
+         * 
+         * @param roomId 게임방 ID
+         * @param userId 요청한 사용자 ID
+         */
+        @Transactional
+        public void returnToWaitingRoom(Long roomId, Long userId) {
+                log.info("🚪 returnToWaitingRoom 호출 - userId: {}, roomId: {}", userId, roomId);
+
+                // 1. 방 정보 조회
+                GameRoom gameRoom = gameRoomRepository.findById(roomId)
+                                .orElseThrow(() -> new BusinessException(ErrorCode.ROOM_NOT_FOUND));
+
+                log.info("🔍 현재 방 상태 - roomId: {}, status: {}, currentRound: {}",
+                                roomId, gameRoom.getStatus(), gameRoom.getCurrentRound());
+
+                // 2. 방 상태 검증 (WAITING 상태여야 함)
+                if (gameRoom.getStatus() != GameRoomStatus.WAITING) {
+                        log.warn("⚠️ 방 상태가 WAITING이 아님 - roomId: {}, status: {}", roomId, gameRoom.getStatus());
+                        throw new BusinessException(ErrorCode.GAME_STILL_IN_PROGRESS);
+                }
+
+                // 3. 참가자 확인
+                GameParticipant participant = gameParticipantRepository
+                                .findByGameRoom_IdAndParticipant_Id(roomId, userId)
+                                .orElseThrow(() -> new BusinessException(ErrorCode.PARTICIPANT_NOT_FOUND));
+
+                log.info("✅ 방으로 돌아가기 검증 완료 - userId: {}, roomId: {}, status: {}",
+                                userId, roomId, gameRoom.getStatus());
+
+                // 4. 방장이 요청한 경우 모든 참가자의 레디 상태 초기화 (N+1 방지 - JOIN FETCH 사용)
+                // 참가자가 요청한 경우 본인의 레디 상태만 초기화
+                if (participant.isHost()) {
+                        log.info("🎯 방장이 방으로 돌아가기 요청 - 모든 참가자 레디 상태 초기화");
+                        
+                        // JOIN FETCH로 User와 GameRoom을 한 번에 조회 (N+1 문제 해결)
+                        List<GameParticipant> allParticipants = gameParticipantRepository
+                                        .findAllByGameRoom_Id(roomId);
+                        
+                        // 메모리에서 처리 (추가 쿼리 없음)
+                        for (GameParticipant gp : allParticipants) {
+                                if (!gp.isHost() && gp.isReady()) {
+                                        gp.changeReadyStatus(false);
+                                        log.debug("✅ 레디 상태 초기화 - userId: {}", gp.getParticipant().getId());
+                                }
+                        }
+                        log.info("✅ 모든 참가자 레디 상태 초기화 완료 - 참가자 수: {}", allParticipants.size());
+                } else if (participant.isReady()) {
+                        log.info("🎯 참가자가 방으로 돌아가기 요청 - 본인 레디 상태 초기화 - userId: {}", userId);
+                        participant.changeReadyStatus(false);
+                        log.info("✅ 레디 상태 초기화 완료 - userId: {}", userId);
+                }
+
+                // 5. 메시지 전송 없이 레디 상태만 변경
+                // 프론트엔드에서 버튼 클릭 시 바로 대기실로 이동하므로 별도 메시지 불필요
+                log.info("✅ 방으로 돌아가기 완료 - roomId: {}, userId: {}", roomId, userId);
         }
 }

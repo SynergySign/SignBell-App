@@ -120,13 +120,13 @@ const QuizWaitingRoom = () => {
       case 'PARTICIPANT_LEFT': {
         const leftUserId = eventData.participant.userId;
         console.log('👋 참가자 퇴장:', eventData.participant);
-        
+
         if (eventData.roomClosed) {
           console.log('🚪 방장이 나가 방이 종료됨');
           setShowRoomClosedAlert(true);
           return;
         }
-        
+
         // Janus feed 정리
         const feedId = userIdToFeedIdRef.current[leftUserId];
         if (feedId && remoteFeedsRef.current[feedId]) {
@@ -138,19 +138,19 @@ const QuizWaitingRoom = () => {
             console.error('❌ Janus feed detach 실패:', error);
           }
         }
-        
+
         // UserID to FeedID 매핑 제거
         if (userIdToFeedIdRef.current[leftUserId]) {
           delete userIdToFeedIdRef.current[leftUserId];
         }
-        
+
         // Remote stream 제거
         setRemoteStreams(prev => {
           const newStreams = { ...prev };
           delete newStreams[leftUserId];
           return newStreams;
         });
-        
+
         // 참가자 목록에서 제거
         removeParticipant(leftUserId);
         break;
@@ -390,10 +390,34 @@ const QuizWaitingRoom = () => {
       // Janus 연결 상태 초기화
       setIsJanusConnected(false);
 
+      // 🔥 프론트엔드 상태: 방장 제외한 모든 참가자의 레디 상태 해제
+      setParticipants(prev => prev.map(p => ({
+        ...p,
+        isReady: p.isHost ? p.isReady : false  // 방장은 유지, 나머지는 레디 해제
+      })));
+
+      // 🔥 백엔드 서버에 방 복귀 요청 (방장이면 모든 참가자 레디 초기화)
+      const me = participants.find(p => p.userId === myUserId);
+      const isHost = me?.isHost || false;
+
+      if (isHost) {
+        // 방장: returnToRoom API 호출 (백엔드에서 모든 참가자 레디 초기화)
+        console.log('🎯 방장 복귀 - 서버에 방 복귀 요청 전송 (모든 참가자 레디 초기화)');
+        websocketService.returnToRoom(Number(roomId));
+      } else {
+        // 일반 참가자: 자신의 레디만 false로 전송
+        if (sendReady) {
+          sendReady(false);
+          console.log('✅ 일반 참가자 - 서버에 레디 상태 false 전송 완료');
+        }
+      }
+
+      console.log('✅ 게임 복귀 처리 완료 - 레디 상태 초기화됨');
+
       // location.state 초기화
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, setRemoteStreams, setIsJanusConnected, remoteFeedsRef, userIdToFeedIdRef]);
+  }, [location.state, setRemoteStreams, setIsJanusConnected, remoteFeedsRef, userIdToFeedIdRef, setParticipants, sendReady, myUserId, roomId]);
 
   // 로컬 비디오 스트림 연결
   useEffect(() => {
@@ -553,7 +577,7 @@ const QuizWaitingRoom = () => {
           maxParticipants={roomInfo.maxParticipants}
         />
 
-        <WaitingRoomDebugPanel
+        {/*  <WaitingRoomDebugPanel
           isJanusConnected={isJanusConnected}
           remoteStreamsCount={Object.keys(remoteStreams).length}
           isWebcamOn={isWebcamOn}
@@ -561,7 +585,7 @@ const QuizWaitingRoom = () => {
           onToggleHost={handleToggleHost}
           onToggleReady={handleReadyToggle}
           onNavigateToGame={handleNavigateToGame}
-        />
+        /> */}
       </main>
 
       {/* 나가기 확인 모달 */}
