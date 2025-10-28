@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class SignEduService {
 
     private final SignRepository signRepository;
+    private final UserService userService;
 
     /**
      * 등록된 모든 카테고리(태그) 목록을 중복 없이 조회합니다.
@@ -42,21 +43,23 @@ public class SignEduService {
      * @param pageable 페이징 정보
      * @return SignSimpleResponseDto의 Page 객체
      */
-    public Page<SignSimpleResponseDto> findSigns(String categoryType, Pageable pageable) {
+    public Page<SignSimpleResponseDto> findSigns(String categoryType,String keyword, Pageable pageable) {
+
         Page<Sign> signsPage;
 
-        // categoryType 값이 있으면 카테고리별 조회, 없으면 전체 조회
-        if (StringUtils.hasText(categoryType)) {
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            // [추가] 키워드가 있으면, Custom Repository의 검색 메소드 호출
+            signsPage = signRepository.searchByKeyword(keyword, pageable);
+        } else if (categoryType != null && !categoryType.trim().isEmpty() && !categoryType.equals("전체")) {
+            // 기존 카테고리 조회 로직
             signsPage = signRepository.findByCategoryType(categoryType, pageable);
         } else {
+            // 전체 조회 (카테고리 '전체' 또는 아무 조건 없을 때)
             signsPage = signRepository.findAll(pageable);
         }
 
         // Page<Sign>을 Page<SignSimpleResponseDto>로 변환
-        return signsPage.map(sign -> SignSimpleResponseDto.builder()
-                .signId(sign.getId())
-                .wordName(sign.getTitle())
-                .build());
+        return signsPage.map(sign -> new SignSimpleResponseDto(sign.getId(), sign.getTitle()));
     }
 
     /**

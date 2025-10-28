@@ -1,5 +1,9 @@
 package app.signbell.backend.repository.custom;
 
+import app.signbell.backend.entity.Sign;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 
 public interface SignRepositoryCustom {
@@ -9,5 +13,7 @@ public interface SignRepositoryCustom {
      * @return 태그 문자열 리스트
      */
     List<String> findAllTags();
+
+    Page<Sign> searchByKeyword(String keyword, Pageable pageable);
 
 }
