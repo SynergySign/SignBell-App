@@ -28,6 +28,7 @@ public class ParticipantResponse {
     private String profileImageUrl;
     private boolean isHost;
     private boolean isReady;
+    private Long totalScore;
 
     public static ParticipantResponse from(GameParticipant participant) {
         return ParticipantResponse.builder()
@@ -36,6 +37,9 @@ public class ParticipantResponse {
                 .profileImageUrl(participant.getParticipant().getProfileImageUrl())
                 .isHost(participant.isHost())
                 .isReady(participant.isReady())
+                .totalScore(participant.getParticipant().getTotalScore() != null 
+                    ? participant.getParticipant().getTotalScore() 
+                    : 0L)
                 .build();
     }
 }

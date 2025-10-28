@@ -245,7 +245,7 @@ class WebSocketService {
             console.log('🏁 게임 종료 이벤트 수신:', message);
             this.handleMessage('quiz:result', message);
             break;
-          case 'RETURN_TO_WAITING_ROOM':
+          case 'RETURN_TO_WAITING':
             console.log('🚪 대기실 복귀 이벤트 수신:', message);
             this.handleMessage('quiz:return', message);
             break;
