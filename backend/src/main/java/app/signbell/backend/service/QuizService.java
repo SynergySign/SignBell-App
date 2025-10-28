@@ -84,7 +84,7 @@ public class QuizService {
                 List<QuizWord> allQuizWords = quizWordRepository.findAll();
                 Collections.shuffle(allQuizWords);
                 List<QuizWord> selectedWords = allQuizWords.stream()
-                                .limit(1)
+                                .limit(8)
                                 .collect(Collectors.toList());
 
                 // 5. 캐시 초기화 및 문제 저장
