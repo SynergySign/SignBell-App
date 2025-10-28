@@ -35,24 +35,29 @@ export async function getSignDetail(signId) {
 
 /**
  * 수어 단어 목록을 페이징하여 가져옵니다.
- * (이하 함수는 원본과 동일)
+ *
  */
-export async function listSignEdu({ page = 1, size = 20, category = null }) {
-  const queryParams = {
-    page: page - 1, // Spring Pageable은 0-indexed
-    size: size,
-    ...(category && category !== '전체' && { category: category }),
-    sort: 'title'
-  };
+export async function listSignEdu({ page = 1, size = 20, category = null, keyword = null }) {
+    const queryParams = {
+        page: page - 1, // Spring Pageable은 0-indexed
+        size: size,
+        sort: 'title' // [참고] 백엔드 검색 로직이 우선순위 정렬을 하므로, 이 sort는 예비용
+    };
 
-  const response = await api.get('/api/sign-edu', { params: queryParams });
-  const data = response.data || {};
+    // [수정] keyword 또는 category를 조건부로 추가
+    if (keyword && keyword.trim()) {
+        queryParams.keyword = keyword;
+    } else if (category && category !== '전체') {
+        queryParams.category = category;
+    }
 
-  return {
-    // data.content는 [{ signId, wordName }, ...]
-    words: data.content || [],
-    hasNext: data.last !== undefined ? !data.last : false
-  };
+    const response = await api.get('/api/sign-edu', { params: queryParams });
+    const data = response.data || {};
+
+    return {
+        words: data.content || [],
+        hasNext: data.last !== undefined ? !data.last : false
+    };
 }
 
 /**

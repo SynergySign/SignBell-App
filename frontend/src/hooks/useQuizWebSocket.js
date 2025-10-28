@@ -16,6 +16,7 @@ export const useQuizWebSocket = ({
   onAnswerResult,
   onGameEnd,
   onChallengeTimeout,
+  onParticipantLeft,
   onError,
 }) => {
   // 최신 콜백을 ref로 저장 (의존성 배열 문제 해결)
@@ -28,6 +29,7 @@ export const useQuizWebSocket = ({
     onAnswerResult,
     onGameEnd,
     onChallengeTimeout,
+    onParticipantLeft,
     onError,
   });
 
@@ -42,6 +44,7 @@ export const useQuizWebSocket = ({
       onAnswerResult,
       onGameEnd,
       onChallengeTimeout,
+      onParticipantLeft,
       onError,
     };
   });
@@ -93,6 +96,7 @@ export const useQuizWebSocket = ({
       answer: (data) => handlersRef.current.onAnswerResult(data),
       result: (data) => handlersRef.current.onGameEnd(data),
       timeout: (data) => handlersRef.current.onChallengeTimeout(data),
+      participantLeft: (data) => handlersRef.current.onParticipantLeft?.(data),
       error: (data) => handlersRef.current.onError(data),
     };
 
@@ -105,6 +109,7 @@ export const useQuizWebSocket = ({
     websocketService.on('quiz:answer', wrappers.answer);
     websocketService.on('quiz:result', wrappers.result);
     websocketService.on('quiz:timeout', wrappers.timeout);
+    websocketService.on('participant', wrappers.participantLeft);
     websocketService.on('error', wrappers.error);
 
     return () => {
@@ -116,6 +121,7 @@ export const useQuizWebSocket = ({
       websocketService.off('quiz:answer', wrappers.answer);
       websocketService.off('quiz:result', wrappers.result);
       websocketService.off('quiz:timeout', wrappers.timeout);
+      websocketService.off('participant', wrappers.participantLeft);
       websocketService.off('error', wrappers.error);
       
       websocketService.unsubscribeFromGameTopics(Number(roomId));

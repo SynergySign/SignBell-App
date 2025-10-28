@@ -7,9 +7,20 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * QuizStateCache 클래스는 퀴즈 게임의 각 방에 대한 상태를 관리하는 캐시 기능을 제공합니다.
- * 각 게임 방의 상태는 GameRoomState 객체로 유지되며, 이를 통해 참가자, 점수, 퀴즈 단어 및 순서 관리 등을 수행합니다.
- * @author 고동현
+ * 퀴즈 상태 캐시
+ * 
+ * 퀴즈 게임의 각 방에 대한 상태를 관리하는 캐시 기능을 제공합니다.
+ * 각 게임 방의 상태는 GameRoomState 객체로 유지되며,
+ * 이를 통해 참가자, 점수, 퀴즈 단어 및 순서 관리 등을 수행합니다.
+ * 
+ * 주요 기능:
+ * - 도전자 큐 관리
+ * - 사용자 점수 관리
+ * - 퀴즈 단어 ID 저장
+ * - 현재 문제 번호 추적
+ * - 결과 표시 단계 관리
+ * 
+ * @author 고동현, 강관주 (Kanggwanju)
  * @since 2025-10-17
  */
 @Slf4j
@@ -33,6 +44,8 @@ public class QuizStateCache {
         private final Map<Integer, Long> currentChallengers = new ConcurrentHashMap<>();
         private final Map<Integer, Map<Long, Integer>> challengerOrders = new ConcurrentHashMap<>();
         private final Map<Long, Integer> userScores = new ConcurrentHashMap<>();
+        private Integer currentQuestionNumber;
+        private final Map<Integer, Boolean> inResultPhase = new ConcurrentHashMap<>();
 
         // 퀴즈 단어 ID 저장
         public void setQuizWordId(Integer questionNumber, Long quizWordId) {
@@ -160,6 +173,30 @@ public class QuizStateCache {
         public Long getFirstChallenger(Integer questionNumber) {
             Queue<Long> queue = challengerQueues.get(questionNumber);
             return queue != null ? queue.peek() : null;
+        }
+
+        // 현재 문제 번호 조회
+        public Integer getCurrentQuestionNumber() {
+            return currentQuestionNumber;
+        }
+
+        // 현재 문제 번호 설정
+        public void setCurrentQuestionNumber(Integer questionNumber) {
+            this.currentQuestionNumber = questionNumber;
+        }
+
+        // 결과 표시 단계 설정
+        public void setInResultPhase(Integer questionNumber, boolean inResult) {
+            if (inResult) {
+                inResultPhase.put(questionNumber, true);
+            } else {
+                inResultPhase.remove(questionNumber);
+            }
+        }
+
+        // 결과 표시 단계 확인
+        public boolean isInResultPhase(Integer questionNumber) {
+            return inResultPhase.getOrDefault(questionNumber, false);
         }
     }
 }

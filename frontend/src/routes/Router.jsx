@@ -90,23 +90,6 @@ const Router = () => {
           </MainLayout>
         } />
 
-          {/* 👇️ 2. [개인 학습] 카테고리/목록 페이지 라우트 추가 */}
-          <Route path="/personal-study" element={
-            <MainLayout>
-              <SignEduPage />
-            </MainLayout>
-          } />
-
-          {/* 👇️ 3. [개인 학습] 상세 페이지 라우트 추가 (URL 파라미터 사용) */}
-          <Route path="/personal-study/:signId" element={
-            <MainLayout>
-              <SignDetailPage />
-            </MainLayout>
-          } />
-
-          {/* 레거시 링크 호환: /signedu/:signId -> /personal-study/:signId 로 리다이렉트 */}
-          <Route path="/signedu/:signId" element={<SigneduRedirect />} />
-
           {/* 수어 연습 영상 데이터 제공 페이지 */}
           <Route path="/study/data/:wordId" element={
             <MainLayout>

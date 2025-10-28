@@ -3,12 +3,12 @@ import styles from '../../pages/quiz/QuizGamePage.module.scss';
 /**
  * 퀴즈 헤더 컴포넌트
  */
-const QuizHeader = ({ roomId, isWebcamOn, onToggleWebcam, onExit }) => {
+const QuizHeader = ({ roomId, roomTitle, isWebcamOn, onToggleWebcam, onExit }) => {
   return (
     <div className={styles.roomInfoSection}>
       <div className={styles.roomInfo}>
         <span className={styles.roomNumber}>방 번호: #{roomId}</span>
-        <h2 className={styles.roomTitle}>방 제목</h2>
+        <h2 className={styles.roomTitle}>{roomTitle || '방 제목'}</h2>
       </div>
       <div className={styles.headerControls}>
         <button
