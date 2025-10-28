@@ -16,7 +16,7 @@ export const UserProfileService = {
     return apiClient.patch(`/my-page/users/${userId}/profile`, updateData);
   },
 
-  // 🔑 [추가] 닉네임만 업데이트하는 전용 메서드를 추가합니다.
+  // 닉네임만 업데이트하는 전용 메서드를 추가합니다.
   /**
    * 닉네임만 업데이트합니다.
    * 백엔드 UserProfileController.java의 PATCH /api/my-page/users/{userId}/nickname 엔드포인트와 매핑됩니다.
@@ -24,10 +24,8 @@ export const UserProfileService = {
    * @param {string} newNickname - 새로운 닉네임
    * @returns {Promise<ApiResponse<UserProfileResponse>>}
    */
-  updateNickname: async (userId, newNickname) => {
+  updateNickname: async (userId, nickname) => {
     // 백엔드가 NicknameUpdateRequest DTO를 받으므로 객체 형태로 전송해야 합니다.
-    return apiClient.patch(`/my-page/users/${userId}/nickname`, {
-      nickname: newNickname
-    });
+    return apiClient.patch(`/my-page/users/${userId}/nickname`, { nickname });
   },
 };

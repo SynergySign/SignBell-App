@@ -15,7 +15,7 @@ import {useAuthStore} from "../../store/auth/authStore.js";
 const NicknameEditor = ({ initialNickname, onNicknameUpdate }) => {
   // TODO: 사용자 프로필 API 연동 필요
   // const [originalNickname] = useState('사용자'); // 원본 닉네임 저장
-  const [originalNickname] = useState(initialNickname); // 원본 닉네임 저장
+  const [originalNickname, setOriginalNickname] = useState(initialNickname); // 원본 닉네임 저장
   // const [nickname, setNickname] = useState('사용자');
   const [nickname, setNickname] = useState(initialNickname);
   const [error, setError] = useState('');
@@ -109,8 +109,13 @@ const NicknameEditor = ({ initialNickname, onNicknameUpdate }) => {
 
       console.log('닉네임 수정 성공:', response.data);
 
-      // MyPage.jsx에 성공 콜백 전달
-      onNicknameUpdate(response.data.data.nickname);
+      // 🔑 [수정] 서버 응답에서 업데이트된 전체 유저 객체를 받습니다. (UserProfileResponse 구조)
+      const updatedUser = response.data.data;
+
+      // 🔑 [수정] 콜백에 **업데이트된 전체 유저 객체**를 전달합니다.
+      onNicknameUpdate(updatedUser);
+
+      setOriginalNickname(nickname); // 성공 시 원본 닉네임 업데이트
 
       // 로컬 상태 업데이트
       setError('');
