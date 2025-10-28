@@ -1146,6 +1146,13 @@ public class QuizService {
                                         log.debug("✅ 레디 상태 초기화 - userId: {}", gp.getParticipant().getId());
                                 }
                         }
+                        
+                        // 🔥 방장의 레디 상태는 항상 true로 유지
+                        if (!participant.isReady()) {
+                                participant.changeReadyStatus(true);
+                                log.info("✅ 방장 레디 상태 true로 설정 - userId: {}", userId);
+                        }
+                        
                         log.info("✅ 모든 참가자 레디 상태 초기화 완료 - 참가자 수: {}", allParticipants.size());
                 } else if (participant.isReady()) {
                         log.info("🎯 참가자가 방으로 돌아가기 요청 - 본인 레디 상태 초기화 - userId: {}", userId);

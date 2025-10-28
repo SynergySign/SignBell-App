@@ -478,6 +478,12 @@ const QuizWaitingRoom = () => {
 
   // 준비 상태 토글
   const handleReadyToggle = useCallback(() => {
+    // 🔥 방장은 레디 상태를 변경할 수 없음
+    if (isHost) {
+      console.warn('⚠️ 방장은 레디 상태를 변경할 수 없습니다.');
+      return;
+    }
+    
     const toggledReady = !isReady;
     setParticipants((prevParticipants) =>
       prevParticipants.map((p) =>
@@ -485,7 +491,7 @@ const QuizWaitingRoom = () => {
       )
     );
     sendReady(toggledReady);
-  }, [isReady, myUserId, setParticipants, sendReady]);
+  }, [isHost, isReady, myUserId, setParticipants, sendReady]);
 
   // 게임 시작
   const handleStartGame = useCallback(() => {
