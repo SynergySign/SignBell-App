@@ -83,7 +83,29 @@ public class GameRoomReadyService {
 
         // 4. 방장은 항상 준비 상태이므로 변경 불가
         if (gameParticipant.isHost()) {
-            throw new BusinessException(ErrorCode.NOT_ALLOWED_READY_FOR_HOST);
+            log.info("방장은 항상 레디 상태입니다 - userId: {}, roomId: {}", userId, roomId);
+            
+            // 🔥 방장의 레디 상태를 항상 true로 유지 (에러 대신 자동 설정)
+            if (!gameParticipant.isReady()) {
+                gameParticipant.changeReadyStatus(true);
+                log.info("✅ 방장 레디 상태 자동 복구 - userId: {}", userId);
+            }
+            
+            // 전체 참가자의 준비 상태 계산
+            List<GameParticipant> allParticipants = gameParticipantRepository
+                    .findByGameRoom_Id(roomId);
+
+            boolean allReady = allParticipants.stream()
+                    .allMatch(GameParticipant::isReady);
+
+            // 방장은 항상 레디 상태이므로 현재 상태 반환
+            return ReadyStatusResponse.builder()
+                    .eventType("PARTICIPANT_READY_UPDATED")
+                    .userId(userId)
+                    .nickname(gameParticipant.getParticipant().getNickname())
+                    .isReady(true)  // 방장은 항상 true
+                    .allReady(allReady)
+                    .build();
         }
 
         // 5. 준비 상태 변경 (save() 불필요 - Dirty Checking 자동 처리)

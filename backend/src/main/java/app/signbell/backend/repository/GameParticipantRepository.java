@@ -107,6 +107,17 @@ public interface GameParticipantRepository extends JpaRepository<GameParticipant
 
     Optional<GameParticipant> findByGameRoom_IdAndParticipant_IdAndIsHost(Long roomId, Long userId, Boolean isHost);
 
-    List<GameParticipant> findAllByGameRoom_Id(Long roomId);
+    /**
+     * 특정 게임방의 모든 참가자 조회 (User와 GameRoom 정보 함께 fetch)
+     * N+1 문제 방지를 위해 연관된 엔티티를 즉시 로딩합니다.
+     * 
+     * @param roomId 게임방 ID
+     * @return 해당 게임방의 참가자 리스트 (User 및 GameRoom 정보 포함)
+     */
+    @Query("SELECT gp FROM GameParticipant gp " +
+            "JOIN FETCH gp.participant " +
+            "JOIN FETCH gp.gameRoom " +
+            "WHERE gp.gameRoom.id = :roomId")
+    List<GameParticipant> findAllByGameRoom_Id(@Param("roomId") Long roomId);
 
 }
