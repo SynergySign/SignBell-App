@@ -86,14 +86,14 @@ const ProfileImageEditor = ({initialImageUrl}) => {
           </div>
         )}
         
-        <button
+        {/* <button
           className={styles.cameraButton}
           onClick={handleImageClick}
           aria-label="프로필 이미지 변경"
           title="프로필 이미지 변경"
         >
           <FontAwesomeIcon icon={faCamera} aria-hidden="true" />
-        </button>
+        </button>*/}
       </div>
 
       <input
