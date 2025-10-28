@@ -4,6 +4,7 @@ import app.signbell.backend.dto.response.ParticipantEventResponse;
 import app.signbell.backend.dto.response.ParticipantResponse;
 import app.signbell.backend.entity.GameParticipant;
 import app.signbell.backend.entity.GameRoom;
+import app.signbell.backend.entity.GameRoomStatus;
 import app.signbell.backend.exception.BusinessException;
 import app.signbell.backend.exception.ErrorCode;
 import app.signbell.backend.repository.GameParticipantRepository;
@@ -40,18 +41,24 @@ public class GameRoomLeaveService {
     private final GameRoomRepository gameRoomRepository;
     private final WebSocketSessionService sessionService;
     private final QuizStateCache quizStateCache;
+    private final QuizService quizService;
+    private final QuizTimerManager timerManager;
 
 
     public GameRoomLeaveService(
             GameParticipantRepository participantRepository,
             GameRoomRepository gameRoomRepository,
-            @Lazy WebSocketSessionService sessionService, // <- 여기에 @Lazy 추가
-            QuizStateCache quizStateCache
+            @Lazy WebSocketSessionService sessionService,
+            QuizStateCache quizStateCache,
+            @Lazy QuizService quizService,
+            QuizTimerManager timerManager
     ) {
         this.participantRepository = participantRepository;
         this.gameRoomRepository = gameRoomRepository;
         this.sessionService = sessionService;
         this.quizStateCache = quizStateCache;
+        this.quizService = quizService;
+        this.timerManager = timerManager;
     }
 
     /**
@@ -125,12 +132,13 @@ public class GameRoomLeaveService {
      * 방장 퇴장 시 방 종료 처리
      *
      * 동작 과정:
-     * 1. 방장 제외한 다른 참가자들의 userId 목록 조회
-     * 2. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
-     * 3. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
-     * 4. 업데이트된 방 정보 저장
-     * 5. 남은 참가자들의 세션 정리 (WebSocketSessionService에 위임)
-     * 6. 방 종료 이벤트 응답 생성 및 반환
+     * 1. 모든 타이머 즉시 취소 (PREPARE, SIGNING 타이머)
+     * 2. 방장 제외한 다른 참가자들의 userId 목록 조회
+     * 3. 남은 모든 참가자를 Bulk Delete로 한 번에 삭제
+     * 4. 방 종료 처리 (상태 변경 및 참가자 수 초기화)
+     * 5. 업데이트된 방 정보 저장
+     * 6. 남은 참가자들의 세션 정리 (WebSocketSessionService에 위임)
+     * 7. 방 종료 이벤트 응답 생성 및 반환
      *
      * @param room 종료할 게임방
      * @param hostResponse 퇴장하는 방장의 정보
@@ -141,7 +149,16 @@ public class GameRoomLeaveService {
 
         log.info("방장 퇴장 감지 - 방 종료 처리 시작. roomId: {}", roomId);
 
-        // 1. 방장 제외한 다른 참가자들의 userId 목록 조회
+        // 1. 모든 타이머 즉시 취소
+        try {
+            timerManager.cleanupRoom(roomId);
+            log.info("✅ 타이머 정리 완료 - roomId: {}", roomId);
+        } catch (Exception e) {
+            log.error("❌ 타이머 정리 실패 - roomId: {}", roomId, e);
+            // 타이머 정리 실패해도 방 종료는 계속 진행
+        }
+
+        // 2. 방장 제외한 다른 참가자들의 userId 목록 조회
         List<Long> otherParticipantUserIds = participantRepository
                 .findByGameRoom_Id(roomId)
                 .stream()
@@ -151,17 +168,31 @@ public class GameRoomLeaveService {
 
         log.info("방 종료 대상 참가자 수: {}", otherParticipantUserIds.size());
 
-        // 2. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
+        // 3. 남은 모든 참가자를 한 번의 쿼리로 삭제 (Bulk Delete)
         int deletedCount = participantRepository.deleteAllByGameRoom(room);
         log.info("방 종료 시 제거된 참가자 수: {}", deletedCount);
 
-        // 3. 방 종료 처리
+        // 4. 방 종료 처리
+        log.info("방 종료 전 상태 - roomId: {}, status: {}", roomId, room.getStatus());
         room.closeRoom();
+        log.info("방 종료 후 상태 - roomId: {}, status: {}, currentParticipants: {}", 
+                roomId, room.getStatus(), room.getCurrentParticipants());
 
-        // 4. 업데이트된 방 정보 저장
-        gameRoomRepository.save(room);
+        // 5. 퀴즈 상태 캐시 정리
+        try {
+            quizStateCache.clearRoomState(roomId);
+            log.info("✅ 퀴즈 상태 캐시 정리 완료 - roomId: {}", roomId);
+        } catch (Exception e) {
+            log.error("❌ 퀴즈 상태 캐시 정리 실패 - roomId: {}", roomId, e);
+            // 캐시 정리 실패해도 방 종료는 계속 진행
+        }
 
-        // 5. 남은 참가자들의 세션 정리
+        // 6. 업데이트된 방 정보 저장
+        GameRoom savedRoom = gameRoomRepository.save(room);
+        log.info("방 정보 저장 완료 - roomId: {}, status: {}, currentParticipants: {}", 
+                savedRoom.getId(), savedRoom.getStatus(), savedRoom.getCurrentParticipants());
+
+        // 7. 남은 참가자들의 세션 정리
         //    트랜잭션이 커밋되기 전이지만, 이미 DB에서 삭제되었으므로
         //    세션 정리는 바로 수행해도 안전합니다.
         if (!otherParticipantUserIds.isEmpty()) {
@@ -171,7 +202,7 @@ public class GameRoomLeaveService {
         log.info("방장 퇴장으로 방 종료 완료 - roomId: {}, 제거된 참가자 수: {}",
                 roomId, deletedCount);
 
-        // 6. 방 종료 이벤트 응답 객체 생성 및 반환
+        // 8. 방 종료 이벤트 응답 객체 생성 및 반환
         return ParticipantEventResponse.builder()
                 .eventType("ROOM_CLOSED")
                 .participant(hostResponse)
@@ -213,75 +244,97 @@ public class GameRoomLeaveService {
         //    GameRoom 엔티티의 currentParticipants 값을 1 감소
         room.decrementParticipants();
 
-        // 3. 게임 진행 중이면 캐시에서 해당 유저 제거
-        if (room.getStatus() == app.signbell.backend.entity.GameRoomStatus.IN_PROGRESS) {
-            handleGameInProgressLeave(gameRoomId, userId);
+        // 3. 게임 진행 중이면 캐시에서 해당 유저 제거 및 다음 도전자 확인
+        Long nextChallengerId = null;
+        log.info("🔍 방 상태 확인 - roomId: {}, status: {}", gameRoomId, room.getStatus());
+        
+        if (room.getStatus() == GameRoomStatus.IN_PROGRESS) {
+            log.info("🎮 게임 진행 중 - 다음 도전자 확인 시작");
+            nextChallengerId = handleGameInProgressLeave(gameRoomId, userId);
+            log.info("🎮 다음 도전자 확인 완료 - nextChallengerId: {}", nextChallengerId);
+        } else {
+            log.info("⏸️ 게임 진행 중 아님 - 다음 도전자 확인 생략");
         }
 
         // 4. 업데이트된 게임방 정보 저장
         gameRoomRepository.save(room);
 
         // 5. 퇴장 완료 로그 기록 (현재 남은 참가자 수 포함)
-        log.info("User {} left room {}. currentParticipants={}",
-                userId, gameRoomId, room.getCurrentParticipants());
+        log.info("User {} left room {}. currentParticipants={}, nextChallengerId={}",
+                userId, gameRoomId, room.getCurrentParticipants(), nextChallengerId);
 
         // 6. 참가자 퇴장 이벤트 응답 객체 생성 및 반환
         //    이 객체는 주로 WebSocket을 통해 같은 방의 다른 참가자들에게 브로드캐스트됨
         //    다른 참가자들은 이 정보로 "누가 나갔는지", "현재 몇 명이 남았는지" 알 수 있음
-        return ParticipantEventResponse.builder()
+        ParticipantEventResponse response = ParticipantEventResponse.builder()
                 .eventType("PARTICIPANT_LEFT")
                 .participant(participantResponse)
                 .currentParticipants(room.getCurrentParticipants())
                 .gameRoomId(room.getId())
                 .roomClosed(false)
+                .nextChallengerId(nextChallengerId)
                 .build();
+        
+        log.info("📤 PARTICIPANT_LEFT 이벤트 생성 완료 - nextChallengerId: {}", response.getNextChallengerId());
+        return response;
     }
 
     /**
-     * 게임 진행 중 참가자 퇴장 시 캐시 처리
+     * 게임 진행 중 참가자 퇴장 시 처리
      * 
      * 처리 내용:
-     * 1. 캐시에서 해당 유저의 점수 제거
-     * 2. 모든 문제에서 해당 유저의 도전 순서 제거
-     * 3. 현재 도전 차례였던 경우 다음 도전자에게 넘김
+     * 1. QuizService.handleParticipantLeft 호출하여 타이머 재시작 처리
+     * 2. 캐시에서 해당 유저의 점수 제거
+     * 3. 모든 문제에서 해당 유저의 도전 순서 제거
      * 
      * @param roomId 게임방 ID
      * @param userId 퇴장한 사용자 ID
+     * @return 다음 도전자 정보 (없으면 null)
      */
-    private void handleGameInProgressLeave(Long roomId, Long userId) {
+    private Long handleGameInProgressLeave(Long roomId, Long userId) {
         try {
+            log.info("🎮 게임 진행 중 퇴장 처리 시작 - roomId: {}, userId: {}", roomId, userId);
+            
+            // 1. QuizService에 퇴장 처리 위임 (타이머 재시작 포함)
+            quizService.handleParticipantLeft(roomId, userId);
+            log.info("✅ QuizService.handleParticipantLeft 호출 완료 - roomId: {}, userId: {}", roomId, userId);
+            
             QuizStateCache.GameRoomState roomState = quizStateCache.getOrCreateRoomState(roomId);
             
-            // 1. 캐시에서 점수 제거
+            // 2. 캐시에서 점수 제거
             roomState.removeUserScore(userId);
             log.info("게임 중 퇴장 - 캐시에서 점수 제거: userId={}, roomId={}", userId, roomId);
             
-            // 2. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거 및 차례 확인
+            Long nextChallengerId = null;
+            
+            // 3. 모든 문제(1~8)에서 해당 유저의 도전 순서 제거
             for (int questionNumber = 1; questionNumber <= 8; questionNumber++) {
                 // 현재 도전 차례인지 확인
                 Long currentChallenger = roomState.getCurrentChallenger(questionNumber);
                 boolean wasCurrentChallenger = userId.equals(currentChallenger);
                 
-                // 도전 순서에서 제거
-                roomState.removeChallenger(questionNumber, userId);
-                
-                // 도전 차례였다면 다음 도전자에게 넘김
                 if (wasCurrentChallenger) {
-                    Long nextChallenger = roomState.getNextChallenger(questionNumber);
-                    if (nextChallenger != null) {
-                        log.info("게임 중 퇴장 - 다음 도전자로 변경: question={}, 퇴장userId={}, 다음userId={}", 
+                    // 현재 도전자였다면 다음 도전자 ID 저장 (이미 QuizService에서 처리됨)
+                    Long nextChallenger = roomState.getCurrentChallenger(questionNumber);
+                    if (nextChallenger != null && !nextChallenger.equals(userId)) {
+                        nextChallengerId = nextChallenger;
+                        log.info("게임 중 퇴장 - 다음 도전자 확인: question={}, 퇴장userId={}, 다음userId={}", 
                                 questionNumber, userId, nextChallenger);
-                    } else {
-                        log.info("게임 중 퇴장 - 남은 도전자 없음: question={}, 퇴장userId={}", 
-                                questionNumber, userId);
                     }
+                } else {
+                    // 현재 도전자가 아니면 그냥 제거만
+                    roomState.removeChallenger(questionNumber, userId);
                 }
             }
             
-            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}", userId, roomId);
+            log.info("게임 중 퇴장 처리 완료 - userId={}, roomId={}, nextChallengerId={}", 
+                    userId, roomId, nextChallengerId);
+            
+            return nextChallengerId;
             
         } catch (Exception e) {
-            log.error("게임 중 퇴장 캐시 처리 실패 - userId={}, roomId={}", userId, roomId, e);
+            log.error("게임 중 퇴장 처리 실패 - userId={}, roomId={}", userId, roomId, e);
+            return null;
         }
     }
 }

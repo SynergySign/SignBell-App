@@ -56,6 +56,7 @@ public class SignEduController {
     @GetMapping
     public ResponseEntity<Page<SignSimpleResponseDto>> getSigns(
             @RequestParam(value = "category", required = false) String category,
+            @RequestParam(value = "keyword", required = false) String keyword,
             @PageableDefault(size = 20, sort = "title") Pageable pageable,
             @AuthenticationPrincipal String subject) {
         // 인증된 사용자인지 검증
@@ -66,7 +67,7 @@ public class SignEduController {
             throw new BusinessException(ErrorCode.UNAUTHORIZED);
         }
 
-        Page<SignSimpleResponseDto> signsPage = signEduService.findSigns(category, pageable);
+        Page<SignSimpleResponseDto> signsPage = signEduService.findSigns(category, keyword, pageable);
         return ResponseEntity.ok(signsPage);
     }
 
