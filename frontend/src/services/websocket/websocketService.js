@@ -262,6 +262,12 @@ class WebSocketService {
       this.handleMessage('quiz:timer', message);
     });
 
+    // 다음 도전자 알림
+    this.subscribe(`/topic/room/${roomId}/quiz/challenger`, (message) => {
+      console.log('📥 다음 도전자 알림 수신:', message);
+      this.handleMessage('quiz:challenger', message);
+    });
+
     // 정답 결과
     this.subscribe(`/topic/room/${roomId}/quiz/answer`, (message) => {
       this.handleMessage('quiz:answer', message);
@@ -329,6 +335,7 @@ class WebSocketService {
       `/topic/room/${roomId}/quiz/start`,
       `/topic/room/${roomId}/quiz/question`,
       `/topic/room/${roomId}/quiz/challenge`,
+      `/topic/room/${roomId}/quiz/challenger`,
       `/topic/room/${roomId}/quiz/timer`,
       `/topic/room/${roomId}/quiz/answer`,
       `/topic/room/${roomId}/quiz/result`,

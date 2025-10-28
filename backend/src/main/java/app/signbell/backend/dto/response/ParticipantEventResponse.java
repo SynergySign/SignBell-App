@@ -46,4 +46,11 @@ public class ParticipantEventResponse {
      * - false: 방이 유지됨 (일반 참가자 퇴장)
      */
     private Boolean roomClosed;
+
+    /**
+     * 다음 도전자 ID (게임 중 현재 도전자가 퇴장한 경우)
+     * - null이 아니면: 다음 도전자로 자동 전환됨
+     * - null이면: 다음 도전자 없음 (다음 문제로 이동 또는 일반 퇴장)
+     */
+    private Long nextChallengerId;
 }
