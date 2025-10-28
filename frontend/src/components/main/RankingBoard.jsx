@@ -2,13 +2,14 @@
  * @개요 전체 사용자 랭킹 보드 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-24
- * @최종수정일 2025-10-24
+ * @최종수정일 2025-10-28
  * @반환값 {JSX.Element} 랭킹 보드 컴포넌트
  */
 
 import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faMedal, faAward } from '@fortawesome/free-solid-svg-icons';
+import { RankService } from '../../services/api/rankService';
 import styles from './RankingBoard.module.scss';
 
 const RankingBoard = () => {
@@ -25,41 +26,19 @@ const RankingBoard = () => {
       setIsLoading(true);
       setError(null);
 
-      // TODO: API 연동 필요
-      // const response = await fetch('/api/rankings/top10');
-      // const data = await response.json();
-      // setRankings(data);
-
-      // 임시 더미 데이터 (API 연동 시 제거)
-      const dummyData = [
-        { rank: 1, nickname: '수어마스터', score: 9850, profileImage: null },
-        { rank: 2, nickname: '손말이', score: 8920, profileImage: null },
-        { rank: 3, nickname: '수어왕', score: 8450, profileImage: null },
-        { rank: 4, nickname: '열심히배우는중', score: 7680, profileImage: null },
-        { rank: 5, nickname: '수어초보', score: 6920, profileImage: null },
-        { rank: 6, nickname: '도전자', score: 6150, profileImage: null },
-        { rank: 7, nickname: '학습왕', score: 5480, profileImage: null },
-        { rank: 8, nickname: '노력파', score: 4920, profileImage: null },
-      ];
-
-      // 실제 API 응답 형식 예시:
-      // [
-      //   {
-      //     rank: 1,
-      //     nickname: "사용자닉네임",
-      //     score: 9850,
-      //     profileImage: "https://example.com/profile.jpg" // null 가능
-      //   },
-      //   ...
-      // ]
-
-      setTimeout(() => {
-        setRankings(dummyData);
-        setIsLoading(false);
-      }, 500);
+      const data = await RankService.getRankings();
+      setRankings(data);
     } catch (err) {
       console.error('랭킹 데이터 로드 실패:', err);
-      setError('랭킹 정보를 불러올 수 없습니다.');
+      
+      // ErrorResponse 처리
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        setError(errorData.detail || errorData.error || '랭킹 정보를 불러올 수 없습니다.');
+      } else {
+        setError('랭킹 정보를 불러올 수 없습니다.');
+      }
+    } finally {
       setIsLoading(false);
     }
   };

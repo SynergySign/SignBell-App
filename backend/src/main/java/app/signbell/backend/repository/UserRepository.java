@@ -5,6 +5,7 @@ import app.signbell.backend.entity.LoginMethod;
 import app.signbell.backend.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -44,4 +45,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByProviderId(String providerId);
 
     Optional<Object> findByid(Long id);
+
+    /**
+     * 누적 점수(totalScore)를 기준으로 내림차순 정렬하여 상위 8명의 사용자를 조회합니다.
+     * 랭킹 시스템에서 사용됩니다.
+     *
+     * @return 상위 8명의 사용자 리스트
+     * @author 강관주
+     * @since 2025-10-28
+     */
+    List<User> findTop8ByOrderByTotalScoreDesc();
 }
