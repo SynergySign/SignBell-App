@@ -1,6 +1,8 @@
 package app.signbell.backend.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -210,4 +212,16 @@ public class User {
         }
     }
 
+    /**
+     * 사용자 닉네임만 업데이트합니다.
+     *
+     * @param nickname 변경할 닉네임
+     * @author [작성자 이름]
+     * @since [작성일]
+     */
+    public void updateNickname(String nickname) {
+        if (nickname != null) {
+            this.nickname = nickname;
+        }
+    }
 }

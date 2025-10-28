@@ -18,32 +18,57 @@ import {useAuthStore} from "../../store/auth/authStore.js";
 
 const MyPage = () => {
   const navigate = useNavigate();
+  // 1. authStore에서 user 정보와 setUser 액션을 가져옵니다.
   const user = useAuthStore((state) => state.user);
-  // TODO: 사용자 약관 동의 상태 API 연동 필요
-  // API 호출 예시: const { data } = await getUserTermsStatus();
-  // 응답 형식: { required: true, optional: false }
-  /*const [termsStatus] = useState({
-    required: true, // 필수 약관은 항상 true (이미 동의한 상태)
-    optional: false, // 선택 약관 동의 상태 (API에서 받아올 값)
-  });*/
+  const setUser = useAuthStore((state) => state.setUser); // 액션은 안정적이므로 별도 호출해도 무방합니다.
 
-  // 🔑 수정 1: useState의 초기값으로 전역 상태 (user)의 값을 사용합니다.
-  // user가 아직 로드되지 않은 경우를 대비해 기본값(false)을 설정합니다.
-  const [termsStatus, setTermsStatus] = useState({ // 💡 setTermsStatus 추가
-    required: user?.requiredAgree ?? true,
-    optional: user?.optionalAgree ?? false, // 🔑 전역 상태의 값을 초기값으로 사용
-  });
+  // termsStatus 로컬 상태는 userData의 값을 기반으로 초기화됩니다.
+  const [termsStatus, setTermsStatus] = useState(
+    user
+      ? {
+        required: user.requiredAgree,
+        optional: user.optionalAgree
+      }
+      : {
+        required: true, // 로딩 중 기본값
+        optional: false, // 로딩 중 기본값
+      }
+  );
 
-  // 🔑 수정 2: user 객체가 비동기적으로 로드되거나 변경되었을 때,
-  // 로컬 상태(termsStatus)를 전역 상태와 동기화합니다.
+  // 🔑 [수정] 전역 user 상태가 변경될 때 로컬 userData와 termsStatus를 동기화합니다.
   useEffect(() => {
+    // 🔑 user 정보가 로드되면 termsStatus를 업데이트합니다.
     if (user) {
+      setTermsStatus({
+        required: user.requiredAgree,
+        optional: user.optionalAgree
+      });
+    }
+  }, [user]);
+
+  // 닉네임/필수 데이터 변경 시 로컬 상태 동기화 (이전 단계에서 제안하신 닉네임 비교 로직 유지)
+ /* useEffect(() => {
+    // user가 존재하고, (최초 로드 시) 또는 닉네임이나 필수 약관 동의 상태가 다를 때만 업데이트합니다.
+    const isNicknameChanged = user?.nickname !== userData?.nickname;
+    const isRequiredAgreeChanged = user?.requiredAgree !== userData?.requiredAgree;
+
+    if (user && (isNicknameChanged || isRequiredAgreeChanged)) {
+      setUserData(user); // 로컬 userData 업데이트
       setTermsStatus({
         required: user.requiredAgree ?? true,
         optional: user.optionalAgree ?? false,
       });
     }
-  }, [user]);
+  }, [user, userData]); // user 객체가 변경될 때 (전역 상태), userData 객체가 변경될 때 (로컬 상태) 실행*/
+
+  /*useEffect(() => {
+    if (userData) {
+      setTermsStatus({
+        required: userData.requiredAgree ?? true,
+        optional: userData.optionalAgree ?? false,
+      });
+    }
+  }, [userData]);*/
 
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -73,12 +98,15 @@ const MyPage = () => {
     }
   };
 
-  const handleNicknameUpdate = (newNickname) => {
+  const handleNicknameUpdate = (updatedUser) => {
+    // 3. 제출(DB 업데이트 성공) 후,
+    setUser(updatedUser); // 전역 상태 업데이트 (이것이 위쪽 useEffect를 트리거하지만, 닉네임이 같아 무한 루프가 발생하지 않음)
+
     // 닉네임 수정 성공 모달 표시
     setModalState({
       isOpen: true,
       title: '닉네임 수정 완료',
-      content: `닉네임이 "${newNickname}"(으)로 변경되었습니다.`,
+      content: `닉네임이 "${updatedUser.nickname}"(으)로 변경되었습니다.`,
       isTermsModal: false,
     });
     
