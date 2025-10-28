@@ -2,19 +2,38 @@
  * @개요 게임 결과 모달 컴포넌트
  * @작성자 신동준 (sdj3959)
  * @작성일 2025-10-20
- * @최종수정일 2025-10-20
+ * @최종수정일 2025-10-28 (중복 클릭 방지 추가)
  * @매개변수 {boolean} props.isOpen - 모달 열림 상태
  * @매개변수 {function} props.onReturnToRoom - 대기실로 돌아가기 핸들러
  * @매개변수 {array} props.rankings - 순위 데이터 배열
  * @반환값 {JSX.Element} 게임 결과 모달 컴포넌트
  */
 
+import { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faMedal, faAward } from '@fortawesome/free-solid-svg-icons';
 import styles from './GameResultModal.module.scss';
 
 const GameResultModal = ({ isOpen, onReturnToRoom, rankings = [] }) => {
+  const [isReturning, setIsReturning] = useState(false);
+  
   if (!isOpen) return null;
+
+  const handleReturnClick = async () => {
+    // 🔥 중복 클릭 방지
+    if (isReturning) {
+      console.log('⚠️ 이미 대기실 복귀 중 - 중복 클릭 방지');
+      return;
+    }
+    
+    setIsReturning(true);
+    try {
+      await onReturnToRoom();
+    } catch (error) {
+      console.error('❌ 대기실 복귀 실패:', error);
+      setIsReturning(false);
+    }
+  };
 
   const getRankIcon = (rank) => {
     switch (rank) {
@@ -63,9 +82,10 @@ const GameResultModal = ({ isOpen, onReturnToRoom, rankings = [] }) => {
 
         <button 
           className={styles.returnButton}
-          onClick={onReturnToRoom}
+          onClick={handleReturnClick}
+          disabled={isReturning}
         >
-          대기실로 돌아가기
+          {isReturning ? '이동 중...' : '대기실로 돌아가기'}
         </button>
       </div>
     </>
