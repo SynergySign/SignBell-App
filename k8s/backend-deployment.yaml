@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signbell-backend-deployment
+  namespace: default
+  labels:
+    app: signbell-backend
+spec:
+  replicas: 2 # 필요시 조정
+  selector:
+    matchLabels:
+      app: signbell-backend
+  template:
+    metadata:
+      labels:
+        app: signbell-backend
+    spec:
+      containers:
+      - name: signbell-backend
+        # 이미지는 Jenkins Pipeline에서 동적으로 업데이트
+        image: 801490935747.dkr.ecr.ap-northeast-2.amazonaws.com/signbell-backend
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8443
+          name: http
+          protocol: TCP
+        
+        env:
+        # Spring Profile
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        
+        # Server 설정
+        - name: SERVER_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: SERVER_PORT
+        
+        # Database 설정
+        - name: DB_URL
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: DB_URL
+        - name: DB_USERNAME
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: DB_USERNAME
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: db-password
+        
+        # JWT 설정
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: jwt-secret
+        - name: JWT_ACCESS_TOKEN_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: JWT_ACCESS_TOKEN_EXPIRATION
+        - name: JWT_REFRESH_TOKEN_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: JWT_REFRESH_TOKEN_EXPIRATION
+        
+        # Cookie 설정
+        - name: COOKIE_DOMAIN
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: COOKIE_DOMAIN
+        - name: COOKIE_ACCESS_TOKEN_MAX_AGE
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: COOKIE_ACCESS_TOKEN_MAX_AGE
+        - name: COOKIE_REFRESH_TOKEN_MAX_AGE
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: COOKIE_REFRESH_TOKEN_MAX_AGE
+        
+        # Kakao OAuth2 설정
+        - name: KAKAO_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: kakao-client-id
+        - name: KAKAO_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: kakao-client-secret
+        - name: KAKAO_PROD_REDIRECT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: KAKAO_PROD_REDIRECT_URI
+        
+        # OAuth2 프론트엔드 리다이렉트 URL
+        - name: APP_OAUTH2_SUCCESS_REDIRECT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: APP_OAUTH2_SUCCESS_REDIRECT_URL
+        - name: APP_OAUTH2_FAILURE_REDIRECT_URL
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: APP_OAUTH2_FAILURE_REDIRECT_URL
+        
+        # API 설정 (한국정보화진흥원)
+        - name: API_SERVICEKEY
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: api-service-key
+        - name: API_REQUESTURL
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: API_REQUEST_URL
+        
+        # 리소스 요청 및 제한 설정 (t3.micro 노드 고려)
+        resources:
+          requests:
+            cpu: "250m"      # 0.25 vCPU
+            memory: "1Gi"  # 512 MiB
+          limits:
+            cpu: "500m"      # 0.5 vCPU
+            memory: "2Gi"    # 1 GiB
+        
+        # Readiness Probe (트래픽 받을 준비 확인)
+        readinessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Liveness Probe (컨테이너 살아있는지 확인)
+        livenessProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Startup Probe (초기 시작 확인)
+        startupProbe:
+          tcpSocket:
+            port: 8443
+          initialDelaySeconds: 50
+          periodSeconds: 10
+          timeoutSeconds: 10
+          failureThreshold: 30
+      
+      # 재시작 정책
+      restartPolicy: Always

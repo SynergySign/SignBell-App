@@ -1,0 +1,134 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: signbell-ai-deployment
+  namespace: default
+  labels:
+    app: signbell-ai
+spec:
+  replicas: 1  # AI 서버는 리소스 사용량 고려하여 1개로 시작
+  selector:
+    matchLabels:
+      app: signbell-ai
+  template:
+    metadata:
+      labels:
+        app: signbell-ai
+    spec:
+      containers:
+      - name: signbell-ai
+        # 이미지는 Jenkins Pipeline에서 동적으로 업데이트
+        image: 801490935747.dkr.ecr.ap-northeast-2.amazonaws.com/signbell-ai:latest
+        imagePullPolicy: Always
+        command: ["sh", "-c"]
+        args: ["PYTHONPATH=/app uvicorn main:app --host 0.0.0.0 --port 8000"]
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        
+        env:
+        # 앱 & 서버 설정
+        - name: APP_HOST
+          value: "0.0.0.0"
+        - name: APP_PORT
+          value: "8000"
+        - name: LOG_LEVEL
+          value: "info"
+        
+        # JWT 인증 설정 (Backend와 동일한 시크릿 사용)
+        - name: JWT_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: signbell-secrets
+              key: jwt-secret
+        - name: JWT_ALGORITHM
+          value: "HS256"
+        
+        # 모델 / 수집 튜닝 설정
+        - name: COLLECTION_DURATION_SECONDS
+          value: "5.0"
+        - name: MAX_FRAMES_TO_COLLECT
+          value: "300"
+        
+        # SSL 설정 (Kubernetes에서는 Ingress가 SSL 처리)
+        # 컨테이너 내부는 HTTP로 실행
+        - name: SSL_CERT_PATH
+          value: ""
+        - name: SSL_KEY_PATH
+          value: ""
+        
+        # Cookie 설정 (Backend와 일치)
+        - name: COOKIE_ACCESS_TOKEN_NAME
+          value: "ACCESS_TOKEN"
+        - name: COOKIE_ACCESS_TOKEN_MAX_AGE
+          value: "3600"
+        
+        # CORS 설정
+        - name: CORS_ALLOWED_ORIGINS
+          value: "https://www.signbell.app,https://signbell.app"
+        
+        # WebSocket URL (프론트엔드에서 사용)
+        - name: WEBSOCKET_URL
+          value: "wss://ai.signbell.app/ws"
+        
+        # Sentry DSN (옵션)
+        - name: SENTRY_DSN
+          value: ""
+        
+        # Torch 캐시 경로 (옵션)
+        - name: TORCH_HOME
+          value: "/tmp/torch"
+        
+        # 리소스 요청 및 제한 (AI 모델 로드/추론 고려)
+        resources:
+          requests:
+            cpu: "500m"     # 0.5 vCPU
+            memory: "1Gi"   # 1 GiB
+          limits:
+            cpu: "1"        # 1 vCPU
+            memory: "2Gi"   # 2 GiB
+        
+        # Readiness Probe (트래픽 받을 준비 확인)
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 45  # AI 모델 로딩 시간 고려
+          periodSeconds: 15
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Liveness Probe (컨테이너 살아있는지 확인)
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 75
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        # Startup Probe (초기 시작 확인)
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 18  # 최대 3분 대기 (10초 * 18)
+        
+        # 볼륨 마운트 (모델 캐시용)
+        volumeMounts:
+        - name: torch-cache
+          mountPath: /tmp/torch
+      
+      # 볼륨 정의
+      volumes:
+      - name: torch-cache
+        emptyDir:
+          sizeLimit: 2Gi  # 캐시 크기 제한
+      
+      # 재시작 정책
+      restartPolicy: Always

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: signbell-backend-service
+  namespace: default
+  labels:
+    app: signbell-backend
+spec:
+  selector:
+    app: signbell-backend
+  ports:
+  - protocol: TCP
+    port: 80           # Service가 받을 포트 (Ingress에서 이 포트로 접근)
+    targetPort: 8080   # Pod의 컨테이너 포트 (Spring Boot 실제 포트)
+    name: http
+  type: NodePort       # ALB Ingress Controller 연동을 위해 NodePort 타입 사용
+  sessionAffinity: None
