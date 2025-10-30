@@ -207,8 +207,8 @@ public class User {
      * 사용자 닉네임만 업데이트합니다.
      *
      * @param nickname 변경할 닉네임
-     * @author [작성자 이름]
-     * @since [작성일]
+     * @author 송민재
+     * @since 2025-10-28
      */
     public void updateNickname(String nickname) {
         if (nickname != null) {

@@ -1,6 +1,7 @@
 package app.signbell.backend.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -11,19 +12,19 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 
 /**
  * WebSocketConfig 클래스는 Spring에서 WebSocket 메시지 브로커를 설정하기 위한 구성 클래스입니다.
- *
+ * <p>
  * 주요 기능:
  * - STOMP 엔드포인트를 정의하여 클라이언트가 WebSocket 연결을 시작할 수 있도록 설정합니다.
  * - 메시지 브로커를 구성하여 클라이언트 간의 메시지 송수신 규칙을 정의합니다.
  * - 쿠키 기반 인증 핸드셰이크 인터셉터를 적용하여 WebSocket 연결 시 사용자 인증을 처리합니다.
  * - 단일 세션 인터셉터를 통해 동일 사용자의 중복 접속을 제어합니다.
- * 
+ * <p>
  * 주요 설정:
  * - STOMP 엔드포인트: `/ws` 설정
  * - 메시지 브로커:
- *   - 발행 주소: `/app`
- *   - 브로드캐스트 경로: `/topic`, `/queue`
- *   - 사용자 메시지 경로: `/user`
+ * - 발행 주소: `/app`
+ * - 브로드캐스트 경로: `/topic`, `/queue`
+ * - 사용자 메시지 경로: `/user`
  *
  * @author 고동현
  * @since 2025-10-14
@@ -32,6 +33,12 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    // [추가] application.yml에서 오리진 URL 주입
+    @Value("${app.frontend-origin-url}")
+    private String frontendOrigin;
+    @Value("${app.backend-origin-url}")
+    private String backendOrigin;
 
     private final CookieAuthHandshakeInterceptor cookieAuthHandshakeInterceptor;
     private final SingleSessionChannelInterceptor singleSessionChannelInterceptor;
@@ -42,11 +49,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // CORS 문제를 해결하기 위해 허용할 오리진을 명시합니다.
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns(
-                    "http://localhost:5173",     // 개발 환경 HTTP
-                    "https://localhost:5173",    // 개발 환경 HTTPS
-                    "http://127.0.0.1:5173",     // 개발 환경 HTTP (127.0.0.1)
-                    "https://127.0.0.1:5173"     // 개발 환경 HTTPS (127.0.0.1)
-                    // 실제 배포 도메인은 여기에 추가
+                        frontendOrigin,
+                        backendOrigin
                 )
                 .addInterceptors(cookieAuthHandshakeInterceptor); // 인증 인터셉터 추가
     }

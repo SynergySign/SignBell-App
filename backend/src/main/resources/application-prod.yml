@@ -1,5 +1,5 @@
 server:
-  port: ${PORT:8080}
+  port: ${SERVER_PORT}
   # HTTPS 강제 설정 (프록시 뒤에서 실행되는 경우)
   forward-headers-strategy: framework
   # 보안 헤더 설정
@@ -70,3 +70,11 @@ app:
   oauth2-success-redirect-url: ${APP_OAUTH2_SUCCESS_REDIRECT_URL}
   # OAuth2 로그인 실패 프론트 리다이렉트 url
   oauth2-failure-redirect-url: ${APP_OAUTH2_FAILURE_REDIRECT_URL}
+  # CORS 및 WebSocket에 허용할 배포용 오리진 url
+  frontend-origin-url: ${FRONTEND_ORIGIN}
+  backend-origin-url: ${BACKEND_ORIGIN}
+
+# 국어원 API
+api:
+  serviceKey: "${API_SERVICE_KEY}"  # ? API_SERVICE_KEY ?? ?? ??
+  requestUrl: "${API_REQUEST_URL}" # ? API_REQUEST_URL ?? ?? ??

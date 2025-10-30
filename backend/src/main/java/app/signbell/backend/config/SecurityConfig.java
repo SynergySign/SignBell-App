@@ -3,6 +3,7 @@ package app.signbell.backend.config;
 
 import app.signbell.backend.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -18,7 +19,7 @@ import java.util.Arrays;
 
 /**
  * Spring Security 설정 파일.
- *
+ * <p>
  * - OAuth2 로그인 핸들러, JWT 필터 및 CORS/CSRF/세션 정책을 정의합니다.
  * - 세션을 사용하지 않는 STATELESS 방식으로 설정됩니다.
  * - 요청 권한 정책: PUBLIC_ENDPOINTS는 허용, 나머지는 인증이 필요합니다.
@@ -38,7 +39,7 @@ public class SecurityConfig {
 
     // 허용할 엔드포인트 목록을 배열로 따로 관리
     private static final String[] PUBLIC_ENDPOINTS = {
-             // 프로젝트 초기 설정이므로 임시로 모든 엔드포인트 허용, 이후에 조정 필요
+            // 프로젝트 초기 설정이므로 임시로 모든 엔드포인트 허용, 이후에 조정 필요
             "/",
             "/ws/**",
             "/health",
@@ -51,6 +52,12 @@ public class SecurityConfig {
             "/api/sign-data/**"
 
     };
+
+    // [추가] application.yml에서 오리진 URL 주입
+    @Value("${app.frontend-origin-url}")
+    private String frontendOrigin;
+    @Value("${app.backend-origin-url}")
+    private String backendOrigin;
 
     // 시큐리티 필터체인 빈을 등록
     @Bean
@@ -95,7 +102,7 @@ public class SecurityConfig {
 
     /**
      * CORS 설정.
-     *
+     * <p>
      * - 개발 중에는 Vite/CRA 개발 서버를 허용합니다.
      * - 운영 배포 시, 실제 프론트엔드 도메인(예: https://app.example.com)을 추가하세요.
      * - 크리덴셜(withCredentials) 전송을 허용합니다.
@@ -104,11 +111,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:5173",     // 개발 환경 HTTP
-            "http://127.0.0.1:5173",     // 개발 환경 HTTP (127.0.0.1)
-            "https://localhost:5173",    // 개발 환경 HTTPS
-            "https://127.0.0.1:5173"     // 개발 환경 HTTPS (127.0.0.1)
-            // 실제 배포 도메인은 여기에 추가
+                frontendOrigin, // https://www.singbell.qpp
+                backendOrigin   // https://api.singbell.qpp
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
