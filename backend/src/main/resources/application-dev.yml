@@ -58,7 +58,8 @@ logging:
     org.springframework.security: DEBUG
 
 cookie:
-  domain: localhost
+#  domain: localhost
+  domain: ${COOKIE_DOMAIN}
   secure: true # 환경변수로 제어 가능하도록 설정
   http-only: true
   same-site: None  # 환경변수로 제어 가능하도록 설정

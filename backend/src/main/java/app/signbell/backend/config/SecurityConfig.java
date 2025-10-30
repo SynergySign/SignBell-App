@@ -111,8 +111,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-                frontendOrigin, // https://www.singbell.qpp
-                backendOrigin   // https://api.singbell.qpp
+                frontendOrigin, // https://www.signbell.qpp
+                backendOrigin   // https://api.signbell.qpp
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
