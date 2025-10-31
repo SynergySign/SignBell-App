@@ -23,6 +23,71 @@ export const useWaitingRoomJanus = ({
 }) => {
   const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
 
+  // 🔥 웹캠 토글 시 스트림 업데이트
+  useEffect(() => {
+    // Janus가 연결되어 있고, pluginHandle이 있을 때만 실행
+    if (!isJanusConnected || !pluginHandleRef.current) {
+      return;
+    }
+
+    // 초기 연결 시에는 스킵 (publishOwnFeed에서 처리)
+    if (!pluginHandleRef.current.webrtcStuff || !pluginHandleRef.current.webrtcStuff.pc) {
+      return;
+    }
+
+    if (isWebcamOn && stream) {
+      // 웹캠 켜짐 - 비디오 트랙만 교체
+      console.log('📹 웹캠 켜짐 - Janus 비디오 트랙 교체');
+      
+      try {
+        const pc = pluginHandleRef.current.webrtcStuff.pc;
+        const videoTrack = stream.getVideoTracks()[0];
+        
+        if (!videoTrack) {
+          console.error('❌ 비디오 트랙을 찾을 수 없습니다');
+          return;
+        }
+
+        // 기존 비디오 sender 찾기
+        const senders = pc.getSenders();
+        const videoSender = senders.find(sender => sender.track && sender.track.kind === 'video');
+        
+        if (videoSender) {
+          // 기존 트랙 교체
+          videoSender.replaceTrack(videoTrack).then(() => {
+            console.log('✅ 비디오 트랙 교체 성공');
+            
+            // Janus에 비디오 활성화 알림
+            const configure = {
+              request: 'configure',
+              video: true,
+            };
+            pluginHandleRef.current.send({ message: configure });
+          }).catch(error => {
+            console.error('❌ 비디오 트랙 교체 실패:', error);
+          });
+        } else {
+          console.warn('⚠️ 기존 비디오 sender를 찾을 수 없습니다');
+        }
+      } catch (error) {
+        console.error('❌ 웹캠 켜기 처리 중 오류:', error);
+      }
+    } else if (!isWebcamOn) {
+      // 웹캠 꺼짐 - 비디오만 끄기
+      console.log('📹 웹캠 꺼짐 - Janus 비디오 중지');
+      
+      try {
+        const configure = {
+          request: 'configure',
+          video: false,
+        };
+        pluginHandleRef.current.send({ message: configure });
+      } catch (error) {
+        console.error('❌ 웹캠 끄기 처리 중 오류:', error);
+      }
+    }
+  }, [isWebcamOn, stream, isJanusConnected]);
+
   // Janus 연결
   useEffect(() => {
     if (!myUserId || participants.length === 0) {
@@ -112,10 +177,12 @@ export const useWaitingRoomJanus = ({
           room: parseInt(roomId),
           description: `Game Room ${roomId}`,
           publishers: 10,
-          bitrate: 128000,
-          fir_freq: 10,
+          bitrate: 512000,        // 🔥 128k -> 512k (비트레이트 증가)
+          bitrate_cap: true,      // 🔥 비트레이트 상한 적용
+          fir_freq: 5,            // 🔥 10 -> 5 (키프레임 요청 빈도 증가)
           audiocodec: 'opus',
           videocodec: 'vp8',
+          video_svc: true,        // 🔥 SVC(Scalable Video Coding) 활성화
           record: false,
           permanent: false
         };
@@ -144,16 +211,26 @@ export const useWaitingRoomJanus = ({
         console.log('✅ Janus 방 참여 성공, My Feed ID:', myFeedId);
         setIsJanusConnected(true);
 
-        publishOwnFeed();
+        // 🔥 내 스트림 publish (약간의 지연 후)
+        setTimeout(() => {
+          publishOwnFeed();
+        }, 100);
 
         if (msg['publishers']) {
-          msg['publishers'].forEach((publisher) => {
+          console.log(`📺 기존 참가자 ${msg['publishers'].length}명 발견`);
+          
+          // 🔥 각 참가자 구독 시 약간의 지연 (동시 구독 방지)
+          msg['publishers'].forEach((publisher, index) => {
             const userId = parseInt(publisher.display);
-            console.log('📺 기존 참가자 발견:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
+            console.log(`📺 [${index + 1}/${msg['publishers'].length}] 참가자:`, publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
 
             if (userId !== myUserId) {
               userIdToFeedIdRef.current[userId] = publisher.id;
-              subscribeToFeed(publisher.id, userId);
+              
+              // 🔥 순차적으로 구독 (100ms 간격)
+              setTimeout(() => {
+                subscribeToFeed(publisher.id, userId);
+              }, index * 100);
             } else {
               console.log('⏭️ 자기 자신은 구독 스킵');
             }
@@ -163,18 +240,28 @@ export const useWaitingRoomJanus = ({
         if (msg['publishers']) {
           msg['publishers'].forEach((publisher) => {
             const userId = parseInt(publisher.display);
-            console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', publisher.id, '내 ID:', myUserId);
+            const feedId = publisher.id;
+            
+            console.log('📺 새 참가자 입장:', publisher.display, 'Feed ID:', feedId, '내 ID:', myUserId);
 
             if (userId !== myUserId) {
-              userIdToFeedIdRef.current[userId] = publisher.id;
-              subscribeToFeed(publisher.id, userId);
+              // 🔥 이미 구독 중인지 확인 (중복 구독 방지)
+              if (remoteFeedsRef.current[feedId]) {
+                console.log('⏭️ 이미 구독 중인 Feed:', feedId);
+                return;
+              }
+
+              userIdToFeedIdRef.current[userId] = feedId;
+              subscribeToFeed(feedId, userId);
             } else {
               console.log('⏭️ 자기 자신은 구독 스킵');
             }
           });
         }
-        if (msg['leaving']) {
-          const leavingFeedId = msg['leaving'];
+        
+        // 🔥 unpublished 이벤트도 처리 (leaving과 동일)
+        const leavingFeedId = msg['leaving'] || msg['unpublished'];
+        if (leavingFeedId) {
           console.log('👋 Janus 참가자 퇴장, Feed ID:', leavingFeedId);
 
           let leavingUserId = null;
@@ -186,7 +273,11 @@ export const useWaitingRoomJanus = ({
           }
 
           if (remoteFeedsRef.current[leavingFeedId]) {
-            remoteFeedsRef.current[leavingFeedId].detach();
+            try {
+              remoteFeedsRef.current[leavingFeedId].detach();
+            } catch (error) {
+              console.error('❌ Feed detach 실패:', error);
+            }
             delete remoteFeedsRef.current[leavingFeedId];
           }
 
@@ -218,12 +309,16 @@ export const useWaitingRoomJanus = ({
           audioSend: true,
           videoSend: true,
         },
+        // 🔥 비디오 품질 설정 추가
+        simulcast: false,
         success: function (jsep) {
           console.log('✅ Offer 생성 성공');
           const publish = {
             request: 'configure',
             audio: true,
             video: true,
+            bitrate: 512000,      // 🔥 비트레이트 명시
+            keyframe: true,       // 🔥 키프레임 즉시 전송
           };
           pluginHandleRef.current.send({ message: publish, jsep: jsep });
         },
@@ -274,6 +369,25 @@ export const useWaitingRoomJanus = ({
         onremotestream: function (remoteStream) {
           console.log('✅ 원격 스트림 수신:', { feedId, userId });
           remoteFeedsRef.current[feedId] = remoteFeed;
+          
+          // 🔥 스트림 수신 후 즉시 키프레임 요청
+          setTimeout(() => {
+            if (remoteFeed && remoteFeed.send) {
+              try {
+                remoteFeed.send({ 
+                  message: { 
+                    request: 'configure',
+                    substream: 2,  // 최고 품질 서브스트림
+                    temporal: 2    // 최고 품질 temporal layer
+                  } 
+                });
+                console.log('🎬 키프레임 요청 전송:', userId);
+              } catch (e) {
+                console.warn('⚠️ 키프레임 요청 실패:', e);
+              }
+            }
+          }, 500);
+          
           setRemoteStreams((prev) => ({
             ...prev,
             [userId]: remoteStream,

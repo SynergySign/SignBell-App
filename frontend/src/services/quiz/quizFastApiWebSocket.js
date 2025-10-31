@@ -100,15 +100,40 @@ export function connect(sessionId = SESSION_ID) {
   // 이전 재연결 타이머가 있다면 정리
   clearReconnectTimeout();
 
-  const host = (typeof window !== 'undefined' && window.location && window.location.host)
-      ? window.location.host
-      : 'localhost:8443';
+  // 환경 변수에서 FastAPI WebSocket URL 가져오기
+  const FASTAPI_WS_URL = import.meta.env.VITE_FASTAPI_URL || 'wss://localhost:8000/ws';
+  // 세션 ID를 URL에 추가
+  let wsUrl = FASTAPI_WS_URL.replace('/ws', `/ws/${sessionId}`);
 
-  const isSecure = (typeof window !== 'undefined' && window.location.protocol === 'https:');
-  const wsProtocol = isSecure ? 'wss://' : 'ws://';
-  const wsUrl = `${wsProtocol}${host}/fastapi/ws/${sessionId}`;
+  // 🔥 JWT 토큰을 쿠키에서 가져오기 (여러 형식 시도)
+  let token = null;
+  
+  // 1. ACCESS_TOKEN 쿠키 찾기
+  const cookies = document.cookie.split('; ');
+  for (const cookie of cookies) {
+    if (cookie.startsWith('ACCESS_TOKEN=')) {
+      token = cookie.split('=')[1];
+      break;
+    }
+    // 2. accessToken (소문자) 쿠키도 시도
+    if (cookie.startsWith('accessToken=')) {
+      token = cookie.split('=')[1];
+      break;
+    }
+  }
 
-  console.log(`[QuizFastAPI] Connecting to ${wsUrl}... (Session: ${sessionId})`);
+  // 3. localStorage에서도 시도
+  if (!token) {
+    token = localStorage.getItem('ACCESS_TOKEN') || localStorage.getItem('accessToken');
+  }
+
+  if (token) {
+    wsUrl += `?token=${encodeURIComponent(token)}`;
+    console.log(`[QuizFastAPI] ✅ Token found - Connecting to ${wsUrl.split('?')[0]}?token=*** (Session: ${sessionId})`);
+  } else {
+    console.warn('[QuizFastAPI] ⚠️ No ACCESS_TOKEN found - connecting without auth');
+    console.log(`[QuizFastAPI] Connecting to ${wsUrl}... (Session: ${sessionId})`);
+  }
 
   try {
     const s = new WebSocket(wsUrl);
@@ -152,13 +177,19 @@ export function connect(sessionId = SESSION_ID) {
 
       if (event && event.code === 4001) {
         setStatus('Error: Authentication Failed');
+        console.error('[QuizFastAPI] ❌ 인증 실패 - 재연결 시도 안 함');
         // 인증 실패는 재연결 시도하지 않음
       } else if (event && event.code === 1000) {
         // 정상 종료 (사용자가 의도적으로 닫음)
         setStatus('Disconnected');
         console.log('[QuizFastAPI] 정상 종료 - 재연결 시도 안 함');
+      } else if (event && event.code === 1006) {
+        // 🔥 1006 에러 - 네트워크 문제일 수 있으므로 재연결 시도
+        setStatus(`Disconnected (Code: 1006 - Connection Failed)`);
+        console.warn('[QuizFastAPI] ⚠️ 서버 연결 실패 (1006) - 재연결 시도');
+        attemptReconnect();
       } else {
-        // 🆕 비정상 종료 - 자동 재연결 시도
+        // 🆕 기타 비정상 종료 - 자동 재연결 시도
         setStatus(`Disconnected (Code: ${event ? event.code : 'unknown'})`);
         console.log('[QuizFastAPI] 비정상 종료 감지 - 재연결 시도');
         attemptReconnect();
@@ -266,6 +297,24 @@ export function sendFlush() {
     return true;
   } catch (err) {
     console.error('[QuizFastAPI] sendFlush error:', err);
+    return false;
+  }
+}
+
+// 🔥 프레임 버퍼 리셋 (새 문제 시작 시)
+export function sendReset() {
+  if (!(socket && socket.readyState === WebSocket.OPEN)) {
+    console.warn('[QuizFastAPI] Cannot send reset, WebSocket is not open');
+    return false;
+  }
+
+  try {
+    const msg = { type: 'reset' };
+    console.log('[QuizFastAPI] SEND (reset):', msg);
+    socket.send(JSON.stringify(msg));
+    return true;
+  } catch (err) {
+    console.error('[QuizFastAPI] sendReset error:', err);
     return false;
   }
 }

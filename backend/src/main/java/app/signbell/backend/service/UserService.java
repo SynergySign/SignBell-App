@@ -71,14 +71,30 @@ public class UserService {
      * @author 송민재
      * @since 2025-10-20
      */
-    /*public UserResponse updateUserRequiredAgree(String providerId) {
+    /**
+     * 주어진 userId를 기반으로 사용자를 조회하여 약관 동의 상태를 업데이트하고,
+     * 업데이트된 사용자 정보를 반환합니다.
+     *
+     * @param userId 사용자를 식별하기 위한 userId
+     * @return 업데이트된 사용자 정보를 포함하는 UserResponse 객체
+     * @throws BusinessException 사용자가 존재하지 않을 경우 예외를 발생시킵니다.
+     *
+     * @author 송민재
+     * @since 2025-10-30
+     */
+    public UserResponse updateUserAgreement(Long userId) {
+        log.info("Updating agreement for userId: {}", userId);
+        
         // 사용자 정보 조회
-        User user = usersRepository.findByProviderId(providerId)
+        User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 동의 상태 업데이트 편의 메서드
-        user.updateUserRequiredAgree();
+        // 필수 약관 동의 상태 업데이트
+        user.updateRequiredAgreement();
+        
+        // 더티 체킹으로 자동 저장됨 (@Transactional)
+        log.info("Agreement updated for userId: {}, requiredAgree: {}", userId, user.getRequiredAgree());
 
-        return UserResponse.from(user); 나중에 선택 동의 약관동 추가
-    }*/
+        return UserResponse.from(user);
+    }
 }

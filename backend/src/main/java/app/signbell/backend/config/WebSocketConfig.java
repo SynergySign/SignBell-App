@@ -1,6 +1,7 @@
 package app.signbell.backend.config;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.messaging.simp.config.ChannelRegistration;
@@ -33,6 +34,12 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
+    // [추가] application.yml에서 오리진 URL 주입
+    @Value("${app.frontend-origin-url}")
+    private String frontendOrigin;
+    @Value("${app.backend-origin-url}")
+    private String backendOrigin;
+
     private final CookieAuthHandshakeInterceptor cookieAuthHandshakeInterceptor;
     private final SingleSessionChannelInterceptor singleSessionChannelInterceptor;
 
@@ -42,11 +49,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // CORS 문제를 해결하기 위해 허용할 오리진을 명시합니다.
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns(
-                    "http://localhost:5173",     // 개발 환경 HTTP
-                    "https://localhost:5173",    // 개발 환경 HTTPS
-                    "http://127.0.0.1:5173",     // 개발 환경 HTTP (127.0.0.1)
-                    "https://127.0.0.1:5173"     // 개발 환경 HTTPS (127.0.0.1)
-                    // 실제 배포 도메인은 여기에 추가
+                        frontendOrigin,
+                        backendOrigin
                 )
                 .addInterceptors(cookieAuthHandshakeInterceptor); // 인증 인터셉터 추가
     }

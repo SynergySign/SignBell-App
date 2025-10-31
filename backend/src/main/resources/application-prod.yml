@@ -9,6 +9,7 @@ server:
         secure: true
         http-only: true
         same-site: none
+        domain: signbell.app  # 서브도메인 간 세션 쿠키 공유 (점 제거)
 
 spring:
   # database setting
@@ -17,6 +18,14 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: org.mariadb.jdbc.Driver
+    # HikariCP 커넥션 풀 설정 (RDS Free Tier 최적화)
+    hikari:
+      maximum-pool-size: 5          # Pod당 최대 5개 연결 (2 Pod = 10개)
+      minimum-idle: 2               # 최소 유휴 연결 2개
+      connection-timeout: 20000     # 연결 타임아웃 20초
+      idle-timeout: 300000          # 유휴 연결 5분 후 제거
+      max-lifetime: 1200000         # 연결 최대 수명 20분
+      connection-test-query: SELECT 1  # 연결 테스트 쿼리
 
   jpa:
     hibernate:
@@ -51,8 +60,10 @@ spring:
 
 logging:
   level:
-    app.signbell.backend: INFO
-    org.springframework.web: WARN
+    app.signbell.backend: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.oauth2: DEBUG
     org.hibernate.SQL: WARN
 
 cookie:
@@ -70,3 +81,11 @@ app:
   oauth2-success-redirect-url: ${APP_OAUTH2_SUCCESS_REDIRECT_URL}
   # OAuth2 로그인 실패 프론트 리다이렉트 url
   oauth2-failure-redirect-url: ${APP_OAUTH2_FAILURE_REDIRECT_URL}
+  # CORS 및 WebSocket에 허용할 배포용 오리진 url
+  frontend-origin-url: ${FRONTEND_ORIGIN}
+  backend-origin-url: ${BACKEND_ORIGIN}
+
+# 국어원 API
+api:
+  serviceKey: "${API_SERVICE_KEY}"  # ? API_SERVICE_KEY
+  requestUrl: "${API_REQUEST_URL}" # ? API_REQUEST_URL

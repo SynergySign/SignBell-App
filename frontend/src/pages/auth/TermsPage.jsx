@@ -14,6 +14,7 @@ import Modal from '../../components/ui/Modal';
 import { REQUIRED_TERMS, OPTIONAL_TERMS } from '../../data/termsContent';
 import styles from './TermsPage.module.scss';
 import { useAuthStore } from '../../store/auth/authStore';
+import apiClient from '../../services/api/apiClient';
 
 const TermsPage = () => {
   const navigate = useNavigate();
@@ -44,7 +45,7 @@ const TermsPage = () => {
       if (window.opener) {
         // 부모 창을 /main으로 이동시키고 팝업 창을 닫음
         console.log("TermsPage (Popup): Redirecting opener to /main and closing.");
-        window.opener.location.href = "https://localhost:5173/main";
+        window.opener.location.href = "https://www.signbell.app/main";
         window.opener.focus();
         window.close();
       } else {
@@ -138,45 +139,56 @@ const TermsPage = () => {
   };
 
   const handleSubmit = async () => {
+    console.log('=== handleSubmit called ===');
+    console.log('user:', user);
+    console.log('user?.userId:', user?.userId);
+    
     if (!user?.userId) {
-      console.error('User ID not found');
-      return;
+      console.error('User ID not found, calling fetchMe()');
+      await fetchMe();
+      // fetchMe 후 다시 체크
+      const { user: updatedUser } = useAuthStore.getState();
+      if (!updatedUser?.userId) {
+        console.error('Still no user after fetchMe');
+        alert('사용자 정보를 불러올 수 없습니다. 다시 로그인해주세요.');
+        return;
+      }
     }
 
     setIsSubmitting(true);
     try {
-      const response = await fetch(`/api/my-page/users/${user.userId}/terms-agreement`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          optionalAgree: agreements.optional, // 선택 동의만 전달
-        }),
-      });
+      console.log('Calling API: PUT /users/me/agreement');
+      const response = await apiClient.put('/users/me/agreement');
 
-      if (response.ok) {
-        console.log('약관 동의 성공');
-        // 사용자 정보 갱신
-        await refreshMeSilent();
-        if (fromMyPage) {
-          // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
-          // TODO: 약관 동의 상태 업데이트 API 연동 필요
-          console.log('약관 동의 수정', agreements);
-          navigate('/mypage');
-        } else {
-          // 최초 가입 시: 팝업 닫기 페이지로 이동
-          // TODO: API 연동이 필요합니다.
-          console.log('약관 동의 제출', agreements);
-          navigate('/popup-close');
-        }
+      console.log('약관 동의 성공:', response.data);
+      // 사용자 정보 갱신
+      await refreshMeSilent();
+      
+      if (fromMyPage) {
+        // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
+        console.log('약관 동의 수정', agreements);
+        navigate('/mypage');
       } else {
-        console.error('약관 동의 실패:', response.status);
-        alert('약관 동의 처리 중 오류가 발생했습니다.');
+        // 최초 가입 시: 팝업 창이면 부모 창으로 메인 이동 후 팝업 닫기
+        console.log('약관 동의 제출 완료', agreements);
+        
+        if (window.opener) {
+          // 팝업 창인 경우
+          console.log('팝업 창에서 약관 동의 완료 - 부모 창을 /main으로 이동');
+          window.opener.location.href = 'https://www.signbell.app/main';
+          window.opener.focus();
+          window.close();
+        } else {
+          // 일반 창인 경우
+          console.log('일반 창에서 약관 동의 완료 - /main으로 이동');
+          navigate('/main', { replace: true });
+        }
       }
     } catch (error) {
       console.error('약관 동의 API 호출 실패:', error);
+      if (error.response) {
+        console.error('Error response:', error.response.status, error.response.data);
+      }
       alert('약관 동의 처리 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);

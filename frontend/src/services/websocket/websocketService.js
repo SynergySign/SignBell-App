@@ -39,15 +39,18 @@ class WebSocketService {
 
     this.isConnecting = true;
     this.connectionPromise = new Promise((resolve, reject) => {
+      // 환경 변수에서 WebSocket URL 가져오기
+      const WS_URL = import.meta.env.VITE_WS_URL || 'wss://localhost:8443/ws';
+
       this.client = new Client({
-        // 네이티브 WebSocket 사용 (vite proxy를 통해 /ws로 연결)
-        brokerURL: 'wss://localhost:8443/ws',
+        // 네이티브 WebSocket 사용
+        brokerURL: WS_URL,
 
         // STOMP 연결 헤더 (쿠키 기반 인증이므로 별도 헤더 불필요)
         connectHeaders: {},
 
         // 디버그 로깅 (비활성화)
-        debug: () => {},
+        debug: () => { },
 
         // 자동 재연결 설정 (5초 간격)
         reconnectDelay: 5000,

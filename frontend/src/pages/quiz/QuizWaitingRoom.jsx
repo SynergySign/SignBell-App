@@ -365,6 +365,9 @@ const QuizWaitingRoom = () => {
     if (location.state?.returnFromGame) {
       console.log('🔄 게임에서 복귀 감지');
 
+      // 🔥 Janus 연결 상태 먼저 초기화 (재연결 가능하도록)
+      setIsJanusConnected(false);
+
       // Remote streams 강제 초기화
       setRemoteStreams({});
 
@@ -386,9 +389,6 @@ const QuizWaitingRoom = () => {
       if (userIdToFeedIdRef.current) {
         userIdToFeedIdRef.current = {};
       }
-
-      // Janus 연결 상태 초기화
-      setIsJanusConnected(false);
 
       // 🔥 프론트엔드 상태: 방장 제외한 모든 참가자의 레디 상태 해제
       setParticipants(prev => prev.map(p => ({

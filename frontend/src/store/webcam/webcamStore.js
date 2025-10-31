@@ -22,8 +22,9 @@ export const useWebcamStore = create((set, get) => ({
     try {
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1280, min: 640 },
+          height: { ideal: 720, min: 480 },
+          frameRate: { ideal: 30, min: 15 },  // 🔥 프레임레이트 명시
           facingMode: 'user'
         },
         audio: false

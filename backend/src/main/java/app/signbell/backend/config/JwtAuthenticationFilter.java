@@ -56,6 +56,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(@NonNull HttpServletRequest request, @NonNull HttpServletResponse response, @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
+        // OAuth2 엔드포인트는 JWT 필터를 건너뜀
+        String path = request.getRequestURI();
+        if (path.startsWith("/oauth2/") || path.startsWith("/login/oauth2/")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         String token = resolveToken(request);
 
         // 토큰이 존재하고 유효하며, 아직 인증 컨텍스트가 비어있을 때만 설정합니다.

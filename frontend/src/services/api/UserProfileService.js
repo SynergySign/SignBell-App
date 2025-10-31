@@ -1,5 +1,5 @@
 // import { apiClient } from './apiClient';
-import apiClient  from './apiClient.js'
+import apiClient from './apiClient.js'
 
 /**
  * 사용자 프로필 관련 API 호출 서비스

@@ -19,8 +19,9 @@ const LandingPage = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const intervalRef = useRef(null);
-  // 추가: 백엔드 카카오 엔드포인트와 인증 상태
-  const KAKAO_AUTH_URL = 'https://localhost:8443/oauth2/authorization/kakao';
+  // 백엔드 카카오 엔드포인트 (환경 변수 사용)
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  const KAKAO_AUTH_URL = `${API_BASE_URL}/oauth2/authorization/kakao`;
   const navigate = useNavigate();
 
   // 이미 로그인 상태면 홈으로 이동
@@ -41,37 +42,34 @@ const LandingPage = () => {
   }, []);
 
   const handleKakaoLogin = () => {
-    // TODO: API 연동이 필요합니다.
     console.log('카카오 로그인 클릭');
-
-    setIsLoading(true);
-    setError('');
-
-    // 팝업창 열기
-    // 주의: 백엔드 리디렉션 URI가 'http://localhost:5173/popup-close'와 일치해야 합니다.
-    const popup = window.open(KAKAO_AUTH_URL, 'KakaoLoginPopup', 'width=460,height=600,left=100,top=100');
-    // 팝업이 열리지 않았을 경우
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      setIsLoading(false);
-      setError('팝업 차단을 해제하고 다시 시도해 주세요.');
+    
+    // 팝업으로 OAuth2 로그인 시작
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.outerWidth - width) / 2;
+    const top = window.screenY + (window.outerHeight - height) / 2;
+    
+    const popup = window.open(
+      KAKAO_AUTH_URL,
+      'KakaoLogin',
+      `width=${width},height=${height},left=${left},top=${top},scrollbars=yes`
+    );
+    
+    if (!popup) {
+      alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
       return;
     }
-
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-
-    // 팝업 창이 강제로 닫혔는지 확인하는 로직
-    intervalRef.current = setInterval(() => {
+    
+    // 팝업이 닫혔는지 주기적으로 확인
+    const checkPopupClosed = setInterval(() => {
       if (popup.closed) {
-        setIsLoading(false);
-        setError('로그인 창이 닫혔습니다. 다시 시도해 주세요.');
-        clearInterval(intervalRef.current);
+        clearInterval(checkPopupClosed);
+        console.log('팝업이 닫혔습니다. 사용자 정보를 다시 확인합니다.');
+        // 팝업이 닫히면 현재 페이지의 인증 상태를 다시 확인
+        // authStore의 fetchMe는 이미 PrivateRoute나 다른 곳에서 호출될 것
       }
     }, 500);
-
-    // 약관 동의 페이지로 이동
-    // navigate('/terms');
   };
 
   return (

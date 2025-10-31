@@ -41,6 +41,11 @@ public class OAuth2FailureHandler implements AuthenticationFailureHandler {
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
         String rawMessage = exception.getMessage() == null ? "oauth2_login_failed" : exception.getMessage();
+        log.error("=== OAuth2 FAILURE HANDLER ===");
+        log.error("Request URI: {}", request.getRequestURI());
+        log.error("Exception: {}", rawMessage);
+        log.error("Exception Type: {}", exception.getClass().getName());
+        log.error("Stack trace:", exception);
         log.warn("OAuth2 authentication failed: {}", rawMessage);
 
         // 쿠키 정리 (있다면)

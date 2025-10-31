@@ -3,6 +3,7 @@ package app.signbell.backend.config;
 
 import app.signbell.backend.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,6 +16,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+
 
 /**
  * Spring Security 설정 파일.
@@ -35,11 +37,13 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2SuccessHandler oAuth2SuccessHandler;
     private final OAuth2FailureHandler oAuth2FailureHandler;
+    private final CookieOAuth2AuthorizationRequestRepository cookieOAuth2AuthorizationRequestRepository;
 
     // 허용할 엔드포인트 목록을 배열로 따로 관리
     private static final String[] PUBLIC_ENDPOINTS = {
              // 프로젝트 초기 설정이므로 임시로 모든 엔드포인트 허용, 이후에 조정 필요
             "/",
+            "/error",
             "/ws/**",
             "/health",
             "/api/auth/**",
@@ -48,9 +52,16 @@ public class SecurityConfig {
             // 앞으로 추가될 퍼블릭 엔드포인트를 여기에 나열합니다.
             "/media/**",
             "/images/**",
-            "/api/sign-data/**"
+            "/api/sign-data/**",
+            "/oauth2/callback/**",
 
     };
+
+    // [추가] application.yml에서 오리진 URL 주입
+    @Value("${app.frontend-origin-url}")
+    private String frontendOrigin;
+    @Value("${app.backend-origin-url}")
+    private String backendOrigin;
 
     // 시큐리티 필터체인 빈을 등록
     @Bean
@@ -62,7 +73,7 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 // JWT 쿠키 기반이므로 CSRF는 사용하지 않음
                 .csrf(csrf -> csrf.disable())
-                // 완전한 무상태(Stateless)로 동작
+                // 완전한 무상태(Stateless)로 동작 (OAuth2 state는 쿠키로 관리)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 // 기본 제공 로그인/기본 인증은 사용하지 않음
                 .formLogin(form -> form.disable())
@@ -77,13 +88,26 @@ public class SecurityConfig {
                 )
                 // OAuth2 로그인 활성화 및 사용자 정보 서비스/성공/실패 핸들러 연결
                 .oauth2Login(oauth -> oauth
+                        .authorizationEndpoint(authorization -> authorization
+                                .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/oauth2/callback/*")
+                        )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
                 )
-                // 인증 실패 시 401 Unauthorized 반환
+                // 인증 실패 시 401 Unauthorized 반환 (로깅 추가)
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((req, res, e) -> res.sendError(401))
+                        .authenticationEntryPoint((req, res, e) -> {
+                            System.out.println("=== 401 UNAUTHORIZED ===");
+                            System.out.println("Request URI: " + req.getRequestURI());
+                            System.out.println("Method: " + req.getMethod());
+                            System.out.println("Exception: " + (e != null ? e.getMessage() : "null"));
+                            System.out.println("Cookies: " + java.util.Arrays.toString(req.getCookies()));
+                            res.sendError(401);
+                        })
                 )
                 // UsernamePasswordAuthenticationFilter 전에 JWT 필터 동작
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
@@ -104,11 +128,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(Arrays.asList(
-            "http://localhost:5173",     // 개발 환경 HTTP
-            "http://127.0.0.1:5173",     // 개발 환경 HTTP (127.0.0.1)
-            "https://localhost:5173",    // 개발 환경 HTTPS
-            "https://127.0.0.1:5173"     // 개발 환경 HTTPS (127.0.0.1)
-            // 실제 배포 도메인은 여기에 추가
+                frontendOrigin, // https://www.signbell.qpp
+                backendOrigin   // https://api.signbell.qpp
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

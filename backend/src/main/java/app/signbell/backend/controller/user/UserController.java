@@ -64,13 +64,28 @@ public class UserController {
         }
     }
 
-    /*@PutMapping("/me/agreement")
+    @PutMapping("/me/agreement")
     public ResponseEntity<?> updateAgreement(@AuthenticationPrincipal String subject) {
-        // 사용자의 동의 상태를 업데이트
-        UserResponse dto = userService.updateUserAgreement(subject);
+        log.info("PUT /api/users/me/agreement called with subject: {}", subject);
+        try {
+            // subject는 userId
+            UserResponse dto = userService.updateUserAgreement(Long.valueOf(subject));
 
-        ApiResponse<UserResponse> apiResponse = ApiResponse.success("사용자의 약관 동의 여부가 성공적으로 수정되었습니다.", dto);
+            ApiResponse<UserResponse> apiResponse = ApiResponse.success("사용자의 약관 동의 여부가 성공적으로 수정되었습니다.", dto);
 
-        return ResponseEntity.ok(apiResponse);
-    }*/
+            return ResponseEntity.ok(apiResponse);
+        } catch (NumberFormatException e) {
+            log.error("Invalid subject format: {}", subject, e);
+            return ResponseEntity.badRequest().body(ApiResponse.<UserResponse>builder()
+                    .success(false)
+                    .message("잘못된 사용자 ID 형식입니다.")
+                    .build());
+        } catch (Exception e) {
+            log.error("Error in /api/users/me/agreement", e);
+            return ResponseEntity.internalServerError().body(ApiResponse.<UserResponse>builder()
+                    .success(false)
+                    .message("약관 동의 업데이트 중 오류가 발생했습니다.")
+                    .build());
+        }
+    }
 }

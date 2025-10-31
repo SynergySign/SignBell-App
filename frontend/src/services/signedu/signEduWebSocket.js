@@ -26,16 +26,24 @@ function notifyMessage(msg) {
 export function connect(sessionId = SESSION_ID) {
   if (socket && socket.readyState === WebSocket.OPEN) return socket;
 
-  // 반드시 wss로 연결합니다. 프록시가 /ws 경로를 백엔드 FastAPI로 전달합니다.
-  const host = (typeof window !== 'undefined' && window.location && window.location.host) ? window.location.host : 'localhost:8443';
-  // 현재 페이지의 프로토콜(http: 또는 https:)을 확인
-  const isSecure = (typeof window !== 'undefined' && window.location.protocol === 'https:');
-  // http: -> 'ws://', https: -> 'wss://'
-  const wsProtocol = isSecure ? 'wss://' : 'ws://';
+  // 환경 변수에서 FastAPI WebSocket URL 가져오기
+  const FASTAPI_WS_URL = import.meta.env.VITE_FASTAPI_URL || 'wss://localhost:8000/ws';
+  // 세션 ID를 URL에 추가
+  let wsUrl = FASTAPI_WS_URL.replace('/ws', `/ws/${sessionId}`);
 
-  const wsUrl = `${wsProtocol}${host}/fastapi/ws/${sessionId}`;
+  // JWT 토큰을 쿠키에서 가져와서 query parameter로 추가
+  const token = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('ACCESS_TOKEN='))
+    ?.split('=')[1];
 
-  console.log(`(Cookie Auth via Proxy) Connecting to ${wsUrl}...`);
+  if (token) {
+    wsUrl += `?token=${encodeURIComponent(token)}`;
+    console.log(`(JWT Auth) Connecting to ${wsUrl.split('?')[0]}?token=***...`);
+  } else {
+    console.warn('⚠️ No ACCESS_TOKEN found in cookies');
+    console.log(`(No Auth) Connecting to ${wsUrl}...`);
+  }
 
   try {
     const s = new WebSocket(wsUrl);

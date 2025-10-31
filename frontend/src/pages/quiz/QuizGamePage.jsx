@@ -108,6 +108,16 @@ const QuizGamePage = () => {
       // 🆕 새 문제면 메타 전송 플래그 리셋
       metaSentRef.current = false;
       flushSentRef.current = false;  // 🔥 flush 플래그도 리셋
+
+      // 🔥 FastAPI 서버에 reset 메시지 전송 (프레임 버퍼 정리)
+      try {
+        if (quizFastApi.getStatus() === 'Connected') {
+          quizFastApi.sendReset();
+          console.log('[QuizGame] 🧹 FastAPI 프레임 버퍼 리셋 완료');
+        }
+      } catch (error) {
+        console.error('[QuizGame] ❌ FastAPI 리셋 실패:', error);
+      }
     }
   }, [gameState]);
 
@@ -303,6 +313,16 @@ const QuizGamePage = () => {
 
   const handleGameEnd = useCallback((data) => {
     if (data.success && data.data?.eventType === 'QUIZ_FINISHED') {
+      // 🔥 FastAPI 서버에 reset 메시지 전송 (게임 종료 시 프레임 버퍼 정리)
+      try {
+        if (quizFastApi.getStatus() === 'Connected') {
+          quizFastApi.sendReset();
+          console.log('[QuizGame] 🧹 게임 종료 - FastAPI 프레임 버퍼 리셋 완료');
+        }
+      } catch (error) {
+        console.error('[QuizGame] ❌ FastAPI 리셋 실패:', error);
+      }
+
       // Remote feeds 정리
       if (remoteFeedsRef.current) {
         Object.values(remoteFeedsRef.current).forEach(feed => {
@@ -965,8 +985,11 @@ const QuizGamePage = () => {
           return;
         }
 
+        // 환경 변수에서 Janus 서버 URL 가져오기
+        const JANUS_SERVER = import.meta.env.VITE_JANUS_SERVER || 'https://janus.jsflux.co.kr/janus';
+        
         janusRef.current = new window.Janus({
-          server: 'https://localhost:8443/janus',
+          server: JANUS_SERVER,
           success: function () {
             console.log('✅ Janus 서버 연결 성공');
 

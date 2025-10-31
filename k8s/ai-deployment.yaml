@@ -84,10 +84,10 @@ spec:
         resources:
           requests:
             cpu: "500m"     # 0.5 vCPU
-            memory: "1Gi"   # 1 GiB
+            memory: "2Gi"   # 2 GiB (MediaPipe 모델 로딩 고려)
           limits:
-            cpu: "1"        # 1 vCPU
-            memory: "2Gi"   # 2 GiB
+            cpu: "2"        # 2 vCPU (추론 성능 향상)
+            memory: "4Gi"   # 4 GiB (OOMKilled 방지, 적정 수준)
         
         # Readiness Probe (트래픽 받을 준비 확인)
         readinessProbe:

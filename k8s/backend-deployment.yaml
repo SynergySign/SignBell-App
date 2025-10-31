@@ -15,6 +15,8 @@ spec:
       labels:
         app: signbell-backend
     spec:
+      imagePullSecrets:
+      - name: ecr-registry-secret
       containers:
       - name: signbell-backend
         # 이미지는 Jenkins Pipeline에서 동적으로 업데이트
@@ -128,6 +130,18 @@ spec:
             configMapKeyRef:
               name: signbell-config
               key: API_REQUEST_URL
+        
+        # CORS 및 WebSocket 오리진 설정
+        - name: FRONTEND_ORIGIN
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: FRONTEND_ORIGIN
+        - name: BACKEND_ORIGIN
+          valueFrom:
+            configMapKeyRef:
+              name: signbell-config
+              key: BACKEND_ORIGIN
         
         # 리소스 요청 및 제한 설정 (t3.micro 노드 고려)
         resources:

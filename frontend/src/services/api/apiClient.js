@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/auth/authStore.js'
 // - baseURL: 프론트에서는 /api 로 호출 → vite 프록시가 백엔드로 전달
 // - withCredentials: HTTP-Only 쿠키를 자동으로 포함/수신
 const apiClient = axios.create({
-  baseURL: '/api',
+  baseURL: 'https://api.signbell.app/api',  // 절대 URL로 변경
   withCredentials: true,
 });
 
@@ -55,7 +55,7 @@ apiClient.interceptors.response.use(
       }
 
       // ✅ 변경된 부분: Promise 체인을 무기한 중단하여 에러 전파를 막습니다.
-      return new Promise(() => {}); // 절대 resolve/reject 되지 않는 Pending Promise 반환
+      return new Promise(() => { }); // 절대 resolve/reject 되지 않는 Pending Promise 반환
     }
     // ====================================================================
 
@@ -114,7 +114,7 @@ apiClient.interceptors.response.use(
       }
 
       // ✅ 변경된 부분: Promise 체인을 무기한 중단하여 에러 전파를 막습니다.
-      return new Promise(() => {}); // 절대 resolve/reject 되지 않는 Pending Promise 반환
+      return new Promise(() => { }); // 절대 resolve/reject 되지 않는 Pending Promise 반환
     }
   }
 );
