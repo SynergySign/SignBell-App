@@ -20,9 +20,10 @@ export const useWaitingRoomWebSocket = ({
   onRoomClosed,
   onError,
 }) => {
-  const hasJoinedRef = useRef(false); // 🆕 중복 입장 방지
+  const hasJoinedRef = useRef(false); // 중복 입장 방지
+  const isConnectingRef = useRef(false); // 연결 중 플래그
   
-  // 🆕 콜백 함수들을 ref로 저장 (무한 루프 방지)
+  // 콜백 함수들을 ref로 저장 (무한 루프 방지)
   const callbacksRef = useRef({
     onRoomJoin,
     onParticipantEvent,
@@ -31,7 +32,7 @@ export const useWaitingRoomWebSocket = ({
     onError,
   });
 
-  // 🆕 콜백 함수들 업데이트
+  // 콜백 함수들 업데이트
   useEffect(() => {
     callbacksRef.current = {
       onRoomJoin,
@@ -49,15 +50,28 @@ export const useWaitingRoomWebSocket = ({
       return;
     }
 
-    // 🆕 이미 입장했으면 스킵
-    if (hasJoinedRef.current) {
+    // 🔥 이미 연결 중이면 스킵
+    if (isConnectingRef.current) {
+      console.log('⏳ WebSocket 연결 중... 대기');
+      return;
+    }
+
+    // 🔥 이미 입장했고 연결되어 있으면 스킵
+    if (hasJoinedRef.current && websocketService.isConnected()) {
       console.log('⏭️ 이미 방에 입장함 - 재입장 스킵');
       return;
     }
 
-    let isMounted = true;
+    // 🔥 게임에서 복귀한 경우 플래그 리셋
+    if (hasJoinedRef.current && !websocketService.isConnected()) {
+      console.log('🔄 게임 복귀 감지 - 재입장 플래그 리셋');
+      hasJoinedRef.current = false;
+    }
 
-    // 🆕 래퍼 함수들 (최신 콜백 참조)
+    let isMounted = true;
+    isConnectingRef.current = true;
+
+    // 래퍼 함수들 (최신 콜백 참조)
     const handleRoomJoin = (data) => callbacksRef.current.onRoomJoin(data);
     const handleParticipantEvent = (data) => callbacksRef.current.onParticipantEvent(data);
     const handleGameStart = (data) => callbacksRef.current.onGameStart(data);
@@ -77,12 +91,15 @@ export const useWaitingRoomWebSocket = ({
         setTimeout(() => {
           if (isMounted && !isNavigatingToGameRef.current) {
             websocketService.joinRoom(Number(roomId));
-            hasJoinedRef.current = true; // 🆕 입장 완료 표시
+            hasJoinedRef.current = true;
+            isConnectingRef.current = false;
+            console.log('✅ 방 입장 완료');
           }
         }, 300);
 
       } catch (error) {
         console.error('❌ WebSocket 연결 실패:', error);
+        isConnectingRef.current = false;
         alert('연결 실패: ' + error.message);
       }
     };
@@ -91,13 +108,14 @@ export const useWaitingRoomWebSocket = ({
 
     return () => {
       isMounted = false;
+      isConnectingRef.current = false;
       websocketService.off('room:join', handleRoomJoin);
       websocketService.off('participant', handleParticipantEvent);
       websocketService.off('quiz:start', handleGameStart);
       websocketService.off('room:closed', handleRoomClosed);
       websocketService.off('error', handleError);
     };
-  }, [roomId, myUserId, isAuthenticated, hasCheckedAuth]); // 🔥 콜백 함수들 제거
+  }, [roomId, myUserId, isAuthenticated, hasCheckedAuth]); // 콜백 함수들 제거
 
   // 준비 상태 전송
   const sendReady = useCallback((isReady) => {

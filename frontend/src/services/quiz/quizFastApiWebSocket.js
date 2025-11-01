@@ -92,6 +92,10 @@ export function connect(sessionId = SESSION_ID) {
   // 세션 ID 저장 (재연결에 사용)
   currentSessionId = sessionId;
 
+  // 🔥 재연결 카운트 리셋 (새로운 게임 시작)
+  reconnectAttempts = 0;
+  console.log('[QuizFastAPI] 🔄 재연결 카운트 리셋');
+
   if (socket && socket.readyState === WebSocket.OPEN) {
     console.log('[QuizFastAPI] Already connected');
     return socket;

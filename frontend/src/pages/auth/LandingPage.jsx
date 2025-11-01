@@ -26,7 +26,6 @@ const LandingPage = () => {
 
   // 이미 로그인 상태면 홈으로 이동
   useEffect(() => {
-    console.log('isAuthenticated:', isAuthenticated);
     if (isAuthenticated) {
       navigate('/main', {replace: true}); // Router.jsx에 '/main'이 있으므로 이동
     }
@@ -42,8 +41,6 @@ const LandingPage = () => {
   }, []);
 
   const handleKakaoLogin = () => {
-    console.log('카카오 로그인 클릭');
-    
     // 팝업으로 OAuth2 로그인 시작
     const width = 500;
     const height = 600;
@@ -65,7 +62,6 @@ const LandingPage = () => {
     const checkPopupClosed = setInterval(() => {
       if (popup.closed) {
         clearInterval(checkPopupClosed);
-        console.log('팝업이 닫혔습니다. 사용자 정보를 다시 확인합니다.');
         // 팝업이 닫히면 현재 페이지의 인증 상태를 다시 확인
         // authStore의 fetchMe는 이미 PrivateRoute나 다른 곳에서 호출될 것
       }

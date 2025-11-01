@@ -5,7 +5,7 @@ import { useState, useCallback, useMemo } from 'react';
  */
 export const useQuizGame = () => {
   const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [totalQuestions, setTotalQuestions] = useState(8);
+  const [totalQuestions, setTotalQuestions] = useState(5);
   const [currentWord, setCurrentWord] = useState('');
   const [timer, setTimer] = useState(10);
   const [isTimerActive, setIsTimerActive] = useState(true);

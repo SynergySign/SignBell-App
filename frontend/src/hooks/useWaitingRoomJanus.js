@@ -105,9 +105,50 @@ export const useWaitingRoomJanus = ({
       return;
     }
 
+    // 🔥 이미 연결되어 있으면 재연결 스킵 (중복 연결 방지)
     if (isJanusConnected && janusRef.current && pluginHandleRef.current) {
       console.log('✅ Janus 이미 연결됨 - 재연결 스킵');
       return;
+    }
+
+    // 🔥 기존 연결이 있으면 완전히 정리 후 재연결
+    if (janusRef.current || pluginHandleRef.current) {
+      console.log('🧹 기존 Janus 연결 정리 후 재연결');
+      
+      if (remoteFeedsRef.current) {
+        Object.values(remoteFeedsRef.current).forEach(feed => {
+          try {
+            if (feed && typeof feed.detach === 'function') {
+              feed.detach();
+            }
+          } catch (error) {
+            console.error('❌ Remote feed detach 실패:', error);
+          }
+        });
+        remoteFeedsRef.current = {};
+      }
+
+      if (pluginHandleRef.current) {
+        try {
+          pluginHandleRef.current.detach();
+        } catch (error) {
+          console.error('❌ Plugin detach 실패:', error);
+        }
+        pluginHandleRef.current = null;
+      }
+
+      if (janusRef.current) {
+        try {
+          janusRef.current.destroy();
+        } catch (error) {
+          console.error('❌ Janus destroy 실패:', error);
+        }
+        janusRef.current = null;
+      }
+
+      setRemoteStreams({});
+      userIdToFeedIdRef.current = {};
+      setIsJanusConnected(false);
     }
 
     const Janus = window.Janus;
@@ -115,7 +156,7 @@ export const useWaitingRoomJanus = ({
     console.log('🎥 Janus 연결 시작:', { roomId, myUserId });
 
     Janus.init({
-      debug: 'all',
+      debug: false, // 프로덕션에서는 Janus 로그 비활성화
       callback: function () {
         console.log('✅ Janus 초기화 완료');
 
@@ -213,7 +254,12 @@ export const useWaitingRoomJanus = ({
 
         // 🔥 내 스트림 publish (약간의 지연 후)
         setTimeout(() => {
-          publishOwnFeed();
+          // 🔥 pluginHandle이 여전히 유효한지 확인
+          if (pluginHandleRef.current) {
+            publishOwnFeed();
+          } else {
+            console.warn('⚠️ pluginHandle이 정리됨 - publish 스킵');
+          }
         }, 100);
 
         if (msg['publishers']) {
@@ -227,10 +273,10 @@ export const useWaitingRoomJanus = ({
             if (userId !== myUserId) {
               userIdToFeedIdRef.current[userId] = publisher.id;
               
-              // 🔥 순차적으로 구독 (100ms 간격)
+              // 🔥 순차적으로 구독 (150ms 간격으로 증가)
               setTimeout(() => {
                 subscribeToFeed(publisher.id, userId);
-              }, index * 100);
+              }, index * 150);
             } else {
               console.log('⏭️ 자기 자신은 구독 스킵');
             }
@@ -301,6 +347,12 @@ export const useWaitingRoomJanus = ({
     function publishOwnFeed() {
       console.log('📤 내 스트림 publish 시작');
 
+      // 🔥 pluginHandle이 null이면 중단
+      if (!pluginHandleRef.current) {
+        console.error('❌ pluginHandle이 null입니다 - publish 중단');
+        return;
+      }
+
       pluginHandleRef.current.createOffer({
         stream: stream,
         media: {
@@ -367,10 +419,21 @@ export const useWaitingRoomJanus = ({
           }
         },
         onremotestream: function (remoteStream) {
-          console.log('✅ 원격 스트림 수신:', { feedId, userId });
+          console.log('✅ 원격 스트림 수신:', { 
+            feedId, 
+            userId,
+            streamId: remoteStream.id,
+            active: remoteStream.active,
+            tracks: remoteStream.getTracks().map(t => ({ 
+              kind: t.kind, 
+              enabled: t.enabled,
+              readyState: t.readyState 
+            }))
+          });
+          
           remoteFeedsRef.current[feedId] = remoteFeed;
           
-          // 🔥 스트림 수신 후 즉시 키프레임 요청
+          // 🔥 스트림 수신 후 키프레임 요청 (품질 향상)
           setTimeout(() => {
             if (remoteFeed && remoteFeed.send) {
               try {
@@ -388,10 +451,15 @@ export const useWaitingRoomJanus = ({
             }
           }, 500);
           
-          setRemoteStreams((prev) => ({
-            ...prev,
-            [userId]: remoteStream,
-          }));
+          // 🔥 스트림 상태 업데이트
+          setRemoteStreams((prev) => {
+            const updated = {
+              ...prev,
+              [userId]: remoteStream,
+            };
+            console.log('📹 Remote streams 업데이트:', Object.keys(updated));
+            return updated;
+          });
         },
       });
     }
@@ -402,16 +470,53 @@ export const useWaitingRoomJanus = ({
         return;
       }
 
-      console.log('🧹 Janus 연결 정리');
+      console.log('🧹 Janus 연결 정리 시작');
+      
+      // 🔥 상태를 먼저 초기화하여 새로운 연결 시도 차단
+      setIsJanusConnected(false);
+      
+      // 🔥 Remote feeds 정리
+      if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
+        console.log('🔌 Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
+        Object.values(remoteFeedsRef.current).forEach(feed => {
+          try {
+            if (feed && typeof feed.detach === 'function') {
+              feed.detach();
+            }
+          } catch (error) {
+            console.error('❌ Remote feed detach 실패:', error);
+          }
+        });
+        remoteFeedsRef.current = {};
+      }
+
+      // 🔥 Publisher plugin 정리
+      if (pluginHandleRef.current) {
+        console.log('🔌 Publisher plugin 정리');
+        try {
+          pluginHandleRef.current.detach();
+        } catch (error) {
+          console.error('❌ Plugin detach 실패:', error);
+        }
+        pluginHandleRef.current = null;
+      }
+
+      // 🔥 Janus 세션 종료
       if (janusRef.current) {
-        janusRef.current.destroy();
+        console.log('🔌 Janus 세션 종료');
+        try {
+          janusRef.current.destroy();
+        } catch (error) {
+          console.error('❌ Janus destroy 실패:', error);
+        }
         janusRef.current = null;
       }
-      pluginHandleRef.current = null;
-      remoteFeedsRef.current = {};
+
+      // 🔥 상태 초기화
       userIdToFeedIdRef.current = {};
-      setIsJanusConnected(false);
       setRemoteStreams({});
+      
+      console.log('✅ Janus 연결 정리 완료');
     };
   }, [
     myUserId,

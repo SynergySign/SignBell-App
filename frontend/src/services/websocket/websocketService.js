@@ -201,11 +201,15 @@ class WebSocketService {
       throw new Error('WebSocket이 연결되어 있지 않습니다.');
     }
 
+    console.log('🎮 게임 토픽 구독 시작 - roomId:', roomId);
+
     // 게임 시작 알림 (대기실에서 이미 구독했으므로 중복 구독 방지)
     if (!this.subscriptions.has(`/topic/room/${roomId}/quiz/start`)) {
       this.subscribe(`/topic/room/${roomId}/quiz/start`, (message) => {
         this.handleMessage('quiz:start', message);
       });
+    } else {
+      console.log('⏭️ quiz/start 이미 구독 중 - 스킵');
     }
 
     // 문제 출제
@@ -334,20 +338,28 @@ class WebSocketService {
    * @param {number} roomId - 방 ID
    */
   unsubscribeFromGameTopics(roomId) {
+    console.log('🧹 게임 토픽 구독 해제 시작 - roomId:', roomId);
+    
     const gameTopics = [
-      `/topic/room/${roomId}/quiz/start`,
       `/topic/room/${roomId}/quiz/question`,
+      `/topic/room/${roomId}/quiz`,
       `/topic/room/${roomId}/quiz/challenge`,
       `/topic/room/${roomId}/quiz/challenger`,
       `/topic/room/${roomId}/quiz/timer`,
       `/topic/room/${roomId}/quiz/answer`,
       `/topic/room/${roomId}/quiz/result`,
       `/topic/room/${roomId}/quiz/return`
+      // 🔥 quiz/start는 대기실에서도 필요하므로 해제하지 않음
     ];
 
     gameTopics.forEach(topic => {
-      this.unsubscribe(topic);
+      if (this.subscriptions.has(topic)) {
+        this.unsubscribe(topic);
+        console.log('✅ 구독 해제:', topic);
+      }
     });
+    
+    console.log('✅ 게임 토픽 구독 해제 완료');
   }
 
   /**

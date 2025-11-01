@@ -76,15 +76,15 @@ public class QuizService {
 
                 // 4. 퀴즈 단어 개수 확인
                 long quizWordCount = quizWordRepository.count();
-                if (quizWordCount < 8) {
+                if (quizWordCount < 5) {
                         throw new BusinessException(ErrorCode.WORD_LIST_EMPTY);
                 }
 
-                // 4. 랜덤 퀴즈 단어 8개 선택
+                // 4. 랜덤 퀴즈 단어 5개 선택
                 List<QuizWord> allQuizWords = quizWordRepository.findAll();
                 Collections.shuffle(allQuizWords);
                 List<QuizWord> selectedWords = allQuizWords.stream()
-                                .limit(8)
+                                .limit(5)
                                 .collect(Collectors.toList());
 
                 // 5. 캐시 초기화 및 문제 저장
@@ -119,7 +119,7 @@ public class QuizService {
                 QuizWord firstQuiz = selectedWords.get(0);
                 QuizStartResponse response = QuizStartResponse.builder()
                                 .questionNumber(1)
-                                .totalQuestions(8)
+                                .totalQuestions(5)
                                 .wordTitle(firstQuiz.getSign().getTitle())
                                 .participants(participantResponses)
                                 .myUserId(userId) // 요청한 사용자 ID (방장)
@@ -136,7 +136,7 @@ public class QuizService {
                 startChallengeTimer(roomId, 1);
 
                 return GameStartResponse.builder()
-                                .totalQuestions(8)
+                                .totalQuestions(5)
                                 .build();
         }
 
@@ -640,7 +640,7 @@ public class QuizService {
          * 문제 번호 유효성 검증
          */
         private void validateQuestionNumber(Integer questionNumber) {
-                if (questionNumber == null || questionNumber < 1 || questionNumber > 8) {
+                if (questionNumber == null || questionNumber < 1 || questionNumber > 5) {
                         throw new BusinessException(ErrorCode.INVALID_QUESTION_NUMBER);
                 }
         }

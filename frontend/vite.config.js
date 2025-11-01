@@ -9,6 +9,11 @@ export default defineConfig({
       mkcert()
   ],
 
+  // 프로덕션 빌드 시 console.log 제거
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
+
   // CSS 설정
   css: {
     modules: {

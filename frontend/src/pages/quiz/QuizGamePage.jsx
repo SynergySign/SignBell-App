@@ -686,7 +686,7 @@ const QuizGamePage = () => {
       console.log('✅ 녹화 중단 완료');
     }
 
-    // 0-1. FastAPI WebSocket 연결 해제
+    // 2. FastAPI WebSocket 연결 해제
     try {
       quizFastApi.disconnect();
       fastApiConnectedRef.current = false;
@@ -696,16 +696,15 @@ const QuizGamePage = () => {
       console.error('❌ FastAPI 연결 해제 실패:', error);
     }
 
-    // 1. WebRTC 연결 완전 정리
+    // 3. WebRTC 연결 완전 정리
     console.log('🧹 대기실 복귀 - WebRTC 연결 완전 정리 시작');
 
-    // 1-1. Remote feeds 정리
+    // 3-1. Remote feeds 정리
     if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
-      console.log('⚠️ Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
+      console.log('🔌 Remote feeds 정리:', Object.keys(remoteFeedsRef.current).length);
       Object.values(remoteFeedsRef.current).forEach(feed => {
         try {
           if (feed && typeof feed.detach === 'function') {
-            console.log('🔌 Remote feed detach');
             feed.detach();
           }
         } catch (error) {
@@ -715,11 +714,11 @@ const QuizGamePage = () => {
       remoteFeedsRef.current = {};
     }
 
-    // 1-2. Publisher (내 플러그인 핸들) 정리 - Janus 방 떠나기
+    // 3-2. Publisher (내 플러그인 핸들) 정리 - Janus 방 떠나기
     if (pluginHandleRef.current) {
       console.log('🔌 Publisher plugin - Janus 방 떠나기');
       try {
-        // 🆕 Janus 방을 명시적으로 떠나기 (Promise로 처리)
+        // Janus 방을 명시적으로 떠나기 (Promise로 처리)
         await new Promise((resolve) => {
           const leave = { request: 'leave' };
           pluginHandleRef.current.send({
@@ -746,7 +745,7 @@ const QuizGamePage = () => {
       }
     }
 
-    // 1-3. Janus 연결 종료
+    // 3-3. Janus 연결 종료
     if (janusRef.current) {
       console.log('🔌 Janus 연결 종료');
       try {
@@ -757,7 +756,7 @@ const QuizGamePage = () => {
       janusRef.current = null;
     }
 
-    // 1-4. 상태 초기화
+    // 3-4. 상태 초기화
     setRemoteStreams({});
     setIsJanusConnected(false);
     if (userIdToFeedIdRef.current) {
@@ -766,15 +765,18 @@ const QuizGamePage = () => {
 
     console.log('✅ 대기실 복귀 - WebRTC 연결 완전 정리 완료');
 
-    // 2. 바로 대기실로 이동 (WebSocket 재연결을 통해 참가자 정보 받음)
-    console.log('🚪 대기실 페이지로 즉시 이동');
+    // 4. 웹캠 상태 유지 (끄지 않음)
+    console.log('📹 웹캠 상태 유지 - isWebcamOn:', isWebcamOn);
+
+    // 5. 대기실로 이동 (WebSocket은 유지, Janus만 재연결)
+    console.log('🚪 대기실 페이지로 이동');
     navigate(`/quiz/waiting/${roomId}`, {
       state: {
         returnFromGame: true,
-        needsRejoin: true // 🆕 재입장 필요 플래그
+        needsRejoin: true // 재입장 필요 플래그
       }
     });
-  }, [navigate, roomId]);
+  }, [navigate, roomId, remoteFeedsRef, pluginHandleRef, janusRef, setRemoteStreams, setIsJanusConnected, userIdToFeedIdRef, isWebcamOn]);
 
   // 대기실 복귀 이벤트 핸들러 (WebSocket 메시지 수신 시) - 사용하지 않음
   const handleReturnToWaiting = useCallback((data) => {
@@ -800,11 +802,20 @@ const QuizGamePage = () => {
     onError: handleError,
   });
 
-  // 🔥 FastAPI WebSocket 연결 (한 번만! 컴포넌트 전체 생명주기 동안 유지)
+  // 🔥 FastAPI WebSocket 연결 (컴포넌트 마운트 시마다 실행)
   useEffect(() => {
-    // 이미 연결되어 있으면 중복 연결 방지
-    if (fastApiConnectedRef.current) {
-      return;
+    console.log('[QuizGame] 🔌 FastAPI 연결 시작');
+    
+    // 🔥 기존 연결 상태 확인
+    const currentStatus = quizFastApi.getStatus();
+    console.log('[QuizGame] 현재 FastAPI 상태:', currentStatus);
+    
+    // 🔥 이미 연결되어 있으면 기존 연결 해제 후 재연결
+    if (currentStatus === 'Connected' || currentStatus === 'Connecting') {
+      console.log('[QuizGame] 기존 연결 해제 후 재연결');
+      quizFastApi.disconnect();
+      fastApiConnectedRef.current = false;
+      metaSentRef.current = false;
     }
 
     // 세션 ID 생성
@@ -858,7 +869,7 @@ const QuizGamePage = () => {
       }
     });
 
-    // 🔥 컴포넌트 완전히 언마운트될 때만 연결 해제
+    // 🔥 컴포넌트 언마운트 시 연결 해제
     return () => {
       console.log('[QuizGame] 🔌 컴포넌트 언마운트 - FastAPI 연결 해제');
       unsubscribeStatus();
@@ -867,7 +878,7 @@ const QuizGamePage = () => {
       fastApiConnectedRef.current = false;
       metaSentRef.current = false;
     };
-  }, []);  // 🔥 빈 배열! = 마운트 시 1회만 실행
+  }, [roomId, myUserId]);  // 🔥 roomId, myUserId 변경 시마다 재연결
 
   // 🔥 내 차례가 되면 메타데이터 전송 (연결은 유지하고 메타만 전송)
   useEffect(() => {
@@ -877,21 +888,34 @@ const QuizGamePage = () => {
       // 🔥 현재 문제 번호 ref 업데이트
       currentQuestionRef.current = gameState.currentQuestion;
 
+      // 🔥 연결 완료까지 대기하는 함수
+      let retryCount = 0;
+      const maxRetries = 10; // 최대 10초 대기
+      
+      const waitForConnection = () => {
+        const currentStatus = quizFastApi.getStatus();
+        console.log(`[QuizGame] FastAPI 연결 대기 중... (${retryCount + 1}/${maxRetries}) - 상태: ${currentStatus}`);
+        
+        if (currentStatus === 'Connected') {
+          console.log('[QuizGame] ✅ FastAPI 연결 완료 - 메타 전송');
+          quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
+          metaSentRef.current = true;
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(waitForConnection, 1000);
+        } else {
+          console.error('[QuizGame] ❌ FastAPI 연결 타임아웃 - 메타 전송 실패');
+          gameState.showToast('AI 서버 연결 실패', 'error');
+        }
+      };
+
       // 연결 상태 확인
       if (fastApiStatus === 'Connected') {
         quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
         metaSentRef.current = true;
       } else {
-        // 연결이 안 되어 있으면 잠시 후 재시도
-        console.log('[QuizGame] FastAPI 연결 대기 중...');
-        const retryTimer = setTimeout(() => {
-          if (quizFastApi.getStatus() === 'Connected') {
-            quizFastApi.sendMeta(gameState.currentQuestion, gameState.currentWord);
-            metaSentRef.current = true;
-          }
-        }, 1000);
-
-        return () => clearTimeout(retryTimer);
+        // 연결이 안 되어 있으면 대기
+        waitForConnection();
       }
     }
   }, [gameState.gamePhase, gameState.currentWord, gameState.currentQuestion, fastApiStatus]);

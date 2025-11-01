@@ -94,6 +94,13 @@ export const useWaitingRoom = () => {
 
   // 초기 참가자 설정
   const setInitialParticipants = useCallback((participantsList, myUserId, isWebcamOn) => {
+    console.log('👥 초기 참가자 설정:', {
+      count: participantsList.length,
+      myUserId,
+      isWebcamOn,
+      participants: participantsList.map(p => ({ userId: p.userId, nickname: p.nickname }))
+    });
+    
     const formattedParticipants = participantsList.map(p => ({
       id: p.userId,
       userId: p.userId,
@@ -103,8 +110,16 @@ export const useWaitingRoom = () => {
       isMe: p.userId === myUserId,
       isHost: p.host,
       isReady: p.ready,
+      // 🔥 본인은 현재 웹캠 상태, 다른 사람은 off로 시작 (Janus 연결 후 업데이트)
       webcamStatus: p.userId === myUserId ? (isWebcamOn ? 'on' : 'off') : 'off'
     }));
+    
+    console.log('✅ 참가자 포맷 완료:', formattedParticipants.map(p => ({
+      userId: p.userId,
+      nickname: p.nickname,
+      webcamStatus: p.webcamStatus
+    })));
+    
     setParticipants(formattedParticipants);
   }, []);
 

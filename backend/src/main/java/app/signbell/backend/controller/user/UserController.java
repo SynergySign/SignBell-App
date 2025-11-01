@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -65,11 +66,16 @@ public class UserController {
     }
 
     @PutMapping("/me/agreement")
-    public ResponseEntity<?> updateAgreement(@AuthenticationPrincipal String subject) {
-        log.info("PUT /api/users/me/agreement called with subject: {}", subject);
+    public ResponseEntity<?> updateAgreement(
+            @AuthenticationPrincipal String subject,
+            @org.springframework.web.bind.annotation.RequestBody app.signbell.backend.dto.request.AgreementUpdateRequest request) {
+        log.info("PUT /api/users/me/agreement called with subject: {}, request: {}", subject, request);
         try {
             // subject는 userId
-            UserResponse dto = userService.updateUserAgreement(Long.valueOf(subject));
+            UserResponse dto = userService.updateUserAgreement(
+                    Long.valueOf(subject), 
+                    request.getRequiredAgree(), 
+                    request.getOptionalAgree());
 
             ApiResponse<UserResponse> apiResponse = ApiResponse.success("사용자의 약관 동의 여부가 성공적으로 수정되었습니다.", dto);
 
@@ -85,6 +91,33 @@ public class UserController {
             return ResponseEntity.internalServerError().body(ApiResponse.<UserResponse>builder()
                     .success(false)
                     .message("약관 동의 업데이트 중 오류가 발생했습니다.")
+                    .build());
+        }
+    }
+
+    /**
+     * 개인학습 데이터 제공 시 10점 지급
+     */
+    @PostMapping("/me/learning-reward")
+    public ResponseEntity<?> addLearningReward(@AuthenticationPrincipal String subject) {
+        log.info("POST /api/users/me/learning-reward called with subject: {}", subject);
+        try {
+            Long userId = Long.valueOf(subject);
+            UserResponse dto = userService.addLearningReward(userId);
+            
+            ApiResponse<UserResponse> apiResponse = ApiResponse.success("학습 데이터 제공 보상 10점이 지급되었습니다.", dto);
+            return ResponseEntity.ok(apiResponse);
+        } catch (NumberFormatException e) {
+            log.error("Invalid subject format: {}", subject, e);
+            return ResponseEntity.badRequest().body(ApiResponse.<UserResponse>builder()
+                    .success(false)
+                    .message("잘못된 사용자 ID 형식입니다.")
+                    .build());
+        } catch (Exception e) {
+            log.error("Error in /api/users/me/learning-reward", e);
+            return ResponseEntity.internalServerError().body(ApiResponse.<UserResponse>builder()
+                    .success(false)
+                    .message("보상 지급 중 오류가 발생했습니다.")
                     .build());
         }
     }

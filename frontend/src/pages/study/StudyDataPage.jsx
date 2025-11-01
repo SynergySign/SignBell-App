@@ -74,15 +74,27 @@ const StudyDataPage = () => {
     if (wordId) loadWordData();
   }, [wordId]);
 
-  // [수정] WebSocket 메시지 리스너 (스피너/성공 상태 제어)
+  // [수정] WebSocket 메시지 리스너 (스피너/성공 상태 제어 + 10점 지급)
   useEffect(() => {
     const offStatus = wsOnStatus((s) => setWsStatus(s));
 
-    const offMsg = wsOnMessage((m) => {
+    const offMsg = wsOnMessage(async (m) => {
       if (m && m.type === 'learning_ack') {
         setIsSaving(false); // 스피너 중지
         if (m.status === 'accepted') {
           setSaveSuccess(true); // 성공 상태 (폭죽!)
+          
+          // 🎁 10점 지급 API 호출
+          try {
+            const apiClient = (await import('../../services/api/apiClient.js')).default;
+            await apiClient.post('/users/me/learning-reward');
+            
+            // 사용자 정보 갱신 (점수 반영)
+            const { refreshMeSilent } = (await import('../../store/auth/authStore.js')).useAuthStore.getState();
+            await refreshMeSilent();
+          } catch (error) {
+            console.error('보상 지급 실패:', error);
+          }
         } else {
           setSaveSuccess(false);
           alert('데이터 제공에 실패했습니다. 다시 시도해주세요.');

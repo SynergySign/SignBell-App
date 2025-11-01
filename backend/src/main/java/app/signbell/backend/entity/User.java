@@ -53,9 +53,23 @@ public class User {
     /**
      * 프로필 이미지 URL
      */
-    @Setter
     @Column
     private String profileImageUrl;
+    
+    /**
+     * 프로필 이미지 URL을 HTTPS로 변환하여 반환
+     * Mixed Content 경고 방지
+     */
+    public String getProfileImageUrl() {
+        if (profileImageUrl != null && profileImageUrl.startsWith("http://")) {
+            return profileImageUrl.replace("http://", "https://");
+        }
+        return profileImageUrl;
+    }
+    
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
 
     /**
      * OAuth 공급자 (로그인 방식)

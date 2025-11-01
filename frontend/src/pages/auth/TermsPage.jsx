@@ -69,15 +69,18 @@ const TermsPage = () => {
 
   // 마이페이지에서 온 경우 필수 약관은 항상 체크 상태 유지
   useEffect(() => {
-    if (fromMyPage) {
-      setAgreements(prev => ({
-        ...prev,
-        required: true, // 필수 약관은 항상 true
-        // 마이페이지에서 온 경우에도 user 객체의 optionalAgree 상태를 반영합니다.
-        optional: user?.optionalAgree ?? false,
-      }));
+    if (fromMyPage && user) {
+      console.log('📝 마이페이지에서 진입 - 약관 상태 초기화:', {
+        requiredAgree: user.requiredAgree,
+        optionalAgree: user.optionalAgree
+      });
+      
+      setAgreements({
+        required: true, // 필수 약관은 항상 true (마이페이지에서는 수정 불가)
+        optional: user.optionalAgree ?? false, // 서버에서 받은 선택 약관 상태
+      });
     }
-  }, [fromMyPage, user]); // user 객체를 의존성 배열에 추가합니다.
+  }, [fromMyPage, user?.optionalAgree]); // 🔥 user 전체가 아닌 optionalAgree만 의존성으로 추가
   const [modalState, setModalState] = useState({
     isOpen: false,
     title: '',
@@ -88,9 +91,11 @@ const TermsPage = () => {
   const handleToggle = (key) => {
     // 마이페이지에서 온 경우 필수 약관은 수정 불가
     if (fromMyPage && key === 'required') {
+      console.log('⚠️ 마이페이지에서는 필수 약관 수정 불가');
       return;
     }
 
+    console.log(`🔄 약관 토글: ${key} = ${!agreements[key]}`);
     setAgreements(prev => ({
       ...prev,
       [key]: !prev[key]
@@ -142,6 +147,7 @@ const TermsPage = () => {
     console.log('=== handleSubmit called ===');
     console.log('user:', user);
     console.log('user?.userId:', user?.userId);
+    console.log('agreements:', agreements);
     
     if (!user?.userId) {
       console.error('User ID not found, calling fetchMe()');
@@ -158,15 +164,21 @@ const TermsPage = () => {
     setIsSubmitting(true);
     try {
       console.log('Calling API: PUT /users/me/agreement');
-      const response = await apiClient.put('/users/me/agreement');
+      
+      // 🔥 약관 동의 상태를 body에 포함하여 전송
+      const response = await apiClient.put('/users/me/agreement', {
+        requiredAgree: agreements.required,
+        optionalAgree: agreements.optional
+      });
 
       console.log('약관 동의 성공:', response.data);
-      // 사용자 정보 갱신
+      
+      // 🔥 사용자 정보 갱신 (서버에서 최신 상태 가져오기)
       await refreshMeSilent();
       
       if (fromMyPage) {
         // 마이페이지에서 온 경우: 약관 동의 상태 업데이트 후 마이페이지로 돌아가기
-        console.log('약관 동의 수정', agreements);
+        console.log('약관 동의 수정 완료', agreements);
         navigate('/mypage');
       } else {
         // 최초 가입 시: 팝업 창이면 부모 창으로 메인 이동 후 팝업 닫기

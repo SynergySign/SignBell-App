@@ -121,6 +121,12 @@ const QuizWaitingRoom = () => {
         const leftUserId = eventData.participant.userId;
         console.log('👋 참가자 퇴장:', eventData.participant);
 
+        // 🔥 본인이 퇴장한 경우 무시 (이미 정리 중)
+        if (leftUserId === myUserId) {
+          console.log('⏭️ 본인 퇴장 이벤트 무시');
+          return;
+        }
+
         if (eventData.roomClosed) {
           console.log('🚪 방장이 나가 방이 종료됨');
           setShowRoomClosedAlert(true);
@@ -158,6 +164,13 @@ const QuizWaitingRoom = () => {
 
       case 'PARTICIPANT_READY_UPDATED': {
         console.log('✅ 준비 상태 변경:', eventData);
+        
+        // 🔥 본인의 준비 상태 업데이트는 무시 (로컬에서 이미 처리)
+        if (eventData.userId === myUserId) {
+          console.log('⏭️ 본인 준비 상태 업데이트 무시 (로컬에서 처리됨)');
+          return;
+        }
+        
         const updatedReady = eventData.isReady ?? eventData.ready ?? false;
         updateParticipantReady(eventData.userId, updatedReady);
         break;
@@ -188,7 +201,7 @@ const QuizWaitingRoom = () => {
       const myUserIdToPass = gameData?.myUserId || myUserId;
 
       const stateToPass = {
-        totalQuestions: gameData?.totalQuestions || 8,
+        totalQuestions: gameData?.totalQuestions || 5,
         firstQuestion: gameData?.questionNumber || 1,
         firstWord: gameData?.wordTitle || '문제',
         participants: participantsToPass,
@@ -363,61 +376,69 @@ const QuizWaitingRoom = () => {
   // 게임에서 돌아올 때 처리
   useEffect(() => {
     if (location.state?.returnFromGame) {
-      console.log('🔄 게임에서 복귀 감지');
+      console.log('🔄 게임에서 복귀 감지 - 완전한 재초기화 시작');
 
-      // 🔥 Janus 연결 상태 먼저 초기화 (재연결 가능하도록)
+      // 🔥 1. 상태를 먼저 초기화 (새로운 연결 시도 차단)
       setIsJanusConnected(false);
-
-      // Remote streams 강제 초기화
       setRemoteStreams({});
 
-      // Remote feeds 정리
-      if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
-        Object.values(remoteFeedsRef.current).forEach(feed => {
-          try {
-            if (feed && typeof feed.detach === 'function') {
-              feed.detach();
+      // 🔥 2. Janus 완전 정리
+      if (janusRef.current || pluginHandleRef.current) {
+        console.log('🧹 기존 Janus 연결 완전 정리');
+        
+        // Remote feeds 정리
+        if (remoteFeedsRef.current && Object.keys(remoteFeedsRef.current).length > 0) {
+          Object.values(remoteFeedsRef.current).forEach(feed => {
+            try {
+              if (feed && typeof feed.detach === 'function') {
+                feed.detach();
+              }
+            } catch (error) {
+              console.error('❌ Remote feed detach 실패:', error);
             }
+          });
+          remoteFeedsRef.current = {};
+        }
+
+        // Publisher plugin 정리
+        if (pluginHandleRef.current) {
+          try {
+            pluginHandleRef.current.detach();
           } catch (error) {
-            console.error('❌ Remote feed detach 실패:', error);
+            console.error('❌ Plugin detach 실패:', error);
           }
-        });
-        remoteFeedsRef.current = {};
+          pluginHandleRef.current = null;
+        }
+
+        // Janus 세션 종료
+        if (janusRef.current) {
+          try {
+            janusRef.current.destroy();
+          } catch (error) {
+            console.error('❌ Janus destroy 실패:', error);
+          }
+          janusRef.current = null;
+        }
       }
 
-      // UserID to FeedID 매핑 초기화
+      // 🔥 3. 매핑 초기화
       if (userIdToFeedIdRef.current) {
         userIdToFeedIdRef.current = {};
       }
 
-      // 🔥 프론트엔드 상태: 방장 제외한 모든 참가자의 레디 상태 해제
+      // 🔥 4. 프론트엔드 상태: 방장 제외한 모든 참가자의 레디 상태 해제
       setParticipants(prev => prev.map(p => ({
         ...p,
         isReady: p.isHost ? p.isReady : false  // 방장은 유지, 나머지는 레디 해제
       })));
 
-      // 🔥 백엔드 서버에 방 복귀 요청 (방장이면 모든 참가자 레디 초기화)
-      const me = participants.find(p => p.userId === myUserId);
-      const isHost = me?.isHost || false;
-
-      if (isHost) {
-        // 방장: returnToRoom API 호출 (백엔드에서 모든 참가자 레디 초기화)
-        console.log('🎯 방장 복귀 - 서버에 방 복귀 요청 전송 (모든 참가자 레디 초기화)');
-        websocketService.returnToRoom(Number(roomId));
-      } else {
-        // 일반 참가자: 자신의 레디만 false로 전송
-        if (sendReady) {
-          sendReady(false);
-          console.log('✅ 일반 참가자 - 서버에 레디 상태 false 전송 완료');
-        }
-      }
-
-      console.log('✅ 게임 복귀 처리 완료 - 레디 상태 초기화됨');
+      console.log('✅ 게임 복귀 처리 완료 - 완전한 재초기화 완료');
+      console.log('⏳ WebSocket 재연결 및 Janus 재연결은 자동으로 처리됩니다');
 
       // location.state 초기화
       window.history.replaceState({}, document.title);
     }
-  }, [location.state, setRemoteStreams, setIsJanusConnected, remoteFeedsRef, userIdToFeedIdRef, setParticipants, sendReady, myUserId, roomId]);
+  }, [location.state, janusRef, pluginHandleRef, remoteFeedsRef, userIdToFeedIdRef, setRemoteStreams, setIsJanusConnected, setParticipants]);
 
   // 로컬 비디오 스트림 연결
   useEffect(() => {
@@ -439,6 +460,7 @@ const QuizWaitingRoom = () => {
   // 웹캠 상태 변경 시 내 정보 업데이트
   useEffect(() => {
     if (myUserId) {
+      console.log('📹 웹캠 상태 업데이트:', { myUserId, isWebcamOn, webcamError });
       updateMyWebcamStatus(myUserId, isWebcamOn, webcamError);
     }
   }, [myUserId, isWebcamOn, webcamError, updateMyWebcamStatus]);

@@ -10,16 +10,25 @@ import { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTrophy, faMedal, faAward } from '@fortawesome/free-solid-svg-icons';
 import { RankService } from '../../services/api/rankService';
+import { useAuthStore } from '../../store/auth/authStore';
 import styles from './RankingBoard.module.scss';
 
 const RankingBoard = () => {
   const [rankings, setRankings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { isAuthenticated, hasCheckedAuth } = useAuthStore();
 
   useEffect(() => {
-    fetchRankings();
-  }, []);
+    // 인증 확인이 완료되고 로그인된 상태에서만 랭킹 조회
+    if (hasCheckedAuth && isAuthenticated) {
+      fetchRankings();
+    } else if (hasCheckedAuth && !isAuthenticated) {
+      // 로그인하지 않은 경우
+      setIsLoading(false);
+      setError('로그인이 필요합니다.');
+    }
+  }, [hasCheckedAuth, isAuthenticated]);
 
   const fetchRankings = async () => {
     try {
@@ -29,9 +38,12 @@ const RankingBoard = () => {
       const data = await RankService.getRankings();
       setRankings(data);
     } catch (err) {
-      console.error('랭킹 데이터 로드 실패:', err);
+      // 401 에러는 apiClient에서 자동으로 처리하므로 여기서는 무시
+      if (err.response?.status === 401) {
+        return;
+      }
       
-      // ErrorResponse 처리
+      // 기타 에러만 처리
       if (err.response?.data) {
         const errorData = err.response.data;
         setError(errorData.detail || errorData.error || '랭킹 정보를 불러올 수 없습니다.');

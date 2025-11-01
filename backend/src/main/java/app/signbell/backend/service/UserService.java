@@ -82,19 +82,41 @@ public class UserService {
      * @author 송민재
      * @since 2025-10-30
      */
-    public UserResponse updateUserAgreement(Long userId) {
-        log.info("Updating agreement for userId: {}", userId);
+    public UserResponse updateUserAgreement(Long userId, Boolean requiredAgree, Boolean optionalAgree) {
+        log.info("Updating agreement for userId: {}, requiredAgree: {}, optionalAgree: {}", 
+                userId, requiredAgree, optionalAgree);
         
         // 사용자 정보 조회
         User user = usersRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        // 필수 약관 동의 상태 업데이트
-        user.updateRequiredAgreement();
+        // 필수 약관 동의 상태 업데이트 (null이 아닌 경우에만)
+        if (requiredAgree != null && requiredAgree) {
+            user.updateRequiredAgreement();
+        }
+        
+        // 선택 약관 동의 상태 업데이트 (null이 아닌 경우에만)
+        user.updateOptionalAgreement(optionalAgree);
         
         // 더티 체킹으로 자동 저장됨 (@Transactional)
-        log.info("Agreement updated for userId: {}, requiredAgree: {}", userId, user.getRequiredAgree());
+        log.info("Agreement updated for userId: {}, requiredAgree: {}, optionalAgree: {}", 
+                userId, user.getRequiredAgree(), user.getOptionalAgree());
 
+        return UserResponse.from(user);
+    }
+
+    /**
+     * 개인학습 데이터 제공 시 10점 지급
+     */
+    @Transactional
+    public UserResponse addLearningReward(Long userId) {
+        User user = usersRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        
+        user.updateTotalScore(10);
+        
+        log.info("Learning reward added for userId: {}, new totalScore: {}", userId, user.getTotalScore());
+        
         return UserResponse.from(user);
     }
 }
