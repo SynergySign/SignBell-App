@@ -1,6 +1,6 @@
 // Jenkinsfile (Integrated CI/CD with Branch Strategy)
 pipeline {
-    agent none // 전역 에이전트 없음, 각 스테이지별로 지정
+    agent any // 전역 에이전트 설정
 
     environment {
         AWS_REGION = 'ap-northeast-2'
@@ -11,37 +11,38 @@ pipeline {
         AWS_CREDENTIALS_ID = 'aws-credentials'
         AI_REPO_URL = 'https://github.com/SynergySign/SignBell-FASTAPI.git'
         AI_REPO_CREDENTIAL_ID = 'github-credentials'
-        
-        // 브랜치별 환경 설정
-        BRANCH_NAME = "${env.GIT_BRANCH.replaceAll('origin/', '')}"
-        BACKEND_IMAGE_TAG = "${BRANCH_NAME}-${env.BUILD_NUMBER}"
-        AI_IMAGE_TAG = "${BRANCH_NAME}-${env.BUILD_NUMBER}"
     }
 
     stages {
-        stage('Branch Info') {
-            agent any
+        stage('Initialize') {
             steps {
                 script {
+                    // 브랜치명 추출
+                    env.BRANCH_NAME = env.GIT_BRANCH.replaceAll('origin/', '')
+                    
+                    // 이미지 태그 설정
+                    env.BACKEND_IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                    env.AI_IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
+                    
                     echo "=== 브랜치 정보 ==="
-                    echo "현재 브랜치: ${BRANCH_NAME}"
-                    echo "Backend 이미지 태그: ${BACKEND_IMAGE_TAG}"
-                    echo "AI 이미지 태그: ${AI_IMAGE_TAG}"
+                    echo "현재 브랜치: ${env.BRANCH_NAME}"
+                    echo "Backend 이미지 태그: ${env.BACKEND_IMAGE_TAG}"
+                    echo "AI 이미지 태그: ${env.AI_IMAGE_TAG}"
                     
                     // 브랜치별 환경 설정
-                    if (BRANCH_NAME == 'main') {
+                    if (env.BRANCH_NAME == 'main') {
                         env.DEPLOY_ENV = 'production'
                         env.S3_BUCKET_NAME = 'www.signbell.app'
                         env.CLOUDFRONT_DISTRIBUTION_ID = 'E1BB9LGYVUR99C'
                         echo "배포 환경: 프로덕션"
-                    } else if (BRANCH_NAME == 'dev') {
+                    } else if (env.BRANCH_NAME == 'dev') {
                         env.DEPLOY_ENV = 'development'
-                        env.S3_BUCKET_NAME = 'dev.signbell.app' // dev 환경 S3 버킷
-                        env.CLOUDFRONT_DISTRIBUTION_ID = 'E_DEV_DISTRIBUTION_ID' // dev 환경 CloudFront
+                        env.S3_BUCKET_NAME = 'dev.signbell.app'
+                        env.CLOUDFRONT_DISTRIBUTION_ID = 'E_DEV_DISTRIBUTION_ID'
                         echo "배포 환경: 개발"
-                    } else if (BRANCH_NAME == 'deploy') {
+                    } else if (env.BRANCH_NAME == 'deploy') {
                         env.DEPLOY_ENV = 'staging'
-                        env.S3_BUCKET_NAME = 'www.signbell.app' // 프로덕션과 동일 (테스트용)
+                        env.S3_BUCKET_NAME = 'www.signbell.app'
                         env.CLOUDFRONT_DISTRIBUTION_ID = 'E1BB9LGYVUR99C'
                         echo "배포 환경: 스테이징 (테스트)"
                     } else {
@@ -53,7 +54,6 @@ pipeline {
         }
 
         stage('Checkout Repos') {
-            agent any // Jenkins 마스터에서 실행
             steps {
                 // Repo 1 (FE/BE) Checkout
                 checkout scm
@@ -67,9 +67,6 @@ pipeline {
 
         // --- Frontend Stages ---
         stage('Build Frontend') {
-            agent any // Jenkins 마스터에서 실행
-            // frontend 디렉토리 변경 시에만 실행 (선택적 최적화)
-            // when { changeSet "frontend/**" }
             steps {
                 dir('frontend') {
                     sh 'npm install'
@@ -83,7 +80,6 @@ pipeline {
         }
 
         stage('Deploy Frontend to S3') {
-            agent any
             when {
                 expression { env.DEPLOY_ENV in ['production', 'development', 'staging'] }
             }
@@ -98,7 +94,6 @@ pipeline {
         }
 
         stage('Invalidate CloudFront Cache') {
-            agent any
             when {
                 expression { env.DEPLOY_ENV in ['production', 'development', 'staging'] }
             }
@@ -112,8 +107,6 @@ pipeline {
 
         // --- Backend Stages ---
         stage('Build Backend') {
-            agent any // Jenkins 마스터에서 실행
-            // when { changeSet "backend/**" }
             steps {
                 dir('backend') {
                     sh './gradlew clean build -x test'
@@ -122,23 +115,19 @@ pipeline {
         }
 
         stage('Build & Push Backend Image') {
-            agent any // Jenkins 마스터에서 실행
-            // when { changeSet "backend/**" }
             steps {
                 dir('backend') {
                     script {
-                        buildAndPushDockerImage(BACKEND_ECR_REPOSITORY, BACKEND_IMAGE_TAG, '.')
+                        buildAndPushDockerImage(BACKEND_ECR_REPOSITORY, env.BACKEND_IMAGE_TAG, '.')
                     }
                 }
             }
         }
 
         stage('Deploy Backend to EKS') {
-            agent any // Jenkins 마스터에서 실행
-            // when { changeSet "backend/**" }
             steps {
                 script {
-                    deployToEKS('k8s/backend-deployment.yaml', "${ECR_REGISTRY}/${BACKEND_ECR_REPOSITORY}:${BACKEND_IMAGE_TAG}")
+                    deployToEKS('k8s/backend-deployment.yaml', "${ECR_REGISTRY}/${BACKEND_ECR_REPOSITORY}:${env.BACKEND_IMAGE_TAG}")
                     applyKubernetesManifest('k8s/backend-service.yaml')
                     applyKubernetesManifest('k8s/ingress.yaml') // Ingress는 한 번만 적용해도 됨
                     checkRolloutStatus('deployment/signbell-backend-deployment')
@@ -148,24 +137,19 @@ pipeline {
 
         // --- AI Server Stages ---
         stage('Build & Push AI Image') {
-            agent any // Jenkins 마스터에서 실행
-            // AI Repo 변경 시에만 실행 (선택적 최적화)
-            // when { changeSet "ai-repo/**" }
             steps {
-                dir('ai-repo') { // AI 서버 코드 경로 확인 필요
+                dir('ai-repo') {
                     script {
-                        buildAndPushDockerImage(AI_ECR_REPOSITORY, AI_IMAGE_TAG, '.') // Dockerfile 위치 기준
+                        buildAndPushDockerImage(AI_ECR_REPOSITORY, env.AI_IMAGE_TAG, '.')
                     }
                 }
             }
         }
 
         stage('Deploy AI Server to EKS') {
-            agent any // Jenkins 마스터에서 실행
-            // when { changeSet "ai-repo/**" }
             steps {
                 script {
-                    deployToEKS('k8s/ai-deployment.yaml', "${ECR_REGISTRY}/${AI_ECR_REPOSITORY}:${AI_IMAGE_TAG}")
+                    deployToEKS('k8s/ai-deployment.yaml', "${ECR_REGISTRY}/${AI_ECR_REPOSITORY}:${env.AI_IMAGE_TAG}")
                     applyKubernetesManifest('k8s/ai-service.yaml')
                     // Ingress는 이미 적용됨
                     checkRolloutStatus('deployment/signbell-ai-deployment')
@@ -178,18 +162,18 @@ pipeline {
         success {
             script {
                 echo "=== 배포 성공 ==="
-                echo "브랜치: ${BRANCH_NAME}"
+                echo "브랜치: ${env.BRANCH_NAME}"
                 echo "환경: ${env.DEPLOY_ENV}"
-                echo "Backend 이미지: ${ECR_REGISTRY}/${BACKEND_ECR_REPOSITORY}:${BACKEND_IMAGE_TAG}"
-                echo "AI 이미지: ${ECR_REGISTRY}/${AI_ECR_REPOSITORY}:${AI_IMAGE_TAG}"
+                echo "Backend 이미지: ${ECR_REGISTRY}/${BACKEND_ECR_REPOSITORY}:${env.BACKEND_IMAGE_TAG}"
+                echo "AI 이미지: ${ECR_REGISTRY}/${AI_ECR_REPOSITORY}:${env.AI_IMAGE_TAG}"
                 
-                if (BRANCH_NAME == 'deploy') {
+                if (env.BRANCH_NAME == 'deploy') {
                     echo "⚠️ deploy 브랜치 배포 완료! 테스트 후 main 브랜치로 병합하세요."
                     echo "병합 명령어:"
                     echo "  git checkout main"
                     echo "  git merge deploy"
                     echo "  git push origin main"
-                } else if (BRANCH_NAME == 'main') {
+                } else if (env.BRANCH_NAME == 'main') {
                     echo "🎉 프로덕션 배포 완료!"
                 }
             }
