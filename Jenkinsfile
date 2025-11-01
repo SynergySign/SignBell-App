@@ -52,7 +52,6 @@ pipeline {
             }
         }
 
-    stages {
         stage('Checkout Repos') {
             agent any // Jenkins 마스터에서 실행
             steps {
