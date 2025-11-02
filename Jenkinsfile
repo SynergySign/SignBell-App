@@ -192,13 +192,15 @@ pipeline {
                             echo "=== AI Server 배포 시작 (백그라운드) ==="
                             echo "AI Server Pod 상태 확인: kubectl get pods -l app=signbell-ai"
                             
-                            // 선택사항: 간단한 상태 확인만 수행
-                            sh """
-                            export KUBECONFIG=\$KUBECONFIG_FILE
-                            export AWS_DEFAULT_REGION=ap-northeast-2
-                            kubectl get pods -l app=signbell-ai -n default
-                            echo "AI Server 배포가 진행 중입니다. 완료까지 5-10분 소요될 수 있습니다."
-                            """
+                            // 간단한 상태 확인
+                            withCredentials([file(credentialsId: KUBECONFIG_CREDENTIAL_ID, variable: 'KUBECONFIG_FILE')]) {
+                                sh """
+                                export KUBECONFIG=\$KUBECONFIG_FILE
+                                export AWS_DEFAULT_REGION=ap-northeast-2
+                                kubectl get pods -l app=signbell-ai -n default || echo "Pod 조회 실패 (정상 - 아직 생성 중일 수 있음)"
+                                echo "AI Server 배포가 진행 중입니다. 완료까지 5-10분 소요될 수 있습니다."
+                                """
+                            }
                         }
                     }
                     post {
