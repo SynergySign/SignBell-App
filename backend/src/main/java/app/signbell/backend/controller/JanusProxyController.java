@@ -13,15 +13,12 @@ import org.springframework.web.client.HttpServerErrorException;
  * 
  * 외부 Janus 서버(janus.jsflux.co.kr)의 CORS 문제를 해결하기 위한 프록시
  * 프론트엔드에서 직접 Janus 서버에 접근하는 대신 이 프록시를 통해 접근
+ * 
+ * CORS 설정은 SecurityConfig의 전역 설정을 사용합니다.
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/proxy/janus")
-@CrossOrigin(
-    origins = {"https://www.signbell.app", "https://signbell.app"},
-    allowCredentials = "true",
-    methods = {RequestMethod.GET, RequestMethod.POST, RequestMethod.OPTIONS}
-)
 public class JanusProxyController {
     
     private static final String JANUS_BASE_URL = "https://janus.jsflux.co.kr/janus";
@@ -110,15 +107,7 @@ public class JanusProxyController {
         }
     }
     
-    /**
-     * OPTIONS 요청 처리 (CORS Preflight)
-     * 
-     * @return 200 OK
-     */
-    @RequestMapping(value = "/**", method = RequestMethod.OPTIONS)
-    public ResponseEntity<Void> handleOptions() {
-        return ResponseEntity.ok().build();
-    }
+
     
     /**
      * 요청 URI에서 Janus 경로 추출
