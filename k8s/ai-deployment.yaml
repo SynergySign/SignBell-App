@@ -8,6 +8,11 @@ metadata:
 spec:
   progressDeadlineSeconds: 1800  # 30분 (AI 모델 로딩 시간 고려)
   replicas: 1  # AI 서버는 리소스 사용량 고려하여 1개로 시작
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0        # 추가 Pod 생성 안 함 (메모리 부족 방지)
+      maxUnavailable: 1  # 기존 Pod 먼저 종료
   selector:
     matchLabels:
       app: signbell-ai

@@ -83,7 +83,7 @@ pipeline {
                             echo "VITE_API_URL=https://api.signbell.app" >> .env.production
                             echo "VITE_WS_URL=wss://api.signbell.app/ws" >> .env.production
                             echo "VITE_FASTAPI_URL=wss://ai.signbell.app/ws" >> .env.production
-                            echo "VITE_JANUS_SERVER=https://janus.jsflux.co.kr/janus" >> .env.production
+                            echo "VITE_JANUS_SERVER=https://api.signbell.app/api/proxy/janus" >> .env.production
                             npm run build
                             """
                         }
