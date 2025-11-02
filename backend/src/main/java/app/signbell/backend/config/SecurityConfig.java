@@ -54,6 +54,7 @@ public class SecurityConfig {
             "/images/**",
             "/api/sign-data/**",
             "/oauth2/callback/**",
+            "/api/proxy/janus/**",  // Janus WebRTC 프록시 (인증 불필요)
 
     };
 
