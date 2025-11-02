@@ -1,7 +1,7 @@
 // src/components/study/PersonalStudySidebar.jsx
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { getCategories, listSignEdu, getSignDetail } from '../../services/signEdu/signEdu.js';
+import { getCategories, listSignEdu, getSignDetail } from '../../services/signedu/signEdu.js';
 import SkeletonLoader from '../ui/SkeletonLoader';
 import WordSearchInput from './WordSearchInput';
 import WordCard from './WordCard';

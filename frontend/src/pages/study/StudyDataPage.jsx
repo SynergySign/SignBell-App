@@ -10,7 +10,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import VideoPlayer from '../../components/ui/VideoPlayer';
 import DataSubmissionModal from '../../components/study/DataSubmissionModal';
 import styles from './StudyDataPage.module.scss';
-import { getSignDetail } from '../../services/signEdu/signEdu.js';
+import { getSignDetail } from '../../services/signedu/signEdu.js';
 
 import useWebcam from '../../hooks/useWebcam';
 import {
