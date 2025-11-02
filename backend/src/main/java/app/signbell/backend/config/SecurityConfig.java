@@ -128,13 +128,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Arrays.asList(
-                frontendOrigin, // https://www.signbell.qpp
-                backendOrigin   // https://api.signbell.qpp
+        // setAllowedOrigins 사용 (패턴이 아닌 정확한 오리진)
+        configuration.setAllowedOrigins(Arrays.asList(
+                frontendOrigin, // https://www.signbell.app
+                backendOrigin   // https://api.signbell.app
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
         configuration.setAllowCredentials(true);
+        // 중요: preflight 요청 캐싱 시간 설정
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
