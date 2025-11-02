@@ -6,6 +6,7 @@ metadata:
   labels:
     app: signbell-ai
 spec:
+  progressDeadlineSeconds: 1800  # 30분 (AI 모델 로딩 시간 고려)
   replicas: 1  # AI 서버는 리소스 사용량 고려하여 1개로 시작
   selector:
     matchLabels:
