@@ -11,6 +11,7 @@ pipeline {
         AWS_CREDENTIALS_ID = 'aws-credentials'
         AI_REPO_URL = 'https://github.com/SynergySign/SignBell-FASTAPI.git'
         AI_REPO_CREDENTIAL_ID = 'github-credentials'
+        DEPLOY_AI = 'true'  // AI Server 빌드 활성화
     }
 
     stages {
@@ -60,7 +61,7 @@ pipeline {
 
                 // Repo 2 (AI) Checkout (별도 디렉토리에)
                 dir('ai-repo') {
-                    git branch: 'main', url: AI_REPO_URL, credentialsId: AI_REPO_CREDENTIAL_ID
+                    git branch: 'deploy', url: AI_REPO_URL, credentialsId: AI_REPO_CREDENTIAL_ID
                 }
             }
         }
@@ -161,6 +162,9 @@ pipeline {
 
         // --- AI Server Stages ---
         stage('AI Server Pipeline') {
+            when {
+                expression { env.DEPLOY_AI == 'true' }
+            }
             stages {
                 stage('Build & Push AI Image') {
                     steps {
@@ -169,6 +173,9 @@ pipeline {
                         }
                         dir('ai-repo') {
                             script {
+                                // Dockerfile 존재 확인
+                                sh 'ls -la'
+                                sh 'test -f Dockerfile || (echo "Dockerfile not found!" && exit 1)'
                                 buildAndPushDockerImage(AI_ECR_REPOSITORY, env.AI_IMAGE_TAG, '.')
                             }
                         }
