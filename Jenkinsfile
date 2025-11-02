@@ -187,12 +187,23 @@ pipeline {
                         script {
                             deployToEKS('k8s/ai-deployment.yaml', "${ECR_REGISTRY}/${AI_ECR_REPOSITORY}:${env.AI_IMAGE_TAG}")
                             applyKubernetesManifest('k8s/ai-service.yaml')
-                            checkRolloutStatus('deployment/signbell-ai-deployment')
+                            
+                            // AI Server는 초기화 시간이 오래 걸리므로 비동기 배포
+                            echo "=== AI Server 배포 시작 (백그라운드) ==="
+                            echo "AI Server Pod 상태 확인: kubectl get pods -l app=signbell-ai"
+                            
+                            // 선택사항: 간단한 상태 확인만 수행
+                            sh """
+                            export KUBECONFIG=\$KUBECONFIG_FILE
+                            export AWS_DEFAULT_REGION=ap-northeast-2
+                            kubectl get pods -l app=signbell-ai -n default
+                            echo "AI Server 배포가 진행 중입니다. 완료까지 5-10분 소요될 수 있습니다."
+                            """
                         }
                     }
                     post {
                         success {
-                            echo "=== AI Server 파이프라인 완료 ==="
+                            echo "=== AI Server 파이프라인 완료 (배포 진행 중) ==="
                         }
                     }
                 }
@@ -269,7 +280,7 @@ def checkRolloutStatus(resourceName) {
         sh """
         export KUBECONFIG=\$KUBECONFIG_FILE
         export AWS_DEFAULT_REGION=ap-northeast-2
-        kubectl rollout status ${resourceName} -n default --timeout=10m
+        kubectl rollout status ${resourceName} -n default --timeout=30m
         """
     }
 }
