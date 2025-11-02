@@ -77,8 +77,13 @@ pipeline {
                         dir('frontend') {
                             sh 'npm install'
                             sh """
-                            echo "VITE_API_BASE_URL=https://api.signbell.app" > .env.production
-                            echo "VITE_AI_WEBSOCKET_URL=wss://ai.signbell.app/ws" >> .env.production
+                            # 프로덕션 환경 변수 설정 (기존 .env.production 파일 사용)
+                            echo "VITE_APP_ENV=production" > .env.production
+                            echo "VITE_APP_DEBUG=false" >> .env.production
+                            echo "VITE_API_URL=https://api.signbell.app" >> .env.production
+                            echo "VITE_WS_URL=wss://api.signbell.app/ws" >> .env.production
+                            echo "VITE_FASTAPI_URL=wss://ai.signbell.app/ws" >> .env.production
+                            echo "VITE_JANUS_SERVER=https://janus.jsflux.co.kr/janus" >> .env.production
                             npm run build
                             """
                         }
