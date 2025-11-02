@@ -269,7 +269,7 @@ def checkRolloutStatus(resourceName) {
         sh """
         export KUBECONFIG=\$KUBECONFIG_FILE
         export AWS_DEFAULT_REGION=ap-northeast-2
-        kubectl rollout status ${resourceName} -n default --timeout=5m
+        kubectl rollout status ${resourceName} -n default --timeout=10m
         """
     }
 }
