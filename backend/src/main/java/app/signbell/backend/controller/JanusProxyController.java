@@ -53,7 +53,12 @@ public class JanusProxyController {
             ResponseEntity<String> response = restTemplate.postForEntity(janusUrl, entity, String.class);
             
             log.debug("Janus POST response: status={}", response.getStatusCode());
-            return response;
+            
+            // Janus 서버의 CORS 헤더를 제거하고 Spring의 전역 CORS 설정만 사용
+            return ResponseEntity
+                .status(response.getStatusCode())
+                .headers(removeCorsHeaders(response.getHeaders()))
+                .body(response.getBody());
             
         } catch (HttpClientErrorException | HttpServerErrorException e) {
             log.error("Janus proxy error: status={}, message={}", e.getStatusCode(), e.getMessage());
@@ -91,7 +96,12 @@ public class JanusProxyController {
             ResponseEntity<String> response = restTemplate.getForEntity(janusUrl, String.class);
             
             log.debug("Janus GET response: status={}", response.getStatusCode());
-            return response;
+            
+            // Janus 서버의 CORS 헤더를 제거하고 Spring의 전역 CORS 설정만 사용
+            return ResponseEntity
+                .status(response.getStatusCode())
+                .headers(removeCorsHeaders(response.getHeaders()))
+                .body(response.getBody());
             
         } catch (HttpClientErrorException | HttpServerErrorException e) {
             log.error("Janus proxy error: status={}, message={}", e.getStatusCode(), e.getMessage());
@@ -124,5 +134,25 @@ public class JanusProxyController {
         }
         
         return "";
+    }
+    
+    /**
+     * Janus 서버 응답에서 CORS 관련 헤더를 제거
+     * Spring SecurityConfig의 전역 CORS 설정만 사용하도록 함
+     * 
+     * @param originalHeaders Janus 서버로부터 받은 원본 헤더
+     * @return CORS 헤더가 제거된 새로운 HttpHeaders
+     */
+    private HttpHeaders removeCorsHeaders(HttpHeaders originalHeaders) {
+        HttpHeaders cleanHeaders = new HttpHeaders();
+        
+        originalHeaders.forEach((key, value) -> {
+            // CORS 관련 헤더는 제외
+            if (!key.toLowerCase().startsWith("access-control-")) {
+                cleanHeaders.addAll(key, value);
+            }
+        });
+        
+        return cleanHeaders;
     }
 }
