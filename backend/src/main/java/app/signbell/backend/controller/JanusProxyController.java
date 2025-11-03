@@ -122,18 +122,26 @@ public class JanusProxyController {
     /**
      * 요청 URI에서 Janus 경로 추출
      * 
+     * 프론트엔드 요청: /api/proxy/janus/SESSION_ID
+     * Janus 서버 경로: /janus/SESSION_ID (그대로 유지)
+     * 
      * @param request HTTP 요청
-     * @return Janus 경로
+     * @return Janus 경로 (/janus/... 형태)
      */
     private String extractJanusPath(HttpServletRequest request) {
         String requestUri = request.getRequestURI();
         String proxyPrefix = "/api/proxy/janus";
         
         if (requestUri.startsWith(proxyPrefix)) {
-            return requestUri.substring(proxyPrefix.length());
+            String path = requestUri.substring(proxyPrefix.length());
+            // /janus로 시작하지 않으면 /janus를 붙임
+            if (!path.startsWith("/janus")) {
+                return "/janus" + path;
+            }
+            return path;
         }
         
-        return "";
+        return "/janus";
     }
     
     /**
