@@ -143,14 +143,24 @@ const GameRoom = () => {
                         if (msg["publishers"]) {
                             console.log("이미 방에 있는 참가자들을 구독합니다.", msg["publishers"]);
                             msg["publishers"].forEach(publisher => {
-                                subscribeToRemoteFeed(publisher.id, publisher.display);
+                                // 🔥 자기 자신은 구독하지 않음
+                                if (publisher.display !== myUsername) {
+                                    subscribeToRemoteFeed(publisher.id, publisher.display);
+                                } else {
+                                    console.log('⏭️ 자기 자신은 구독 스킵 - display:', publisher.display);
+                                }
                             });
                         }
                     } else if (event === "event") {
                         if (msg["publishers"]) {
                             console.log("새로운 참가자를 구독합니다.", msg["publishers"]);
                             msg["publishers"].forEach(publisher => {
-                                subscribeToRemoteFeed(publisher.id, publisher.display);
+                                // 🔥 자기 자신은 구독하지 않음
+                                if (publisher.display !== myUsername) {
+                                    subscribeToRemoteFeed(publisher.id, publisher.display);
+                                } else {
+                                    console.log('⏭️ 자기 자신은 구독 스킵 - display:', publisher.display);
+                                }
                             });
                         }
                         else if (msg["leaving"] || msg["unpublished"]) {

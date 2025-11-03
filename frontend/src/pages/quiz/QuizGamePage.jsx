@@ -1073,9 +1073,12 @@ const QuizGamePage = () => {
                       const userId = pub['display']?.replace('User-', '');
                       console.log(`🔍 Publisher 발견 - feedId: ${feedId}, userId: ${userId}`);
 
-                      if (userId && feedId) {
+                      // 🔥 자기 자신은 구독하지 않음
+                      if (userId && feedId && userId !== actualUserId.toString()) {
                         userIdToFeedIdRef.current[userId] = feedId;
                         subscribeToFeed(feedId, userId);
+                      } else if (userId === actualUserId.toString()) {
+                        console.log('⏭️ 자기 자신은 구독 스킵 - userId:', userId);
                       }
                     });
                   }
@@ -1089,9 +1092,12 @@ const QuizGamePage = () => {
                       const userId = pub['display']?.replace('User-', '');
                       console.log(`🆕 새 Publisher - feedId: ${feedId}, userId: ${userId}`);
 
-                      if (userId && feedId) {
+                      // 🔥 자기 자신은 구독하지 않음
+                      if (userId && feedId && userId !== actualUserId.toString()) {
                         userIdToFeedIdRef.current[userId] = feedId;
                         subscribeToFeed(feedId, userId);
+                      } else if (userId === actualUserId.toString()) {
+                        console.log('⏭️ 자기 자신은 구독 스킵 - userId:', userId);
                       }
                     });
                   }
