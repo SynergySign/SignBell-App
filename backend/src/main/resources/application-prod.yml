@@ -9,7 +9,7 @@ server:
         secure: true
         http-only: true
         same-site: none
-        domain: signbell.app  # 서브도메인 간 세션 쿠키 공유 (점 제거)
+        domain: ${DOMAIN}  # 서브도메인 간 세션 쿠키 공유 (점 제거)
 
 spring:
   # database setting
@@ -67,7 +67,7 @@ logging:
     org.hibernate.SQL: WARN
 
 cookie:
-  domain: ${COOKIE_DOMAIN}
+  domain: .${DOMAIN}
   secure: true     # HTTPS에서만 쿠키 전송
   http-only: true  # XSS 방어
   same-site: None  # 크로스 도메인 허용
