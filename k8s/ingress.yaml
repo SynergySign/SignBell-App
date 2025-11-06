@@ -47,7 +47,7 @@ spec:
   ingressClassName: alb
   rules:
   # --- Backend API Routing (api.signbell.app) ---
-  - host: api.signbell.app
+  - host: api.signbell.store
     http:
       paths:
       # HTTP -> HTTPS 리다이렉트
@@ -69,7 +69,7 @@ spec:
               number: 80
   
   # --- AI Server Routing (ai.signbell.app) ---
-  - host: ai.signbell.app
+  - host: ai.signbell.store
     http:
       paths:
       # HTTP -> HTTPS 리다이렉트

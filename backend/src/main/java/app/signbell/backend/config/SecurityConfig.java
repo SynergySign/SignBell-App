@@ -130,8 +130,8 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         // setAllowedOrigins 사용 (패턴이 아닌 정확한 오리진)
         configuration.setAllowedOrigins(Arrays.asList(
-                frontendOrigin, // https://www.signbell.app
-                backendOrigin   // https://api.signbell.app
+                frontendOrigin, // https://www.signbell.store
+                backendOrigin   // https://api.signbell.store
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

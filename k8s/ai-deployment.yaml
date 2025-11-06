@@ -72,11 +72,11 @@ spec:
         
         # CORS 설정
         - name: CORS_ALLOWED_ORIGINS
-          value: "https://www.signbell.app,https://signbell.app"
-        
+          value: "https://www.signbell.store,https://signbell.store"
+
         # WebSocket URL (프론트엔드에서 사용)
         - name: WEBSOCKET_URL
-          value: "wss://ai.signbell.app/ws"
+          value: "wss://ai.signbell.store/ws"
         
         # Sentry DSN (옵션)
         - name: SENTRY_DSN

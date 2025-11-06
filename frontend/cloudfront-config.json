@@ -5,8 +5,8 @@
         "Aliases": {
             "Quantity": 2,
             "Items": [
-                "www.signbell.app",
-                "signbell.app"
+                "www.signbell.store",
+                "signbell.store"
             ]
         },
         "DefaultRootObject": "",
@@ -14,8 +14,8 @@
             "Quantity": 2,
             "Items": [
                 {
-                    "Id": "www.signbell.app.s3.ap-northeast-2.amazonaws.com-mhberohix7g",
-                    "DomainName": "www.signbell.app.s3.ap-northeast-2.amazonaws.com",
+                    "Id": "www.signbell.store.s3.ap-northeast-2.amazonaws.com-mhberohix7g",
+                    "DomainName": "www.signbell.store.s3.ap-northeast-2.amazonaws.com",
                     "OriginPath": "",
                     "CustomHeaders": {
                         "Quantity": 0
@@ -32,8 +32,8 @@
                     "OriginAccessControlId": "E21OGNTEZPD52W"
                 },
                 {
-                    "Id": "www.signbell.app.s3.ap-northeast-2.amazonaws.com",
-                    "DomainName": "www.signbell.app.s3.ap-northeast-2.amazonaws.com",
+                    "Id": "www.signbell.store.s3.ap-northeast-2.amazonaws.com",
+                    "DomainName": "www.signbell.store.s3.ap-northeast-2.amazonaws.com",
                     "OriginPath": "",
                     "CustomHeaders": {
                         "Quantity": 0
@@ -55,7 +55,7 @@
             "Quantity": 0
         },
         "DefaultCacheBehavior": {
-            "TargetOriginId": "www.signbell.app.s3.ap-northeast-2.amazonaws.com-mhberohix7g",
+            "TargetOriginId": "www.signbell.store.s3.ap-northeast-2.amazonaws.com-mhberohix7g",
             "TrustedSigners": {
                 "Enabled": false,
                 "Quantity": 0
@@ -98,7 +98,7 @@
             "Items": [
                 {
                     "PathPattern": "*",
-                    "TargetOriginId": "www.signbell.app.s3.ap-northeast-2.amazonaws.com",
+                    "TargetOriginId": "www.signbell.store.s3.ap-northeast-2.amazonaws.com",
                     "TrustedSigners": {
                         "Enabled": false,
                         "Quantity": 0
