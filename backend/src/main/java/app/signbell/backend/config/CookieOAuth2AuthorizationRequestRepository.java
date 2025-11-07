@@ -1,8 +1,10 @@
 package app.signbell.backend.config;
 
+import app.signbell.backend.util.CookieProperties;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.client.web.AuthorizationRequestRepository;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.stereotype.Component;
@@ -15,10 +17,13 @@ import java.util.Base64;
  * 서브도메인 간 OAuth2 플로우를 지원하기 위해 사용
  */
 @Component
+@RequiredArgsConstructor
 public class CookieOAuth2AuthorizationRequestRepository implements AuthorizationRequestRepository<OAuth2AuthorizationRequest> {
 
     private static final String OAUTH2_AUTHORIZATION_REQUEST_COOKIE_NAME = "oauth2_auth_request";
     private static final int COOKIE_EXPIRE_SECONDS = 180; // 3분
+
+    private final CookieProperties cookieProps;
 
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
@@ -61,7 +66,7 @@ public class CookieOAuth2AuthorizationRequestRepository implements Authorization
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        cookie.setDomain("signbell.app"); // 서브도메인 간 공유
+        cookie.setDomain(cookieProps.getDomain()); // 서브도메인 간 공유
         cookie.setMaxAge(maxAge);
         response.addCookie(cookie);
     }
@@ -73,7 +78,7 @@ public class CookieOAuth2AuthorizationRequestRepository implements Authorization
                 if (cookie.getName().equals(name)) {
                     cookie.setValue("");
                     cookie.setPath("/");
-                    cookie.setDomain("signbell.app");
+                    cookie.setDomain(cookieProps.getDomain());
                     cookie.setMaxAge(0);
                     response.addCookie(cookie);
                 }
