@@ -93,7 +93,9 @@ public class SecurityConfig {
                         .authorizationEndpoint(authorization -> authorization
                                 .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
                         )
-                        // Spring Security 기본 경로 사용: /login/oauth2/code/{registrationId}
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/login/oauth2/code/*")
+                        )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
                         .failureHandler(oAuth2FailureHandler)
