@@ -9,7 +9,7 @@ server:
         secure: true
         http-only: true
         same-site: none
-        domain: signbell.app  # 서브도메인 간 세션 쿠키 공유 (점 제거)
+        domain: .signbell.cloud  # 서브도메인 간 세션 쿠키 공유
 
 spring:
   # database setting

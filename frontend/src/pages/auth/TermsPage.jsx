@@ -45,7 +45,7 @@ const TermsPage = () => {
       if (window.opener) {
         // 부모 창을 /main으로 이동시키고 팝업 창을 닫음
         console.log("TermsPage (Popup): Redirecting opener to /main and closing.");
-        window.opener.location.href = "https://www.signbell.app/main";
+        window.opener.location.href = "https://www.signbell.cloud/main";
         window.opener.focus();
         window.close();
       } else {
@@ -187,7 +187,7 @@ const TermsPage = () => {
         if (window.opener) {
           // 팝업 창인 경우
           console.log('팝업 창에서 약관 동의 완료 - 부모 창을 /main으로 이동');
-          window.opener.location.href = 'https://www.signbell.app/main';
+          window.opener.location.href = 'https://www.signbell.cloud/main';
           window.opener.focus();
           window.close();
         } else {

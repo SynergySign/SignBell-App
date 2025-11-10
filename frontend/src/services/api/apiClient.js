@@ -2,10 +2,10 @@ import axios from 'axios';
 import { useAuthStore } from '../../store/auth/authStore.js'
 
 // axios 인스턴스 만들기
-// - baseURL: 프론트에서는 /api 로 호출 → vite 프록시가 백엔드로 전달
+// - baseURL: 환경변수에서 가져오거나 기본값 사용
 // - withCredentials: HTTP-Only 쿠키를 자동으로 포함/수신
 const apiClient = axios.create({
-  baseURL: 'https://api.signbell.app/api',  // 절대 URL로 변경
+  baseURL: import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api',
   withCredentials: true,
 });
 

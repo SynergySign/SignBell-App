@@ -37,7 +37,7 @@ const PopupClosePage = () => {
           if (user.requiredAgree) {
             // 약관 동의 완료: 팝업 닫고 부모 창을 /main으로 이동
             console.log("약관 동의 완료 - 팝업 닫고 부모 창을 /main으로 이동");
-            window.opener.location.href = "https://www.signbell.app/main";
+            window.opener.location.href = "https://www.signbell.cloud/main";
             window.opener.focus();
             window.close();
           } else {
