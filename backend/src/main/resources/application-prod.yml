@@ -49,7 +49,7 @@ spring:
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             scope: [ profile_nickname, profile_image ]
-            # Spring Security OAuth2 기본 경로 사용: /login/oauth2/code/kakao
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
