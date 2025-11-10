@@ -44,13 +44,13 @@ spring:
       client:
         registration:
           kakao:
-            client-id: ${KAKAO_CLIENT_ID}
+            client-id: fe6e66d4503ac3500dc492d135d842ff
             client-secret: ${KAKAO_CLIENT_SECRET}
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             scope: [ profile_nickname, profile_image ]
             # 카카오로그인 - 일반 - 리다이렉트 URI
-            redirect-uri: ${KAKAO_PROD_REDIRECT_URI}
+            redirect-uri: https://api.signbell.cloud/api/auth/kakao/callback
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize

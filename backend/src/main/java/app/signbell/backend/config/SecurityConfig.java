@@ -93,7 +93,7 @@ public class SecurityConfig {
                                 .authorizationRequestRepository(cookieOAuth2AuthorizationRequestRepository)
                         )
                         .redirectionEndpoint(redirection -> redirection
-                                .baseUri("/oauth2/callback/*")
+                                .baseUri("/api/auth/*/callback")
                         )
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2SuccessHandler)
