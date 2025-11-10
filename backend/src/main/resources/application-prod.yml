@@ -31,7 +31,7 @@ spring:
     hibernate:
       # 엔티티와 DB 스키마가 일치하는지만 검증
       # 테이블을 생성하거나 수정 x
-      ddl-auto: none
+      ddl-auto: update
     # SQL 쿼리를 콘솔에 출력 x
     show-sql: false
     properties:
