@@ -61,7 +61,7 @@ public class CookieOAuth2AuthorizationRequestRepository implements Authorization
         cookie.setPath("/");
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
-        cookie.setDomain("signbell.app"); // 서브도메인 간 공유
+        cookie.setDomain(".signbell.cloud"); // 서브도메인 간 공유
         cookie.setMaxAge(maxAge);
         response.addCookie(cookie);
     }
@@ -73,7 +73,7 @@ public class CookieOAuth2AuthorizationRequestRepository implements Authorization
                 if (cookie.getName().equals(name)) {
                     cookie.setValue("");
                     cookie.setPath("/");
-                    cookie.setDomain("signbell.app");
+                    cookie.setDomain(".signbell.cloud");
                     cookie.setMaxAge(0);
                     response.addCookie(cookie);
                 }
