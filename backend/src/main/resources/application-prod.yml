@@ -49,8 +49,7 @@ spring:
             client-authentication-method: client_secret_post
             authorization-grant-type: authorization_code
             scope: [ profile_nickname, profile_image ]
-            # 카카오로그인 - 일반 - 리다이렉트 URI
-            redirect-uri: https://api.signbell.cloud/api/auth/kakao/callback
+            # Spring Security OAuth2 기본 경로 사용: /login/oauth2/code/kakao
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
