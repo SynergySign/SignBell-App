@@ -58,7 +58,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(@NonNull MessageBrokerRegistry registry) {
         // 메시지 브로커가 /topic 또는 /queue 로 시작하는 주소를 구독하는 클라이언트에게 메시지를 전달하도록 설정합니다.
-        registry.enableSimpleBroker("/topic", "/queue");
+        registry.enableSimpleBroker("/topic", "/queue")
+                .setHeartbeatValue(new long[]{30000, 30000});
         // 클라이언트가 서버로 메시지를 보낼 때 사용할 주소의 접두사를 /app 으로 설정합니다.
         registry.setApplicationDestinationPrefixes("/app");
         // 특정 사용자에게 메시지를 보낼 때 사용할 주소의 접두사를 /user 로 설정합니다.
